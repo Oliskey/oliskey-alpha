@@ -219,4 +219,20 @@ check("long view: cannot see ahead", all(np.isclose(float(_cut[k]), float(_full[
 from engine import updown as _ud  # noqa: E402
 from run_wide_contest import STEP as _ws, TRAINING as _wt  # noqa: E402
 check("inzone: live training is the version that was judged", _ud.IZ_STEP == _ws and all(_ud.IZ_TRAINING[k] == v for k, v in _wt.items()) and _ud.IZ_MINUTES == 60)
+from engine.marketview import corridor_view, market_view  # noqa: E402
+_mv_rng = np.random.default_rng(9)
+_mv_n = 12 * DAY
+_mv = pd.DataFrame({f"c{i}": 100 * np.exp(np.cumsum(_mv_rng.normal(0, 0.001, _mv_n))) for i in range(4)})
+_mv_cut, _mv_at = _mv_n - 200, _mv_n - 201
+_mv_full, _mv_part = market_view(_mv), market_view(_mv.iloc[:_mv_cut])
+check("market view: cannot see ahead", all(np.isclose(_mv_full[k].iat[_mv_at], _mv_part[k].iat[_mv_at]) for k in _mv_full))
+_cs = pd.Series(_mv["c0"])
+_ch, _cl = _cs * 1.001, _cs * 0.999
+_sg = np.log(_cs).diff().rolling(60).std()
+_cv_full, _cv_part = corridor_view(_cs, _ch, _cl, _sg, 0.511), corridor_view(_cs.iloc[:_mv_cut], _ch.iloc[:_mv_cut], _cl.iloc[:_mv_cut], _sg.iloc[:_mv_cut], 0.511)
+check("corridor view: cannot see ahead", all(np.isclose(float(_cv_full[k].iat[_mv_at]), float(_cv_part[k].iat[_mv_at]), rtol=1e-4) for k in _cv_full))
+_hit_now = corridor_view(_cs, _ch, _cl, _sg, 0.511)["hit_24h"].iat[_mv_at]
+_later = _cs.copy()
+_later.iloc[_mv_at + 1:] *= 3      # a huge jump after this minute must change nothing at this minute
+check("corridor view: a later jump changes nothing now", np.isclose(float(corridor_view(_later, _later * 1.001, _later * 0.999, _sg, 0.511)["hit_24h"].iat[_mv_at]), float(_hit_now)))
 print("all engine self-tests passed")

@@ -9,6 +9,7 @@ from . import db, learning
 from .settings import ROOT
 
 OUT = ROOT / "AI-NUMBERS.md"
+LONG_MODEL_LIVE = "2026-11-07 05:28:12+00"
 REAL = "u.email not like '%@test.local' and u.email not like '%.invalid' and u.email not like 'engine@%'"
 
 
@@ -43,6 +44,9 @@ def build(now: datetime) -> str:
         night = c.execute(
             f"""select 'AI, on real accounts', t.mode, count(*), count(*) filter (where t.pnl > 0), sum(t.pnl)
                 from trades t join auth.users u on u.id = t.user_id where t.status <> 'open' and t.auto and t.close_time > now() - interval '12 hours' and {REAL} group by 2 order by 2""").fetchall()
+        new_model = c.execute(
+            f"""select 'AI, on real accounts', t.mode, count(*), count(*) filter (where t.pnl > 0), sum(t.pnl)
+                from trades t join auth.users u on u.id = t.user_id where t.status <> 'open' and t.auto and t.mode = 'inzone' and t.open_time >= '{LONG_MODEL_LIVE}' and {REAL} group by 2""").fetchall()
         open_now = c.execute(
             f"""select t.mode, t.auto, count(*), sum(t.amount) from trades t join auth.users u on u.id = t.user_id where t.status = 'open' and {REAL} group by 1, 2 order by 1, 2""").fetchall()
     lines = [
@@ -51,6 +55,8 @@ def build(now: datetime) -> str:
         "## Score", "",
         f"**Last {last['finished']} of 100 signals: {last['won']} right, {last['lost']} wrong ({_pct(last['won'], last['finished'])}), {_money(last['pnl'])}.**", "",
         f"Clean record: {clean['finished']} trades across {clean['moments']} separate hours. It needs at least 100 to judge, and even a profit can be luck.", "",
+        f"## New InZone model, since it went live on {LONG_MODEL_LIVE[:16]} UTC", "", *_table(new_model), "",
+        "It needs at least 100 finished trades before anyone can say it works. Its tests: docs/intel/WIDE_HARDER.md.", "",
         "## Last 12 hours, auto trades on real accounts", "", *_table(night), "",
         "## All time, real accounts", "", *_table(real), "",
         "## Open now, real accounts", "",

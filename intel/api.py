@@ -16,7 +16,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from engine import data, db, learning, news, scanner, tracking, updown   # noqa: E402
+from engine import data, db, learning, news, progress, scanner, tracking, updown   # noqa: E402
 from engine.settings import APP_ASSETS, ASSETS, PORT   # noqa: E402
 
 CYCLE_SEC = 5 * 60
@@ -43,6 +43,7 @@ def cycle() -> None:
     learning.refresh_market()
     news.refresh()
     learning.scout_check()
+    progress.write()
     state["scanned_at"] = datetime.now(timezone.utc).isoformat()
 
 

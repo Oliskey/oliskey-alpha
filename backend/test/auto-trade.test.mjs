@@ -1,7 +1,7 @@
 // "Always ask" or "auto trade": the choice each user makes, and what the server allows. Runs against a test server.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { earnsInTests, groupStopped, withinLimits } from '../src/intel.js';
+import { earnsInTests, groupStopped, tooLate, withinLimits } from '../src/intel.js';
 
 const API = process.env.API_URL || 'http://localhost:3311';
 const call = async (method, path, token, body) => {
@@ -30,12 +30,19 @@ test('the safety stop binds the AI: a paused, blocked or unknown group trades no
 });
 
 test('a user\'s money only goes where testing earned', () => {
-  const groups = { crypto_iz: { status: 'test', test: { avg_r: 0.1 } }, crypto: { status: 'test', test: { avg_r: -0.05 } }, crypto_ft: { status: 'test', paused: 'stop', test: { avg_r: 0.1 } }, crypto_4h: { status: 'test', test: {} } };
+  const groups = { crypto_iz: { status: 'test', money_ok: true, test: { avg_r: 0.1 } }, crypto: { status: 'test', money_ok: false, test: { avg_r: 0.1 } }, crypto_ft: { status: 'test', paused: 'stop', money_ok: true, test: { avg_r: 0.1 } }, crypto_4h: { status: 'test', test: { avg_r: 0.2 } } };
   assert.equal(earnsInTests(groups, 'crypto_iz'), true);
-  assert.equal(earnsInTests(groups, 'crypto'), false, 'tests lose');
+  assert.equal(earnsInTests(groups, 'crypto'), false, 'a positive average without proof is not enough');
   assert.equal(earnsInTests(groups, 'crypto_ft'), false, 'paused, however good its tests');
-  assert.equal(earnsInTests(groups, 'crypto_4h'), false, 'no number');
+  assert.equal(earnsInTests(groups, 'crypto_4h'), false, 'no proof given');
   assert.equal(earnsInTests(groups, 'nothing'), false);
+});
+
+test('the AI does not enter later than was tested', () => {
+  const bar = '2026-11-07T10:00:00Z', at = (s) => new Date(bar).getTime() + s * 1000;
+  assert.equal(tooLate(bar, at(10)), false);
+  assert.equal(tooLate(bar, at(120)), false, 'exactly 2 minutes was tested');
+  assert.equal(tooLate(bar, at(121)), true);
 });
 
 test('it needs a signed-in user', async () => {

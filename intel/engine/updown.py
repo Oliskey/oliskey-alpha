@@ -156,18 +156,62 @@ def train() -> dict:
     return {"rows": len(d), "columns": len(cols)}
 
 
-def _recent(symbol: str) -> pd.DataFrame:
-    """The latest finished 1-minute candles from Binance."""
-    rows, end = [], None
-    with httpx.Client(timeout=15) as c:
-        for _ in range(2):
-            params = {"symbol": symbol, "interval": "1m", "limit": 1000, **({"endTime": end} if end else {})}
-            data = c.get("https://api.binance.com/api/v3/klines", params=params).raise_for_status().json()
-            rows = [(k[0], float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5]), float(k[9]), k[6]) for k in data] + rows
-            end = data[0][0] - 1
+CANDLE_COLS = ["t", "o", "h", "l", "c", "v", "tb"]
+_candles: dict[str, pd.DataFrame] = {}     # what was already downloaded, so each minute only fetches what is new
+
+
+def _merge_candles(old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame | None:
+    """The same window one step later, or None if the new candles do not join on and a full download is needed."""
+    if new.empty:
+        return old
+    if new["t"].iat[0] > old["t"].iat[-1] + 60_000:
+        return None
+    both = pd.concat([old, new], ignore_index=True).drop_duplicates("t", keep="last").sort_values("t", ignore_index=True)
+    return both.tail(len(old)).reset_index(drop=True)
+
+
+def _klines(c: httpx.Client, symbol: str, limit: int, end: int | None = None) -> list:
+    params = {"symbol": symbol, "interval": "1m", "limit": limit, **({"endTime": end} if end else {})}
+    return c.get("https://api.binance.com/api/v3/klines", params=params).raise_for_status().json()
+
+
+def _finished(data: list) -> pd.DataFrame:
     now = time.time() * 1000
-    df = pd.DataFrame([r[:7] for r in rows if r[7] < now], columns=["t", "o", "h", "l", "c", "v", "tb"])
-    return df.drop_duplicates("t").sort_values("t", ignore_index=True)
+    rows = [(k[0], float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5]), float(k[9])) for k in data if k[6] < now]
+    return pd.DataFrame(rows, columns=CANDLE_COLS).astype({"t": "int64"})
+
+
+def _recent(symbol: str) -> pd.DataFrame:
+    """The latest finished 1-minute candles from Binance. Candles that have finished never change, so after the first download only the newest are fetched."""
+    with httpx.Client(timeout=15) as c:
+        old = _candles.get(symbol)
+        if old is not None:
+            joined = _merge_candles(old, _finished(_klines(c, symbol, 5)))
+            if joined is not None:
+                _candles[symbol] = joined
+                return joined
+        data, end = [], None
+        for _ in range(2):
+            part = _klines(c, symbol, 1000, end)
+            data = part + data
+            end = part[0][0] - 1
+    df = _finished(data).drop_duplicates("t").sort_values("t", ignore_index=True)
+    _candles[symbol] = df
+    return df
+
+
+# These change every 8 hours and once a day. The bar only ever uses a published value, so reading them less often changes no reading that matters.
+FUNDING_EVERY_SEC, FEAR_EVERY_SEC = 600, 3600
+_slow: dict[str, tuple[float, pd.Series]] = {}
+
+
+def _kept(key: str, every: int, read) -> pd.Series:
+    held = _slow.get(key)
+    if held and time.time() - held[0] < every:
+        return held[1]
+    value = read()
+    _slow[key] = (time.time(), value)
+    return value
 
 
 def _picked(kind: str) -> dict:
@@ -223,7 +267,7 @@ listening: dict[str, dict] = {}
 
 def _fetch(sym: str) -> tuple[str, pd.DataFrame, pd.Series] | None:
     try:
-        return sym, _recent(sym), lab.funding(sym)
+        return sym, _recent(sym), _kept(f"funding:{sym}", FUNDING_EVERY_SEC, lambda: lab.funding(sym))
     except httpx.HTTPError:
         return None
 
@@ -231,7 +275,7 @@ def _fetch(sym: str) -> tuple[str, pd.DataFrame, pd.Series] | None:
 def read_market() -> dict:
     """The latest real candles and features for every live coin, read once and shared by both models. Coins that did not answer are
     left out. The coins it never trained on get no coin number, exactly as they were tested (run_harder_test.py)."""
-    fng = lab.fear_greed()
+    fng = _kept("fear", FEAR_EVERY_SEC, lab.fear_greed)
     with ThreadPoolExecutor(6) as pool:   # all 17 inside the minute
         fetched = [x for x in pool.map(_fetch, ALL_COINS) if x]
     trained = list(lab.COINS)
@@ -320,13 +364,40 @@ def resolve() -> int:
     return done
 
 
+def money_proof(m: dict | None) -> bool:
+    """May a user's money go here? RULE, fixed 2026-11-07 before any change was made, not to be loosened: on the model actually trading,
+    the corrected lower bound is above zero, every test period earns, and no one period brings more than 60% of the profit."""
+    if not m or not m.get("periods") or m.get("low") is None:
+        return False
+    periods = m["periods"]
+    return m["low"] > 0 and min(periods) > 0 and max(periods) <= 0.6 * sum(periods)
+
+
+def _harder(kind: str, part: str) -> dict | None:
+    """What the harder test measured on the model that is actually trading."""
+    try:
+        return json.loads((ROOT / "docs" / "intel" / "harder.json").read_text(encoding="utf-8"))["results"][kind][part]
+    except (OSError, ValueError, KeyError):
+        return None
+
+
+def _deployed(g: dict, kind: str) -> dict:
+    """The group's numbers from the model trading now, not from the older research model. Without them no user's money goes there."""
+    m, late = _harder(kind, "as_tested"), _harder(kind, "late")
+    if not m:
+        return {**g, "money_ok": False}
+    trades, wins = round(m["trades"]), round(m["trades"] * m["won"])
+    return {**g, "trades": trades, "wins": wins, "low": wilson_low(wins, trades), "high": wilson_low(wins, trades, -1.96), "avg_r": m["avg"], "corrected_low": m["low"],
+            "money_ok": money_proof(m) and money_proof(late)}
+
+
 def iz_evidence_group() -> dict | None:
     picked = iz_result()
     if not picked:
         return None
     minutes, g = picked
-    return {"status": "experimental" if g.get("passed") else "test", "label": f"Crypto, InZone {minutes} minutes", "trades": g["trades"], "wins": g["wins"], "low": g["low"], "high": g["high"],
-            "breakeven": g["breakeven"], "avg_r": g["avg"], "corrected_low": g["corrected_low"], "failed": g["failed"]}
+    return _deployed({"status": "experimental" if g.get("passed") else "test", "label": f"Crypto, InZone {minutes} minutes", "trades": g["trades"], "wins": g["wins"], "low": g["low"], "high": g["high"],
+                      "breakeven": g["breakeven"], "avg_r": g["avg"], "corrected_low": g["corrected_low"], "failed": g["failed"]}, "inzone")
 
 
 def wide_evidence_group(kind: str) -> dict | None:
@@ -340,7 +411,8 @@ def wide_evidence_group(kind: str) -> dict | None:
         return None
     return {"status": "test", "label": f"Crypto, {'Fixed Time' if kind == 'fixed_time' else 'InZone'} 60 minutes, coins outside its training", "trades": trades, "wins": wins,
             "low": wilson_low(wins, trades), "high": wilson_low(wins, trades, -1.96), "breakeven": BREAKEVEN if kind == "fixed_time" else IZ_BREAKEVEN, "avg_r": s["avg"],
-            "corrected_low": s["low"], "failed": ["Has not been through the full rule", "The model did not train on these coins"]}
+            "corrected_low": s["low"], "failed": ["Has not been through the full rule", "The model did not train on these coins"],
+            "money_ok": False}   # the harder test covers only 5 of these 12 coins, so its result cannot speak for the group
 
 
 def evidence_group() -> dict | None:
@@ -351,5 +423,5 @@ def evidence_group() -> dict | None:
         return None
     if not g.get("trades"):
         return None
-    return {"status": "test", "label": "Crypto, Fixed Time 60 minutes", "trades": g["trades"], "wins": g["wins"], "low": g["low"], "high": g["high"],
-            "breakeven": g["breakeven"], "avg_r": g["avg"], "corrected_low": g["corrected_low"], "failed": g["failed"]}
+    return _deployed({"status": "test", "label": "Crypto, Fixed Time 60 minutes", "trades": g["trades"], "wins": g["wins"], "low": g["low"], "high": g["high"],
+                      "breakeven": g["breakeven"], "avg_r": g["avg"], "corrected_low": g["corrected_low"], "failed": g["failed"]}, "fixed_time")

@@ -23,10 +23,11 @@ CYCLE_SEC = 5 * 60
 DAILY_EVERY_SEC = 3 * 60 * 60
 REVALIDATE_EVERY_SEC = 24 * 60 * 60   # re-run the walk-forward test on the growing history once a day
 RESEARCH_EVERY_SEC = 7 * 24 * 60 * 60  # the full crypto research, once a week on fresh real data
+CANDLE_SETTLE_SEC = 1.5   # the exchange needs a moment to publish a finished candle
 HERE = Path(__file__).resolve().parent
 RESEARCH_MARK = HERE / "models" / "research.stamp"
 
-state = {"scan": [], "scanned_at": None, "last_daily": 0.0, "last_backtest": time.time(), "error": None}
+state = {"scan": [], "scanned_at": None, "last_daily": 0.0, "last_backtest": time.time(), "error": None, "quick_at": None, "quick_sec": None}
 
 
 def cycle() -> None:
@@ -58,14 +59,21 @@ async def loop() -> None:
 
 def quick_cycle() -> None:
     """Fixed Time and InZone readings, every minute: the moment can be any minute, and these trades were tested that way."""
-    learning.self_check()
+    started = time.time()
     updown.resolve()
     frames = updown.read_market()
     updown.scan(frames)
     updown.scan_inzone(frames)
     learning.decide()
+    state["quick_at"], state["quick_sec"] = time.time(), round(time.time() - started, 1)   # the backend watches this and trades at once
+    learning.self_check()
     learning.write_journal()
     learning.twelve_hour_check()
+
+
+def until_next_candle(now: float) -> float:
+    """Seconds to wait so the next reading starts just after a 1-minute candle closes, however long the last one took."""
+    return 60 - now % 60 + CANDLE_SETTLE_SEC
 
 
 async def quick_loop() -> None:
@@ -74,7 +82,7 @@ async def quick_loop() -> None:
             await asyncio.to_thread(quick_cycle)
         except Exception as err:
             print("quick cycle failed:", err, flush=True)
-        await asyncio.sleep(60)
+        await asyncio.sleep(until_next_candle(time.time()))
 
 
 def heavy_job(script: str) -> None:
@@ -167,7 +175,7 @@ def idea_rows(where: str = "true", params: tuple = (), limit: int = 100) -> list
 
 @app.get("/health")
 def health():
-    return {"ok": True, "markets": len(APP_ASSETS), "scanned_at": state["scanned_at"], "error": state["error"]}
+    return {"ok": True, "markets": len(APP_ASSETS), "scanned_at": state["scanned_at"], "error": state["error"], "quick_at": state["quick_at"], "quick_sec": state["quick_sec"]}
 
 
 @app.get("/scan")

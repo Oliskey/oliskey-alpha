@@ -66,8 +66,11 @@ const QUICK = { crypto_ft: 'fixed_time', crypto_iz: 'inzone', crypto_ft_wide: 'f
 // auto trade, real money on always ask. Only demo accounts are ever traded here. Real money stays closed behind the real-money gate
 // (licensed feed and a lawyer's written sign-off), so a user's real choice is only stored.
 export const groupStopped = (groups, cls) => { const g = groups?.[cls]; return !g || !!g.paused || g.status === 'blocked'; };   // unknown groups may not trade
-// A user's money only goes where testing earned: the AI's own account keeps measuring the rest, and if a group's tests turn positive it comes back by itself.
-export const earnsInTests = (groups, cls) => !groupStopped(groups, cls) && Number(groups[cls].test?.avg_r) > 0;
+// A user's money only goes where the model trading now is proven (money_proof in engine/updown.py): the AI's own account keeps measuring the rest,
+// and if a group earns the proof it comes back by itself.
+export const earnsInTests = (groups, cls) => !groupStopped(groups, cls) && groups[cls].money_ok === true;
+export const AUTO_LATE_MS = 120_000;   // the harder test covers entries up to 2 minutes after the reading: later is not the tested trade
+export const tooLate = (barTime, now = Date.now()) => now - new Date(barTime).getTime() > AUTO_LATE_MS;
 export const AUTO_MIN = 100;
 const AUTO_MAX = 10_000_000;
 const AUTO_DEFAULTS = { demo: 'auto', real: 'ask' };
@@ -151,10 +154,11 @@ export function startPaperTrading({ engine, settlement }) {
   async function step() {
     if (!userId) await ensureAccount();
     const ideas = await intel('/ideas?limit=200');
-    const { rows: done } = await pool.query('select idea_id from intel.paper_trades');
+    const ids = ideas.map((i) => i.id);
+    const { rows: done } = await pool.query('select idea_id from intel.paper_trades where idea_id = any($1::bigint[])', [ids]);
     const taken = new Set(done.map((d) => Number(d.idea_id)));
     // the learning loop decides each setup first: no decision yet, or a proven rule says skip, means no trade
-    const { rows: decisions } = await pool.query('select idea_id from intel.ai_decisions where take');
+    const { rows: decisions } = await pool.query('select idea_id from intel.ai_decisions where take and idea_id = any($1::bigint[])', [ids]);
     const allowed = new Set(decisions.map((d) => Number(d.idea_id)));
 
     // One trade per coin within each trade type, as each was tested. InZone on a coin must not stop a Fixed Time signal on it.
@@ -175,6 +179,7 @@ export function startPaperTrading({ engine, settlement }) {
       const q = tick.price;
       const quick = QUICK[i.asset_class];
       if (quick) {
+        if (tooLate(i.bar_time)) return;
         const { rows: acct } = await pool.query('select balance from accounts where id = $1', [demoId]);
         if (Number(acct[0].balance) < PAPER_AMOUNT) await pool.query('select reset_demo($1)', [userId]).catch(() => {});
         const durationSec = Math.round((new Date(i.expires_at).getTime() - new Date(i.bar_time).getTime()) / 1000);
@@ -217,7 +222,7 @@ export function startPaperTrading({ engine, settlement }) {
     for (const d of due) await settlement.closeNow(d.trade_id);
   }
 
-  // Every 15 s: entering late costs Fixed Time in testing, and a slow round must never overlap the next and place a trade twice.
+  // As soon as a reading finishes, with a round every 15 s in case that is missed. A slow round must never overlap the next and place a trade twice.
   let busy = false;
   const run = async () => {
     if (busy) return;
@@ -229,6 +234,14 @@ export function startPaperTrading({ engine, settlement }) {
   };
   setTimeout(run, 20_000);
   setInterval(run, 15_000);
+  let seen = null;
+  setInterval(async () => {
+    const health = await intel('/health').catch(() => null);
+    if (health?.quick_at && health.quick_at !== seen) {
+      seen = health.quick_at;
+      run();
+    }
+  }, 2_000);
 }
 
 // Demo-money results of the forward test, by kind of call.

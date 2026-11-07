@@ -74,8 +74,15 @@ def evidence() -> dict:
     except (OSError, ValueError):
         saved = {"generated_at": None, "groups": {}}
     with db.connect() as c:
+        # Quick trades are judged on what the trade really paid, not on what the signal would have paid.
         rows = c.execute(
-            """select asset_class, status, result_r from intel.ideas where kind = 'idea' order by resolved_at nulls last, id""").fetchall()
+            """select i.asset_class, i.status,
+                      coalesce(case when t.status = 'closed' and i.asset_class in ('crypto_ft', 'crypto_ft_wide', 'crypto_iz', 'crypto_iz_wide')
+                                    then (t.pnl / nullif(t.amount, 0))::float8 end, i.result_r)
+               from intel.ideas i
+               left join intel.paper_trades p on p.idea_id = i.id
+               left join public.trades t on t.id = p.trade_id
+               where i.kind = 'idea' order by i.resolved_at nulls last, i.id""").fetchall()
     groups = {}
     for cls, g in saved["groups"].items():
         mine = [r for r in rows if r[0] == cls]
@@ -83,6 +90,7 @@ def evidence() -> dict:
         reason = safety_stop(results, g["breakeven"]) if g["status"] != "blocked" else None
         groups[cls] = {
             "label": g["label"], "status": g["status"], "paused": reason,
+            "money_ok": g["status"] != "blocked" and g["avg_r"] > 0 and g["corrected_low"] > 0,
             "test": {k: g[k] for k in ("trades", "wins", "low", "high", "breakeven", "avg_r", "corrected_low", "failed")},
             "live": {"won": sum(1 for r in results if r > 0), "lost": sum(1 for r in results if r <= 0),
                      "open": sum(1 for r in mine if r[1] == "open"), "finished": len(results), "too_few": len(results) < TOO_FEW_LIVE},
@@ -96,6 +104,7 @@ def evidence() -> dict:
         results = [r[2] or 0.0 for r in mine if r[1] != "open"]
         groups[cls] = {
             "label": ft["label"], "status": ft["status"], "paused": safety_stop(results, ft["breakeven"]),
+            "money_ok": ft["money_ok"],
             "test": {k: ft[k] for k in ("trades", "wins", "low", "high", "breakeven", "avg_r", "corrected_low", "failed")},
             "live": {"won": sum(1 for r in results if r > 0), "lost": sum(1 for r in results if r <= 0),
                      "open": sum(1 for r in mine if r[1] == "open"), "finished": len(results), "too_few": len(results) < TOO_FEW_LIVE},

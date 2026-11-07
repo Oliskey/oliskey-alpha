@@ -149,4 +149,19 @@ with tempfile.TemporaryDirectory() as _t:
     _back = _load(_f, 3)
     check("blend: saved and loaded, it reads the same", np.allclose(_predict(_m, _d[["a", "b"]].head(50)), _predict(_back, _d[["a", "b"]].head(50))))
     check("blend: an older one-model file still loads", len(_load(_f, 1)) == 1)
+from engine.updown import _merge_candles, money_proof  # noqa: E402
+_good_proof = {"low": 0.07, "periods": [682, 560, 623]}
+check("money: earns in every period with a positive lower bound", money_proof(_good_proof))
+check("money: a lower bound below zero could be luck", not money_proof({"low": -0.045, "periods": [6, 23, 50]}))
+check("money: a losing period fails", not money_proof({"low": 0.03, "periods": [-30, 31, 24]}))
+check("money: nearly all the profit from one period fails", not money_proof({"low": 0.028, "periods": [6, 123, 1521]}))
+check("money: no test numbers means no money", not money_proof(None) and not money_proof({"low": 0.1}))
+_cols = ["t", "o", "h", "l", "c", "v", "tb"]
+_cd = lambda ts, c=1.0: pd.DataFrame([[t, c, c, c, c, 1.0, 0.5] for t in ts], columns=_cols)  # noqa: E731
+_old = _cd([60_000 * i for i in range(10)])
+_joined = _merge_candles(_old, _cd([60_000 * i for i in range(9, 12)], 2.0))
+check("candles: new ones join on, and the window keeps its size", len(_joined) == 10 and _joined["t"].iat[-1] == 660_000 and _joined["t"].iat[0] == 120_000)
+check("candles: the newest copy of a candle wins", _joined.loc[_joined["t"] == 540_000, "c"].iat[0] == 2.0)
+check("candles: a gap asks for a full download", _merge_candles(_old, _cd([60_000 * 20])) is None)
+check("candles: nothing new changes nothing", _merge_candles(_old, _cd([]))["t"].equals(_old["t"]))
 print("all engine self-tests passed")

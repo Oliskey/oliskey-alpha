@@ -24,7 +24,11 @@ export const isInstalled = () => web && (matchMedia('(display-mode: standalone)'
 /** Opens the browser's install window. False when this browser only installs from its own menu. */
 export async function askToInstall() {
   if (!waiting) return false;
-  await waiting.prompt();
+  try {
+    await waiting.prompt();
+  } catch {
+    return false;   // the browser refused its install window, so the caller shows the steps instead
+  }
   await waiting.userChoice;
   waiting = null;
   return true;

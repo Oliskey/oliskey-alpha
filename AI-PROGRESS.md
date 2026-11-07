@@ -1,6 +1,6 @@
 # Oliskey Alpha: your questions and answers
 
-The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 7 November 2026, version 0.0.5.
+The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 7 November 2026, version 0.0.6.
 
 ## Your AI goal
 
@@ -41,7 +41,8 @@ Profit, not more trades. The AI trades only when the evidence says the trade sho
 
 **Me**
 - Finish the 4-year download, the all-coins contest, and the tests after it.
-- Rerun the click-every-button test, which ran out of time, and the load test, which was too slow under load.
+- Rerun the load test on a quiet PC: it was too slow under load, with 403 of 2,000 trades failing.
+- Rerun the click-every-button test on a quiet PC. Its last run finished on 182 elements but was run under load. Direct checks cleared 3 suspect buttons, and tap sizes on 3 screens. The other 19 "no effect" flags still need checking, though most look like normal behaviour such as a tab already selected.
 - Measure real entry times since the restart.
 
 **Before real money can ever run**
@@ -58,7 +59,7 @@ Profit, not more trades. The AI trades only when the evidence says the trade sho
 ## Corrections
 
 - **7 November:** I said your own trades lost α29,168. That was wrong: my query counted test accounts. Your account's own trades were +α6,580 at that time, from 62 trades, which is too few to draw a conclusion.
-- **7 November:** I said there were 363 test accounts. The cleanup script counts 358.
+- **7 November:** I said there were 363 test accounts. The cleanup script counts 358. You deleted them the same day: 0 left, and your 7 other accounts were kept.
 
 ## Commands
 

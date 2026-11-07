@@ -29,3 +29,6 @@ intel/models/
 
 # Claude Code session files
 .claude/
+
+# Supabase CLI temp files
+supabase/.temp/

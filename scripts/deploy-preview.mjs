@@ -21,6 +21,8 @@ if (existsSync(path.join(keep, '.vercel'))) cpSync(path.join(keep, '.vercel'), l
 rmSync(keep, { recursive: true, force: true });
 applySeo(out);
 writeOfflineList(out);
+// On Vercel's own build (a push to GitHub) only the files are needed: vercel.json at the repo root does the rest.
+if (process.env.VERCEL) process.exit(0);
 writeFileSync(path.join(out, 'vercel.json'), JSON.stringify({
   rewrites: [{ source: '/(.*)', destination: '/index.html' }],
   headers: [{ source: '/(.*)', headers: [

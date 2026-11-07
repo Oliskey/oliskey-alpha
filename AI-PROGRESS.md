@@ -11,7 +11,7 @@ Profit, not more trades. The AI trades only when the evidence says the trade sho
 | You asked | Answer | Status |
 |---|---|---|
 | 97 right out of 100 signals | Not achievable honestly. A test showing it would almost certainly be broken. The AI needs about 55.6% on Fixed Time and 47.6% on InZone to profit. The real score is in AI-NUMBERS.md. | **Not reached.** Working toward the highest real number |
-| Make money overnight and always | Auto trade runs, but profit cannot be promised and losing nights are possible. The AI has not yet proven it makes money on real prices. | Running, not proven |
+| Make money overnight and always | Auto trade runs, but profit cannot be promised and losing nights are possible. The AI has not yet proven it makes money on real prices. **It stops when your PC sleeps**, as it did for about 75 minutes on 7 November. Set Windows Settings, System, Power, sleep when plugged in, to Never, until the backend is hosted. | Running, not proven |
 | Trading hours, days, when not to trade | Forex, indices and commodities get no signal while closed. Retested on the contest's winning version: no window of time is reliably bad enough to sit out on crypto. Public holidays are not known. | Built and retested |
 | Shorter trades | 15-minute InZone earned more in total (+16,008 against +8,035 stakes) but less per trade (+0.119 against +0.136). Your rule needs both, so InZone stays at 60 minutes. | Decided by the rule |
 | More profit, any better way | The all-coins contest found a better InZone version: see below. Stake by strength failed again on it. Fewer, stronger trades reached 64.3% wins at the highest bar tested, but less total profit (+2,574 against +8,032 stakes), so it failed too. | New version live on demo. Not proven live yet |
@@ -63,8 +63,7 @@ Tested on all 17 coins, on 3 separate 91-day periods the models never trained on
 
 **Me**
 - Watch the new InZone model's live record and report it.
-- Rerun the load test on a quiet PC: it was too slow under load, with 403 of 2,000 trades failing.
-- Rerun the click-every-button test on a quiet PC. Its last run finished on 182 elements but was run under load. Direct checks cleared 3 suspect buttons, and tap sizes on 3 screens. The other 19 "no effect" flags still need checking, though most look like normal behaviour such as a tab already selected.
+- One button-test oddity is unexplained: it reports 84 buttons with tap areas under 44 px, but direct measures on Home, Market, Terminal and Settings show none, and I could not reproduce it. The worst it could mean is a tap margin a few pixels short.
 - Measure real entry times since the restart.
 
 **Before real money can ever run**
@@ -77,6 +76,11 @@ Tested on all 17 coins, on 3 separate 91-day periods the models never trained on
 - **InZone's profit may not be real skill.** It wins against the corridor and payout your own app sets, so in real trading that profit would be your company's loss.
 - **Fixed Time would not survive real exchange costs.** Its predicted move is about 0.05%, against about 0.25% in costs.
 - **Demo money is not real money.** These results include no real orders.
+
+## App checks, 7 November, on a quiet PC
+
+- **Load test: passed.** 1,000 viewers, 2,000 trades in 20 seconds: all accepted and all settled, median 68 ms, 0 money mismatches. Last time, 403 failed. This is one PC, not a hosted server.
+- **Buttons: no broken button found.** 183 pressed, 20 flagged "no effect". Pressed directly, Add to favorites (saved after reload), Increase, Show trade options, WhatsApp, Email, Accept task and Open a trade all work. Tabs already selected and the Saved button change nothing, as expected. A few flags on the Market and Trades tabs were not separately pressed.
 
 ## Corrections
 

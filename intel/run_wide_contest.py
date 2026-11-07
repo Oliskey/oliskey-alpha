@@ -17,6 +17,8 @@ RULE, FIXED BEFORE ANY RESULT WAS SEEN, not to be loosened afterwards. A new ver
 TRADE LENGTH, owner's rule 2026-11-07, fixed before this contest ran (earlier research on an older model had shown 15-minute InZone earning): a longer
 trade is used only if it is really better. 15-minute InZone replaces 60-minute only if it passes the money proof, earns in the exam, and its total profit
 over the same days is not lower than the 60-minute total by more than training luck explains. Fixed Time stays at 60 minutes: shorter lost in research.
+Owner's goal, added the same day and still before this contest ran: profit, not more trades. So the 15-minute average per trade must also not be lower than the
+60-minute average by more than training luck explains: many thin trades cannot win on their number alone.
 Usage: python intel/run_wide_contest.py (needs intel/fetch_history.py first)"""
 from __future__ import annotations
 
@@ -196,7 +198,9 @@ def winner(res: dict) -> str:
 def length_choice(long: dict, short: dict) -> str:
     """The owner's rule at the top of this file. Both are the chosen versions, measured over the same days at the same stake."""
     luck = 2 * math.sqrt((long["luck"] ** 2 * long["trades"] ** 2 + short["luck"] ** 2 * short["trades"] ** 2) / len(SEEDS))
-    return "15 minutes" if short["money_proof"] and short["exam_total"] > 0 and short["total"] >= long["total"] - luck else "60 minutes"
+    per_trade = 2 * math.sqrt((long["luck"] ** 2 + short["luck"] ** 2) / len(SEEDS))
+    return "15 minutes" if (short["money_proof"] and short["exam_total"] > 0 and short["total"] >= long["total"] - luck
+                            and short["avg"] >= long["avg"] - per_trade) else "60 minutes"
 
 
 def main() -> None:

@@ -184,10 +184,17 @@ check("exam: a winner that earns in the exam is chosen", _winner({"today": _base
 check("exam: a winner that earns less than today in the exam is refused", _winner({"today": _base, "new": {**_better, "exam_total": 4.0}}) == "today")
 check("exam: a winner that loses in the exam is refused", _winner({"today": {**_base, "exam_total": -9.0}, "new": {**_better, "exam_total": -1.0}}) == "today")
 from run_wide_contest import length_choice as _lc  # noqa: E402
-_long = {"luck": 0.001, "trades": 1000, "total": 100.0}
-_short = {"luck": 0.001, "trades": 3000, "total": 100.0, "money_proof": True, "exam_total": 5.0}
+_long = {"luck": 0.001, "trades": 1000, "total": 100.0, "avg": 0.1}
+_short = {"luck": 0.001, "trades": 3000, "total": 100.0, "money_proof": True, "exam_total": 5.0, "avg": 0.1}
 check("length: the same result goes to the shorter trade", _lc(_long, _short) == "15 minutes")
 check("length: a clearly better long trade stays", _lc({**_long, "total": 500.0}, _short) == "60 minutes")
 check("length: a short trade without the money proof stays out", _lc(_long, {**_short, "money_proof": False, "total": 900.0}) == "60 minutes")
 check("length: a short trade that loses in the exam stays out", _lc(_long, {**_short, "exam_total": -1.0, "total": 900.0}) == "60 minutes")
+check("goal: many thin trades do not beat fewer better ones", _lc(_long, {**_short, "total": 900.0, "avg": 0.05}) == "60 minutes")
+from run_quality_test import passes as _qp  # noqa: E402
+_qb = {"total": 100.0, "ratio": 2.0, "trades": 5000, "avg": 0.02, "periods": [30.0, 30.0, 40.0]}
+_qr = {"total": 120.0, "ratio": 3.0, "trades": 2000, "avg": 0.06, "periods": [40.0, 35.0, 45.0]}
+check("quality: fewer trades, more profit passes", _qp(_qr, _qb))
+check("quality: better per trade but less profit fails", not _qp({**_qr, "total": 90.0}, _qb))
+check("quality: too few trades left fails", not _qp({**_qr, "trades": 300}, _qb))
 print("all engine self-tests passed")

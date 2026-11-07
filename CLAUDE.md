@@ -41,6 +41,8 @@ MARKET INTELLIGENCE ENGINE (intel/, Python, added 2026-10-30):
 - All 17 live coins are read every minute (owner decision 2026-11-06). The 12 outside the models' training are their own groups ('crypto_ft_wide', 'crypto_iz_wide') with their own weaker test numbers.
 - Tests before trust: intel/run_train_hard.py (contest), intel/run_harder_test.py (late entry, unseen coins), intel/run_wide_contest.py (all coins, 4 years). Pass rules are fixed before any result and never loosened.
 
+AI GOAL (owner decision 2026-11-07): profit, not more trades. The AI trades only when the evidence says the trade should pay. A change that adds trades without adding profit is refused. Between trade lengths, longer only if really better.
+
 AI TRADING FOR USERS (owner decisions 2026-11-06, backend/src/intel.js):
 - Each user chooses Always ask or Auto trade, per kind of money. Demo starts on Auto trade, real money on Always ask. Minimum 100 per trade, user may raise it.
 - A user's money only goes to groups whose tests earn and that are not paused. Hard limits: 15% of the money per trade, 50% open at once.

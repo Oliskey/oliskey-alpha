@@ -611,6 +611,7 @@ def note_research(before: dict, after: dict) -> None:
 
 # ── Judging itself: the method behind every decision, written down so it runs without anyone watching ──
 METHOD = [
+    {"name": "Profit is the goal, not more trades", "state": "It trades only when the evidence says the trade should pay. Sitting out is a good decision, and a change that adds trades without adding profit is refused."},
     {"name": "Check the facts before believing a result", "state": "Every finished trade is compared with what was tested. If its corridor or closing price was off, the trade is not counted or learned from."},
     {"name": "Doubt a good run", "state": "Trades opened in the same hour count as one moment, and it needs 100 finished trades before judging itself."},
     {"name": "Fix the test before seeing the answer", "state": "A new rule must pass a test set in advance, on years of real prices. The test is never loosened to let a rule through."},

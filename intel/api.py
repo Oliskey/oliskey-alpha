@@ -142,6 +142,7 @@ def research() -> None:
     signs_before = [s["name"] for s in rootcause.active_signs()]
     heavy_job("run_loss_causes.py")   # why trades fail: a warning sign that passes its fixed rule joins the strategy, one that stops passing leaves it
     learning.note_causes(signs_before)
+    heavy_job("run_strength_test.py")   # the owner's rule: not sure, no trade. This sets how sure is sure
     RESEARCH_MARK.write_text(str(time.time()), encoding="utf-8")
 
 
@@ -201,6 +202,16 @@ def scan():
 @app.get("/ideas")
 def ideas(limit: int = 100):
     return idea_rows(limit=min(max(limit, 1), 500))
+
+
+@app.get("/strength")
+def strength():
+    """What run_strength_test.py found: the bar for the users' Strongest signals option, with its measured numbers. Nothing yet means it is not offered."""
+    try:
+        saved = json.loads((HERE.parent / "docs" / "intel" / "strength.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"strongest_bar": None, "tops": []}
+    return {"strongest_bar": saved.get("strongest_bar"), "tops": saved.get("tops", [])}
 
 
 @app.get("/performance")

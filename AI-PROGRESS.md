@@ -1,6 +1,6 @@
 # Oliskey Alpha: your questions and answers
 
-The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 7 November 2026, version 0.0.11.
+The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 7 November 2026, version 0.0.12.
 
 ## Your AI goal
 
@@ -19,6 +19,8 @@ Profit, not more trades. The AI trades only when the evidence says the trade sho
 | Faster and lighter | Signals now appear about 10 to 17 seconds after the candle, down from about 44. AI InZone trades open a median of 7 seconds after the signal, and 90% within 20 seconds (all-time figures, including before the speed-up). | Done. To re-measure on the new model |
 | Stop asking me to restart | The server now restarts itself. It still needs `npm run start:all` after the PC is shut down or the terminal is closed. | Done, tested |
 | Commit always, with version numbers | Every step goes to GitHub as the next version. | Doing it. Tags are progress, not proof that everything passes |
+| Navigation drop goes to its side | Done on phone: Home left, Market and Help right, Trades left when its list is long enough to scroll. Terminal does not scroll, so its pill stays whole. | Done. Terminal is your call |
+| Trades hidden on the chart | Fixed: far-away trades no longer squash the candles, and they show at the edge of the chart with their entry price. | Done, tested |
 | Keep answers in an MD file | This file and AI-NUMBERS.md. | Done |
 
 ## New inputs contest, 7 November: the model trading now
@@ -31,6 +33,10 @@ It adds what all 17 coins are doing together, how the corridor has been holding 
 | **Now live** | 54.89% | +0.153 | +8,939 | -45.5 | +1,690, won 54.04% |
 
 Last test, on different minutes and entering 2 minutes late: the 5 usual coins won 55.89% and earned +394 on the newest 60 days; the other 12 won 54.25% and earned +1,045. Both passed. Those 60 days had already helped choose the earlier version, so they are no longer fully untouched. Live results are the real judge. The previous model finished 48 trades live, 24 won (50.0%), +α240.
+
+## When in doubt, no trade (your rule, 7 November)
+
+The AI trades a level of confidence only if trades at that level earned money on data it never trained on, even entering 2 minutes late. Test: `intel/run_strength_test.py`, weekly. It can only make the AI stricter. Users can choose Most profit (the default) or Strongest signals, once a level passes its test. No level has been tested yet on the current model, so the option does not show until then.
 
 ## The AI learns from every trade, automatically
 
@@ -81,6 +87,9 @@ Tested on all 17 coins, on 3 separate 91-day periods the models never trained on
 
 **You**
 - Change your Supabase database password when the backend is connected.
+- Google sign-in: create the Google credentials and put them in Supabase. The button comes with the move to Supabase Auth. Decide whether the official Google logo may be used on it.
+- Choose a backend server. Oracle does not accept your location.
+- Set PC sleep to Never when plugged in, until the backend is hosted.
 - Check [GitHub billing](https://github.com/settings/billing): GitHub's automatic tests do not start, and the cause looks like the account, not the code.
 - Your own Forex trades held α9,499 when last checked. They are yours to keep or close.
 

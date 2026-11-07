@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Activity, ArrowDown, ArrowUp, Ban, BookOpen, ChartColumn, CircleCheck, CircleHelp, CircleX, Clock, Eye, FlaskConical, History, Hourglass, Info, ListChecks, Newspaper, Scale, ScrollText, ShieldAlert, Wallet } from 'lucide-react-native';
 import { AiIcon } from '@/ui/AiIcon';
 import { useAccount } from '@/context/AccountContext';
-import { api, type AiListening, type AiTrader, type ApiError, type AutoMode, type AutoState, type IntelIdea, type IntelMarket, type IntelPerformance } from '@/lib/api';
+import { api, type AiListening, type AiTrader, type ApiError, type AutoMode, type AutoState, type AutoStrength, type IntelIdea, type IntelMarket, type IntelPerformance } from '@/lib/api';
 import { money, price as fmtPrice } from '@/lib/format';
 import { useAiTrader } from '@/hooks/useCounts';
 import { useAssets, useLivePrices } from '@/hooks/useMarket';
@@ -190,7 +190,7 @@ function AutoCard() {
   const q = useQuery({ queryKey: ['intel', 'auto'], queryFn: () => api<AutoState>('/intel/auto'), refetchInterval: 30_000 });
   const refresh = () => { void qc.invalidateQueries({ queryKey: ['intel', 'auto'] }); };
   const save = useMutation({
-    mutationFn: (body: { mode?: AutoMode; amount?: number; acceptRisk?: boolean }) => api<AutoState>('/intel/auto', { method: 'PUT', body: { scope, ...body } }),
+    mutationFn: (body: { mode?: AutoMode; amount?: number; acceptRisk?: boolean; strength?: AutoStrength }) => api<AutoState>('/intel/auto', { method: 'PUT', body: { scope, ...body } }),
     onSuccess: (data) => { qc.setQueryData(['intel', 'auto'], data); setConfirm(false); },
     onError: (e: ApiError) => toast({ title: 'Not saved', message: e.message, tone: 'down' }),
   });
@@ -219,6 +219,21 @@ function AutoCard() {
       </View>
       <Txt style={styles.reason}>{s.mode === 'auto' ? 'The AI trades by itself at this amount. It can lose.' : 'The AI asks you before every trade. It can lose.'}</Txt>
       <Stepper label="Amount per trade" value={money(s.amount, accType)} onMinus={() => save.mutate({ amount: Math.max(q.data.min, s.amount - 50) })} onPlus={() => save.mutate({ amount: s.amount + 50 })} />
+      {scope === 'demo' && (q.data.strongest.offered || s.strength === 'strongest') ? (
+        <View style={{ gap: 8 }} testID="ai-strength-choice">
+          <View style={styles.row}>
+            {([['all', 'Most profit'], ['strongest', 'Strongest signals']] as const).map(([strength, label]) => (
+              <View key={strength} style={{ flex: 1 }}>
+                <Button label={label} height={44} variant={s.strength === strength ? 'primary' : 'secondary'} onPress={() => { if (strength !== s.strength) save.mutate({ strength }); }} />
+              </View>
+            ))}
+          </View>
+          <Txt style={styles.reason}>{s.strength === 'all'
+            ? 'Takes every signal that passed its tests. Earned the most in tests. It can lose.'
+            : !q.data.strongest.offered ? 'No level is passing its test right now, so it is waiting. It can lose.'
+            : `Fewer trades. Won ${Math.round((q.data.strongest.won ?? 0) * 100)}% in tests, but earned less in total. It can lose.`}</Txt>
+        </View>
+      ) : null}
       {scope === 'real' ? <Txt style={[styles.meta, { color: colors.demo }]}>Real money stays off until real trading opens. Your choice is saved for then.</Txt> : null}
       {confirm ? (
         <View style={{ gap: 8 }}>

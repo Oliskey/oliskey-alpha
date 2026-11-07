@@ -41,7 +41,7 @@ MARKET INTELLIGENCE ENGINE (intel/, Python, added 2026-10-30):
 - All 17 live coins are read every minute (owner decision 2026-11-06). The other 12 coins are their own groups ('crypto_ft_wide', 'crypto_iz_wide') with their own test numbers. InZone trains on all 17 with 4 years, the long view (intel/engine/longview.py), market and corridor inputs (intel/engine/marketview.py); Fixed Time still trains on 5 coins and gets no users' money.
 - Tests before trust: intel/run_train_hard.py (contest), intel/run_harder_test.py (late entry, unseen coins), intel/run_wide_contest.py (all coins, 4 years), intel/run_wide_harder.py (last test before InZone money, reruns weekly). Why trades win or lose: intel/run_loss_causes.py, weekly; a warning sign joins the strategy only if it passes its rule. Pass rules are fixed before any result and never loosened.
 
-AI GOAL (owner decision 2026-11-07): profit, not more trades. The AI trades only when the evidence says the trade should pay. A change that adds trades without adding profit is refused. Between trade lengths, longer only if really better.
+AI GOAL (owner decision 2026-11-07): profit, not more trades. The AI trades only when the evidence says the trade should pay. A change that adds trades without adding profit is refused. Owner rule, same day: if the AI is not sure of a trade, it is better not to trade than to lose money; "sure" is set by intel/run_strength_test.py, weekly. Between trade lengths, longer only if really better.
 
 AI TRADING FOR USERS (owner decisions 2026-11-06, backend/src/intel.js):
 - Each user chooses Always ask or Auto trade, per kind of money. Demo starts on Auto trade, real money on Always ask. Minimum 100 per trade, user may raise it.

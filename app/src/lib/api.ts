@@ -71,10 +71,12 @@ export type Candle = { time: number; open: number; high: number; low: number; cl
 
 export type TradeMode = 'fixed_time' | 'inzone' | 'forex';
 export type AutoMode = 'ask' | 'auto';
-export type AutoChoice = { mode: AutoMode; amount: number; riskAccepted: boolean };
+export type AutoStrength = 'all' | 'strongest';
+export type AutoChoice = { mode: AutoMode; amount: number; strength: AutoStrength; riskAccepted: boolean };
 export type AutoState = {
   min: number; demo: AutoChoice; real: AutoChoice;
   waiting: { id: number; asset_id: string; asset_class: string; direction: 1 | -1; enter_until: string }[];
+  strongest: { offered: boolean; won: number | null; perDay: number | null };
 };
 
 export type Trade = {

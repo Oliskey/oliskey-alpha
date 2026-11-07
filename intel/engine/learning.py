@@ -639,6 +639,7 @@ METHOD = [
     {"name": "Check the facts before believing a result", "state": "Every finished trade is compared with what was tested. If its corridor or closing price was off, the trade is not counted or learned from."},
     {"name": "Doubt a good run", "state": "Trades opened in the same hour count as one moment, and it needs 100 finished trades before judging itself."},
     {"name": "Fix the test before seeing the answer", "state": "A new rule must pass a test set in advance, on years of real prices. The test is never loosened to let a rule through."},
+    {"name": "When in doubt, no trade", "state": "It is better not to trade than to lose money. Each week it tests every level of confidence, and it trades only the levels that earned on data it never trained on. A trade can still lose."},
     {"name": "Find the cause, and don't react to one loss", "state": "Every trade records why it ended. One loss changes nothing."},
     {"name": "Compare what it said with what happened", "state": "Each day it compares its readings with its real results, and says so if it was too confident."},
     {"name": "Admit when it could not see", "state": "If the computer sleeps or goes offline, it records the gap. An old price can never open or close a trade."},

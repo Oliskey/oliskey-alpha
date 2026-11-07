@@ -25,6 +25,7 @@ const DEFAULT_STEP = 9;      // px per candle (body 6 + gap 3)
 const MIN_STEP = 3;          // zoomed all the way out
 const MAX_STEP = 40;         // zoomed all the way in
 const LIVE_AT = 0.7;          // the live candle's position across the chart (0-1)
+const TRADE_REACH = 0.6;      // a trade this many candle ranges beyond the candles joins the price fit: the candles always keep nearly half the height
 const CONTROLS_ROOM = 60;     // px at the bottom of the prices kept clear for the zoom buttons
 const clampStep = (s: number) => Math.max(MIN_STEP, Math.min(MAX_STEP, s));
 // Vertical zoom from the price axis: 1 = fit the visible candles, < 1 = prices stretched, > 1 = squeezed.
@@ -150,7 +151,14 @@ function ChartInner(props: Props) {
   const [min, max] = useMemo(() => {
     let lo = Infinity, hi = -Infinity;
     for (const c of visible) { lo = Math.min(lo, c.low); hi = Math.max(hi, c.high); }
-    for (const t of trades) { lo = Math.min(lo, Number(t.open_quote)); hi = Math.max(hi, Number(t.open_quote)); }
+    // Trades near the candles join the fit. One far away, such as an entry from yesterday, would squash today's candles into a thin band,
+    // so it stays out of the fit and is drawn at the edge of the chart with its entry price (owner 2026-11-07: every trade stays visible).
+    const reach = isFinite(lo) ? Math.max(hi - lo, hi * 0.0005) * TRADE_REACH : Infinity;
+    const candleLo = lo, candleHi = hi;
+    for (const t of trades) {
+      const p = Number(t.open_quote);
+      if (isFinite(candleLo) ? p >= candleLo - reach && p <= candleHi + reach : true) { lo = Math.min(lo, p); hi = Math.max(hi, p); }
+    }
     if (zone && off === 0) { lo = Math.min(lo, zone.lo); hi = Math.max(hi, zone.hi); }
     if (props.plan) { const v = props.plan; const a = Math.min(lo, v.entry, v.stop, v.target), z = Math.max(hi, v.entry, v.stop, v.target), m = z - a; lo = a; hi = z + m * 0.06; }
     for (const { out } of overlays) {
@@ -682,21 +690,28 @@ function ChartInner(props: Props) {
           {/* open trades: one marker per cluster (count badge), a glowing line at the entry price to expiry,
               and an end ring with the time left. Trades close together on screen share one marker. */}
           {(() => {
-            type Group = { color: string; dir: number; sx: number; sy: number; ex: number; expires: number | null; n: number; key: string; ids: string[] };
+            type Group = { color: string; dir: number; sx: number; sy: number; ex: number; expires: number | null; n: number; key: string; ids: string[]; edge: 0 | 1 | -1; entry: number };
             const groups: Group[] = [];
             for (const t of trades) {
               const color = t.mode === 'inzone' ? colors.zone : t.direction === 'down' ? colors.down : colors.up;
-              const sx = xOfTime(new Date(t.open_time).getTime());
-              const sy = y(Number(t.open_quote));
+              const entry = Number(t.open_quote);
+              const trueY = y(entry);
+              // beyond the prices shown: it sits at the edge of the chart, with its entry price beside it
+              const topEdge = TOP + 22, bottomEdge = TOP + plotH - (plotH > CONTROLS_ROOM * 2 ? CONTROLS_ROOM : 14);
+              const edge: 0 | 1 | -1 = trueY < TOP + 6 ? 1 : trueY > TOP + plotH - 6 ? -1 : 0;
+              const sy = edge === 1 ? topEdge : edge === -1 ? bottomEdge : trueY;
+              const openedX = xOfTime(new Date(t.open_time).getTime());
+              // opened before the time shown: its marker waits at the left, or beside the live candle if it is at an edge, so it can always be tapped
+              const sx = openedX >= 20 && !edge ? openedX : edge ? Math.min(Math.max(openedX, nowX + 24), plotW - 20) : 20;
               const expires = t.expires_at ? new Date(t.expires_at).getTime() : null;
               const ex = expires ? xOfTime(expires) : nowX;
-              const g = groups.find((o) => o.color === color && Math.abs(o.sx - sx) < 16 && Math.abs(o.sy - sy) < 16);
+              const g = groups.find((o) => o.color === color && o.edge === edge && Math.abs(o.sx - sx) < 16 && Math.abs(o.sy - sy) < 16);
               if (g) {
                 g.n++;
                 g.ids.push(t.id);
                 if (ex > g.ex) { g.ex = ex; g.expires = expires; }
               } else {
-                groups.push({ color, dir: t.direction === 'down' ? 1 : t.direction === 'up' ? -1 : 0, sx, sy, ex, expires, n: 1, key: t.id, ids: [t.id] });
+                groups.push({ color, dir: t.direction === 'down' ? 1 : t.direction === 'up' ? -1 : 0, sx, sy, ex, expires, n: 1, key: t.id, ids: [t.id], edge, entry });
               }
             }
             tradeHits.current = groups.filter((g) => g.sx <= plotW + 20).map((g) => ({ x: g.sx, y: g.sy, ids: g.ids }));
@@ -706,13 +721,22 @@ function ChartInner(props: Props) {
               const left = g.expires ? countdown(g.expires - now) : null;
               const pillW = left && left.length > 5 ? 58 : 44;
               const pillX = Math.min(end - pillW / 2, plotW - pillW - 2);
+              const edgeText = g.edge ? `${g.entry.toFixed(decimals)} ${g.edge === 1 ? 'above' : 'below'}` : '';
+              const edgeW = edgeText.length * 6.6 + 12;
               return (
                 <G key={g.key}>
                   {/* trade line: soft glow under a crisp 2 px line */}
-                  <Line x1={g.sx} x2={end} y1={g.sy} y2={g.sy} stroke={g.color} strokeOpacity={0.18} strokeWidth={8} strokeLinecap="round" />
-                  <Line x1={g.sx} x2={end} y1={g.sy} y2={g.sy} stroke={g.color} strokeWidth={2} strokeLinecap="round" />
+                  {g.edge ? null : <Line x1={g.sx} x2={end} y1={g.sy} y2={g.sy} stroke={g.color} strokeOpacity={0.18} strokeWidth={8} strokeLinecap="round" />}
+                  {g.edge ? null : <Line x1={g.sx} x2={end} y1={g.sy} y2={g.sy} stroke={g.color} strokeWidth={2} strokeLinecap="round" />}
+                  {/* beyond the prices shown: where its entry really is */}
+                  {g.edge ? (
+                    <G>
+                      <Rect x={g.sx - 16 - edgeW} y={g.sy - 10} width={edgeW} height={20} rx={10} fill={colors.bg} stroke={g.color} strokeWidth={1} />
+                      <SvgText x={g.sx - 16 - edgeW / 2} y={g.sy + 4} fill={colors.text} fontSize={12} fontFamily={font.semibold} textAnchor="middle">{edgeText}</SvgText>
+                    </G>
+                  ) : null}
                   {/* end: ring on the expiry line + time-left pill above it */}
-                  {g.expires ? (
+                  {g.expires && !g.edge ? (
                     <G>
                       <Circle cx={end} cy={g.sy} r={5} fill={colors.bg} stroke={g.color} strokeWidth={2} />
                       <Rect x={pillX} y={g.sy - 30} width={pillW} height={20} rx={10} fill={g.color} />

@@ -79,6 +79,9 @@ def build(now: datetime) -> str:
     if why:
         added = [a["words"] for a in why["active"]]
         lines.append(f"- Why trades fail, {why['generated_at'][:16]}: {len(why['signs'])} warning signs tested. Added to its strategy: {'; '.join(added) or 'none passed'}. Details: docs/intel/CAUSES.md.")
+    sure = _saved("strength.json")
+    if sure:
+        lines.append(f"- If it is not sure, it does not trade, {sure['generated_at'][:16]}: it trades InZone only at a reading of {sure['sure_bar']} or higher. Strongest signals level: {sure['strongest_bar'] or 'not offered'}. Details: docs/intel/STRENGTH.md.")
     s = _saved("stakes.json")
     if s:
         lines.append("- Stake by strength: " + "; ".join(f"{k}: {'passed' if v['passes'] else 'failed'}" for k, v in s["kinds"].items()) + ".")

@@ -3,6 +3,8 @@
 //                        selected page's lens becomes a round drop and the other four icons squeeze into a capsule. They
 //                        part like water: one body with a bridge that thins until it is gone, and nothing is left between
 //                        them (owner 2026-11-06). At rest they sit apart with a clear space.
+//                        The drop goes to the side its page belongs to: Home and Trades left, Market and Help right, and
+//                        Terminal takes turns, one time left, the next right (owner 2026-11-07).
 //                        Scrolling up, the top of the page or a tap pours it back into one pill (owner 2026-11-05).
 //   tablet (768-1023 px) floating capsule rail on the left, labels under icons
 //   desktop (>= 1024 px) the same rail; items open a panel beside the chart, which always stays on screen
@@ -49,6 +51,8 @@ const LIQUID = Easing.bezier(0.3, 1.28, 0.4, 1);   // a slight overrun, like liq
 const PART = Easing.bezier(0.33, 0, 0.2, 1);        // settling and pouring back: no sudden starts or stops
 
 const MAIN_PATHS = ['/', '/trades', '/terminal', '/market', '/help'];   // pages that show the phone pill
+const DROP_RIGHT = ['market', 'help'];   // the other pages part to the left; Terminal takes turns
+const TAKES_TURNS = 'terminal';
 // Phone: the pill floats over the screen, so tab screens add this much room at the bottom of their content.
 const TabSpace = createContext(0);
 export const useTabBarSpace = () => useContext(TabSpace);
@@ -194,8 +198,9 @@ function partingCurve(slot: number, index: number, startX: number, capsuleX: num
   return { cA: cOf(0), cC: cOf(STRAIN_GAP) };
 }
 const EASE = { toValue: 0, duration: 340, easing: PART, useNativeDriver: native };   // settles once, with no bounce
-type NeckProps = { width: number; slot: number; index: number; startX: number; capsuleX: number; snap: Animated.Value; curve: { cA: number; cC: number } };
-function Neck({ width, slot, index, startX, capsuleX, snap, curve }: NeckProps) {
+type NeckProps = { width: number; slot: number; index: number; startX: number; capsuleX: number; snap: Animated.Value; curve: { cA: number; cC: number }; mirrored: boolean };
+// Worked out as if the drop were on the left. With the drop on the right the same shape is drawn mirrored.
+function Neck({ width, slot, index, startX, capsuleX, snap, curve, mirrored }: NeckProps) {
   const { tone } = useGlassInk();
   const light = tone === 'light';
   const [shape, setShape] = useState<ReturnType<typeof metaball> | null>(null);
@@ -231,7 +236,7 @@ function Neck({ width, slot, index, startX, capsuleX, snap, curve }: NeckProps) 
   const dropTone = light ? '#f4f4f7' : '#3a3a40';
   const capsuleTone = light ? '#f7f7f9' : '#17171a';
   return (
-      <View testID="nav-neck" pointerEvents="none" style={{ position: 'absolute', left: 0, bottom: 0, width, height: PILL_H, opacity: shape ? 1 : 0 }}>
+      <View testID="nav-neck" pointerEvents="none" style={{ position: 'absolute', left: 0, bottom: 0, width, height: PILL_H, opacity: shape ? 1 : 0, transform: mirrored ? [{ scaleX: -1 }] : undefined }}>
         {shape ? (
           <>
             {Platform.OS === 'web' ? <View style={{ position: 'absolute', left: 0, top: 0, width, height: PILL_H, clipPath: `path('${shape.body}')`, backdropFilter: 'blur(3px) saturate(170%)', WebkitBackdropFilter: 'blur(3px) saturate(170%)' } as object} /> : null}
@@ -300,6 +305,26 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
 
   useEffect(() => { movingListeners.add(setMoving); return () => { movingListeners.delete(setMoving); }; }, []);
   useEffect(() => { lastY = 0; setCollapsed(false); }, [activeIdx]);   // a new page starts with the full pill
+
+  // Which side the drop goes to. It only ever changes while the pill is whole, where the side makes no visible difference, so nothing jumps.
+  const activeName = routes[activeIdx]?.name;
+  const [turnRight, setTurnRight] = useState(false);
+  const wantRight = activeName === TAKES_TURNS ? turnRight : DROP_RIGHT.includes(activeName ?? '');
+  const [dropRight, setDropRight] = useState(wantRight);
+  const side = useRef({ wantRight, activeName, parted: false });
+  side.current.wantRight = wantRight;
+  side.current.activeName = activeName;
+  useEffect(() => { if (progress === 0) setDropRight(wantRight); }, [wantRight]);
+  useEffect(() => {
+    const id = navCollapse.addListener(({ value }) => {
+      if (value > 0.5) side.current.parted = true;
+      if (value !== 0) return;
+      if (side.current.parted && side.current.activeName === TAKES_TURNS) setTurnRight((r) => !r);   // whole again: the next time it goes the other way
+      side.current.parted = false;
+      setDropRight(side.current.wantRight);
+    });
+    return () => navCollapse.removeListener(id);
+  }, []);
 
   const press = (key: string, active: boolean) => {
     const e = emitter.emit({ type: 'tabPress', target: key, canPreventDefault: true });
@@ -387,18 +412,23 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   // Where everything ends up when parted: the drop, the neck, then the capsule of the other items, centred together.
   const others = routes.length - 1;
   const capsuleW = SMALL_ITEM * others + INSET * 2;
-  const startX = (barW - (SMALL_H + NECK_GAP + capsuleW)) / 2;
-  const capsuleX = startX + SMALL_H + NECK_GAP;
-  const curve = partingCurve(slot, activeIdx, startX, capsuleX);
+  const margin = (barW - (SMALL_H + NECK_GAP + capsuleW)) / 2;
+  const startX = dropRight ? margin + capsuleW + NECK_GAP : margin;       // the drop
+  const capsuleX = dropRight ? margin : margin + SMALL_H + NECK_GAP;      // the capsule
+  const toward = dropRight ? -1 : 1;                                      // the direction from the drop to the capsule
+  // the bridge is worked out as if the drop were on the left: the same page counted from the other end
+  const leftIndex = dropRight ? routes.length - 1 - activeIdx : activeIdx;
+  const leftCapsuleX = margin + SMALL_H + NECK_GAP;
+  const curve = partingCurve(slot, leftIndex, margin, leftCapsuleX);
   const raw = navCollapse;
   const c = raw.interpolate({ inputRange: [0, STRAIN_FROM, STRAIN_TO, 1], outputRange: [0, curve.cA, curve.cC, 1] });
   const mix = (from: number, to: number) => c.interpolate({ inputRange: [0, 1], outputRange: [from, to] });
   // leaning toward each other under strain, then thrown apart by the snap
   const lean = raw.interpolate({ inputRange: [STRAIN_FROM, STRAIN_TO, STRAIN_TO + 0.0001], outputRange: [0, LEAN, 0], extrapolate: 'clamp' });
   const kick = snap.interpolate({ inputRange: [-1, 1], outputRange: [-5, 5] });
-  const pieceRight = Animated.add(lean, Animated.multiply(kick, -1));   // the round drop
-  const pieceLeft = Animated.add(Animated.multiply(lean, -1), kick);    // the capsule and its icons
-  const lensX = Animated.add(pieceRight, Animated.add(
+  const pieceDrop = Animated.multiply(Animated.add(lean, Animated.multiply(kick, -1)), toward);     // the round drop
+  const pieceCapsule = Animated.multiply(Animated.add(Animated.multiply(lean, -1), kick), toward);  // the capsule and its icons
+  const lensX = Animated.add(pieceDrop, Animated.add(
     Animated.multiply(Animated.add(INSET, Animated.multiply(glide, slot)), c.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })),
     Animated.multiply(startX, c),
   ));
@@ -411,7 +441,7 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
     return {
       position: 'absolute',
       ...NO_BROWSER_GESTURE,
-      left: Animated.add(mix(INSET + i * slot, itemLeftAtRest(i)), i === activeIdx ? pieceRight : pieceLeft),
+      left: Animated.add(mix(INSET + i * slot, itemLeftAtRest(i)), i === activeIdx ? pieceDrop : pieceCapsule),
       width: mix(slot, SMALL_ITEM),
       bottom: mix(INSET, (SMALL_H - 44) / 2),
       height: mix(PILL_H - INSET * 2, 44),
@@ -421,13 +451,13 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
     <View pointerEvents="box-none" onLayout={(e) => setBarW(e.nativeEvent.layout.width - 24)} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 12, paddingTop: PILL_TOP, paddingBottom: Math.max(insets.bottom, PILL_BOTTOM_MIN) }}>
       <Animated.View {...pan.panHandlers} pointerEvents="box-none" style={{ height: PILL_H }}>
         {barW > 0 ? (
-          <LiquidView radius={PILL_H / 2} flip glow="touch" moving={isMoving} style={{ position: 'absolute', borderRadius: PILL_H / 2, bottom: 0, ...NO_BROWSER_GESTURE, left: Animated.add(mix(0, capsuleX), pieceLeft), width: mix(barW, capsuleW), height: mix(PILL_H, SMALL_H), transform: [{ scaleY: snap.interpolate({ inputRange: [-1, 1], outputRange: [0.97, 1.03] }) }] } as never} animated overlay={(
+          <LiquidView radius={PILL_H / 2} flip glow="touch" moving={isMoving} style={{ position: 'absolute', borderRadius: PILL_H / 2, bottom: 0, ...NO_BROWSER_GESTURE, left: Animated.add(mix(0, capsuleX), pieceCapsule), width: mix(barW, capsuleW), height: mix(PILL_H, SMALL_H), transform: [{ scaleY: snap.interpolate({ inputRange: [-1, 1], outputRange: [0.97, 1.03] }) }] } as never} animated overlay={(
             <>
               <Lens radius={(SMALL_H - INSET * 2) / 2} moving={isMoving || gliding} drop={c} style={{
                 left: 0, bottom: mix(INSET, 0), width: mix(slot, SMALL_H), height: mix(PILL_H - INSET * 2, SMALL_H), borderRadius: PILL_H / 2,
                 transform: [{ translateX: lensX }, { scaleX: Animated.add(Animated.add(stretched, lean.interpolate({ inputRange: [0, LEAN], outputRange: [0, 0.05] })), snap.interpolate({ inputRange: [-1, 1], outputRange: [0.05, -0.05] })) }, { scaleY: Animated.add(lift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }), snap.interpolate({ inputRange: [-1, 1], outputRange: [-0.05, 0.05] })) }],
               }} />
-              <Neck width={barW} slot={slot} index={activeIdx} startX={startX} capsuleX={capsuleX} snap={snap} curve={curve} />
+              <Neck width={barW} slot={slot} index={leftIndex} startX={margin} capsuleX={leftCapsuleX} snap={snap} curve={curve} mirrored={dropRight} />
               <InkLayer style={styles.barItems}>
                 {routes.map((r, i) => (
                   <TabItem key={r.key} label={TABS[r.name].label} Icon={TABS[r.name].Icon} active={i === activeIdx} layout="bar" style={itemStyle(i)}

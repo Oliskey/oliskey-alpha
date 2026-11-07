@@ -89,6 +89,17 @@ def train_inzone() -> dict:
     return {"minutes": IZ_MINUTES, "rows": len(d)}
 
 
+def sure_bar() -> float:
+    """The owner's rule: if it is not sure, it does not trade. The lowest reading run_strength_test.py found sure. It never falls below break-even plus the margin.
+    None in the file means no level proved itself, so nothing clears the bar. Without a result yet, the bar stays break-even plus the margin."""
+    least = IZ_BREAKEVEN + lab.MARGIN
+    try:
+        found = json.loads((ROOT / "docs" / "intel" / "strength.json").read_text(encoding="utf-8"))["sure_bar"]
+    except (OSError, ValueError, KeyError):
+        return least
+    return 2.0 if found is None else max(least, float(found))
+
+
 def scan_inzone(frames: dict | None = None) -> int:
     if not IZ_MODEL.exists() or not IZ_META.exists():
         return 0
@@ -99,13 +110,13 @@ def scan_inzone(frames: dict | None = None) -> int:
     with db.connect() as c:
         busy = {r[0] for r in c.execute("select asset_id from intel.ideas where asset_class = any(%s) and status = 'open'", ([IZ_CLASS, IZ_WIDE],)).fetchall()}
     made, readings = 0, []
-    signs = active_signs()
+    signs, bar_needed = active_signs(), sure_bar()
     for asset, (df, last) in frames.items():
         if last[[c for c in meta["cols"] if c in LONG + CORRIDOR + MARKET]].isna().any(axis=None):   # no real reading of these for this coin right now: the model must not guess one
             continue
         p = float(apply_isotonic(meta["iso"], _predict(models, last[meta["cols"]]))[0])
         readings.append((asset, p))
-        if asset in busy or p <= IZ_BREAKEVEN + lab.MARGIN:
+        if asset in busy or p <= bar_needed:
             continue
         entry = float(df["c"].iat[-1])
         sigma = float(_sigma(df["c"]).iloc[-1])
@@ -122,7 +133,7 @@ def scan_inzone(frames: dict | None = None) -> int:
                    values (%s, %s, %s, 'n/a', 1, '1m', %s, %s, %s, %s, %s, %s, %s, 0, %s, %s, 1) on conflict do nothing""",
                 (asset, IZ_WIDE if asset in WIDE_ASSETS else IZ_CLASS, f"inzone_{minutes}m", bar, bar + timedelta(minutes=ENTER_MINUTES), bar + timedelta(minutes=minutes), entry, entry * (1 - zone), entry * (1 + zone), p, Jsonb(reasons), "avoid" if warned else "idea"))
         made += 0 if warned else 1
-    _note("inzone", readings, IZ_BREAKEVEN + lab.MARGIN)
+    _note("inzone", readings, bar_needed)
     return made
 
 

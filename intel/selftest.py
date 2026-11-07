@@ -264,4 +264,13 @@ _sign = [{"name": "x", "words": "x", "column": "abs:ret_1d", "side": "high", "li
 check("sign: a big move in either direction shows", [s["name"] for s in _rh(_sign, pd.DataFrame({"ret_1d": [-0.06], "hit_24h": [0.5]}))] == ["x"])
 check("sign: a low reading shows", [s["name"] for s in _rh(_sign, pd.DataFrame({"ret_1d": [0.01], "hit_24h": [0.2]}))] == ["y"])
 check("sign: a reading that cannot be made never blocks", _rh(_sign, pd.DataFrame({"ret_1d": [np.nan], "hit_24h": [np.nan]})) == [])
+from run_strength_test import choose_strongest as _cs, choose_sure_bar as _sb  # noqa: E402
+_lv1 = lambda b, n, ok: {"bar": b, "trades": n, "proof": ok}  # noqa: E731
+check("sure bar: every level proves itself, so the lowest", _sb([_lv1(0.49, 5000, True), _lv1(0.5, 5000, True)]) == 0.49)
+check("sure bar: a weak low level is left out", _sb([_lv1(0.49, 5000, False), _lv1(0.5, 5000, True)]) == 0.5)
+check("sure bar: a weak level above stops anything under it", _sb([_lv1(0.49, 5000, True), _lv1(0.5, 5000, False), _lv1(0.52, 5000, True)]) == 0.52)
+check("sure bar: too few trades to judge counts neither way", _sb([_lv1(0.49, 5000, True), _lv1(0.7, 10, False)]) == 0.49)
+check("sure bar: nothing proves itself, so it does not trade", _sb([_lv1(0.49, 5000, False)]) is None)
+check("strongest: the highest that passes", _cs([_lv1(0.5, 5000, True), _lv1(0.6, 800, True), _lv1(0.7, 100, True)]) == 0.6)
+check("strongest: none passing means not offered", _cs([_lv1(0.5, 5000, False)]) is None)
 print("all engine self-tests passed")

@@ -85,15 +85,24 @@ export function withinLimits(balance, amount, openAuto) {
   return amount <= balance && amount <= whole * AUTO_MAX_TRADE && openAuto + amount <= whole * AUTO_MAX_OPEN;
 }
 
+// Strongest signals, the user's option: only InZone readings at or above the bar the weekly test found. With no bar, or for any other trade type, there is no proof, so no trade.
+export const passesStrength = (strength, bar, mode, probability) => strength !== 'strongest' || (bar != null && mode === 'inzone' && Number(probability) >= bar);
+
+const strengthResult = () => intel('/strength').catch((err) => {
+  console.error('strongest signals', err.message);
+  return { strongest_bar: null };   // without the result, those on strongest signals simply wait
+});
+
 // When the AI takes a signal: users on auto trade get the same trade at their own amount, users on always ask get asked.
 // `orderFor(amount)` builds the order, so a Forex stop and target stay in proportion to each user's amount.
 export async function tradeForUsers({ idea, mode, engineUserId, engine, settlement, orderFor }) {
   // every user, a batch at a time, so one signal can reach any number of them without holding up the database
   let placed = 0, after = '00000000-0000-0000-0000-000000000000';
+  const bar = (await strengthResult()).strongest_bar;
   for (;;) {
     const rows = await autoBatch({ idea, mode, engineUserId, after });
     for (let i = 0; i < rows.length; i += AUTO_AT_ONCE) {
-      const done = await Promise.all(rows.slice(i, i + AUTO_AT_ONCE).map((u) => tradeForOne(u, idea, engine, settlement, orderFor)));
+      const done = await Promise.all(rows.slice(i, i + AUTO_AT_ONCE).filter((u) => passesStrength(u.strength, bar, mode, idea.probability)).map((u) => tradeForOne(u, idea, engine, settlement, orderFor)));
       placed += done.filter(Boolean).length;
     }
     if (rows.length < AUTO_BATCH) return placed;
@@ -103,7 +112,7 @@ export async function tradeForUsers({ idea, mode, engineUserId, engine, settleme
 
 async function autoBatch({ idea, mode, engineUserId, after }) {
   const { rows } = await pool.query(
-    `select a.user_id, a.id as account_id, a.balance, coalesce(s.amount, $1) as amount, coalesce(s.mode, $2) as mode,
+    `select a.user_id, a.id as account_id, a.balance, coalesce(s.amount, $1) as amount, coalesce(s.mode, $2) as mode, coalesce(s.strength, 'all') as strength,
        (select coalesce(sum(t.amount), 0) from trades t where t.account_id = a.id and t.status = 'open' and t.auto) as open_auto
      from accounts a
      join auth.users u on u.id = a.user_id
@@ -374,24 +383,29 @@ export function signalRouter({ engine, settlement, orders }) {
 
   // The user's choice for each kind of money, and on demo the trades waiting for their OK.
   async function autoState(userId) {
-    const { rows } = await pool.query('select scope, mode, amount, risk_accepted_at from auto_trade_settings where user_id = $1', [userId]);
+    const { rows } = await pool.query('select scope, mode, amount, strength, risk_accepted_at from auto_trade_settings where user_id = $1', [userId]);
     const of = (scope) => {
       const s = rows.find((x) => x.scope === scope);
-      return { mode: s?.mode ?? AUTO_DEFAULTS[scope], amount: s ? Number(s.amount) : AUTO_MIN, riskAccepted: !!s?.risk_accepted_at };
+      return { mode: s?.mode ?? AUTO_DEFAULTS[scope], amount: s ? Number(s.amount) : AUTO_MIN, strength: s?.strength ?? 'all', riskAccepted: !!s?.risk_accepted_at };
     };
     const demo = of('demo');
     // The choice itself never depends on the engine: if it is busy or restarting, there is simply nothing to approve yet.
-    const waiting = demo.mode === 'ask' ? await waitingFor(userId).catch((err) => {
+    const result = await strengthResult();
+    const waiting = demo.mode === 'ask' ? await waitingFor(userId, demo.strength, result.strongest_bar).catch((err) => {
       console.error('trades waiting for an OK', err.message);
       return [];
     }) : [];
-    return { min: AUTO_MIN, demo, real: of('real'), waiting };
+    // the test's own numbers for the bar it chose, so what the app says is what was measured
+    const top = result.strongest_bar == null ? null : (result.tops ?? []).find((t) => t.bar === result.strongest_bar);
+    const strongest = { offered: !!top, won: top?.won ?? null, perDay: top?.per_day ?? null };
+    return { min: AUTO_MIN, demo, real: of('real'), waiting, strongest };
   }
 
-  async function waitingFor(userId) {
+  async function waitingFor(userId, strength, bar) {
     const now = Date.now();
     const { groups } = await intel('/evidence');
-    const ideas = (await intel('/ideas?limit=200')).filter((i) => i.kind === 'idea' && i.status === 'open' && new Date(i.enter_until).getTime() > now && engine.isLive(i.asset_id) && earnsInTests(groups, i.asset_class));
+    const ideas = (await intel('/ideas?limit=200')).filter((i) => i.kind === 'idea' && i.status === 'open' && new Date(i.enter_until).getTime() > now && engine.isLive(i.asset_id) && earnsInTests(groups, i.asset_class)
+      && passesStrength(strength, bar, QUICK[i.asset_class] ?? 'forex', i.probability));
     const ids = ideas.map((i) => i.id);
     const [{ rows: decided }, { rows: mine }] = await Promise.all([
       pool.query('select idea_id from intel.ai_decisions where take and idea_id = any($1::bigint[])', [ids]),
@@ -409,17 +423,19 @@ export function signalRouter({ engine, settlement, orders }) {
 
   r.put('/auto', async (req, res) => {
     try {
-      const { scope, mode, amount, acceptRisk } = req.body ?? {};
+      const { scope, mode, amount, acceptRisk, strength } = req.body ?? {};
       if (scope !== 'demo' && scope !== 'real') return res.status(400).json({ error: 'Choose demo or real.' });
       if (mode != null && mode !== 'ask' && mode !== 'auto') return res.status(400).json({ error: 'Choose always ask or auto trade.' });
       if (amount != null && !(typeof amount === 'number' && Number.isFinite(amount) && amount >= AUTO_MIN && amount <= AUTO_MAX)) return res.status(400).json({ error: `The amount must be at least ${AUTO_MIN}.` });
+      if (strength != null && strength !== 'all' && strength !== 'strongest') return res.status(400).json({ error: 'Choose most profit or strongest signals.' });
+      if (strength === 'strongest' && (await strengthResult()).strongest_bar == null) return res.status(400).json({ error: 'Strongest signals is not available right now: no level has passed its test.' });
       const { rows } = await pool.query('select risk_accepted_at from auto_trade_settings where user_id = $1 and scope = $2', [req.user.id, scope]);
       if (scope === 'real' && mode === 'auto' && !acceptRisk && !rows[0]?.risk_accepted_at) return res.status(400).json({ error: 'Accept the risk first: the AI can lose your money.' });
       await pool.query(
-        `insert into auto_trade_settings (user_id, scope, mode, amount, risk_accepted_at) values ($1, $2, coalesce($3::text, $6::text), coalesce($4::numeric, $7::numeric), case when $5::boolean then now() end)
-         on conflict (user_id, scope) do update set mode = coalesce($3::text, auto_trade_settings.mode), amount = coalesce($4::numeric, auto_trade_settings.amount),
+        `insert into auto_trade_settings (user_id, scope, mode, amount, risk_accepted_at, strength) values ($1, $2, coalesce($3::text, $6::text), coalesce($4::numeric, $7::numeric), case when $5::boolean then now() end, coalesce($8::text, 'all'))
+         on conflict (user_id, scope) do update set mode = coalesce($3::text, auto_trade_settings.mode), amount = coalesce($4::numeric, auto_trade_settings.amount), strength = coalesce($8::text, auto_trade_settings.strength),
            risk_accepted_at = case when $5::boolean then now() else auto_trade_settings.risk_accepted_at end, updated_at = now()`,
-        [req.user.id, scope, mode ?? null, amount != null ? Math.round(amount * 100) / 100 : null, scope === 'real' && !!acceptRisk, AUTO_DEFAULTS[scope], AUTO_MIN]);
+        [req.user.id, scope, mode ?? null, amount != null ? Math.round(amount * 100) / 100 : null, scope === 'real' && !!acceptRisk, AUTO_DEFAULTS[scope], AUTO_MIN, strength ?? null]);
       res.json(await autoState(req.user.id));
     } catch (err) { reply(res, err); }
   });

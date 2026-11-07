@@ -72,6 +72,7 @@ export const TERMS: LegalDoc = {
       heading: '7. The AI trading for you',
       body: [
         'You choose how the AI works with your account: Always ask, where it asks you to approve each trade, or Auto trade, where it places trades for you without asking. You can change this at any time on the AI trader page. Changing it does not affect trades already open.',
+        'On demo accounts you can also choose which trades it takes: Most profit, the default, or Strongest signals, where it takes only signals at a higher level of confidence. Strongest signals means fewer trades. It won more often in tests but earned less in total, and it can still lose. It is only available while that level passes its tests.',
         'Demo accounts start on Auto trade. The AI may place trades with your α credits until you switch to Always ask. Real-money accounts start on Always ask, and only you can change that.',
         'Each trade the AI places uses the amount you set, at least 100 per trade. It skips a trade rather than change your amount if the trade would be more than 15% of your money, if its open trades would be more than half of your money, or if your balance is too low. Trades it places are marked with the AI mark in your trades and history.',
         'The AI can lose, and it can lose many trades in a row. Its test results and its record on demo accounts do not promise future results. It decides by fixed rules from market data, and it is not personal financial advice: it does not know your circumstances.',
@@ -168,7 +169,7 @@ export const PRIVACY: LegalDoc = {
       body: [
         'Account details: your full name, email address, password (stored only as a secure one-way hash, never in readable form), and your phone number if you add it.',
         'Trading activity: the trades you open and close, amounts, results, balances and the price ticks around each trade, so we can settle trades fairly and show your history. This includes trades the AI places for you, and which signal a trade came from.',
-        'Your AI trading choices: Always ask or Auto trade for each kind of money, your amount per trade, and the time you accepted the risk warning for real money.',
+        'Your AI trading choices: Always ask or Auto trade for each kind of money, your amount per trade, Most profit or Strongest signals, and the time you accepted the risk warning for real money.',
         'Notification details: if you switch on alerts when the app is closed, your browser gives us a delivery address and keys for that device, so we can send them. Switching them off removes it.',
         'Identity and payment details, only when real-money accounts are switched on: identity verification results and the bank accounts you save for withdrawals. Card and bank payments are handled by our payment partner; we do not store card numbers.',
         'Technical information: the device and browser type, log data (such as the time of a request and errors) and security events, used to keep the service reliable and protect accounts.',

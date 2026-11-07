@@ -1,6 +1,6 @@
 # Oliskey Alpha: your questions and answers
 
-The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 7 November 2026, version 0.0.10.
+The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 7 November 2026, version 0.0.11.
 
 ## Your AI goal
 
@@ -40,7 +40,9 @@ Last test, on different minutes and entering 2 minutes late: the 5 usual coins w
 | Every day | Retrains on the newest prices. A restart or a sleeping PC delays this, never cancels it |
 | Every week | Studies its wins and losses. A warning sign seen before entry joins the strategy only if it passes a fixed test showing those trades lose money. One that stops passing leaves |
 
-Results will be in [docs/intel/CAUSES.md](docs/intel/CAUSES.md) when the first study finishes. It trades only in "winning conditions" if that test shows more total profit, because a higher win rate on fewer trades has earned less before.
+Results: [docs/intel/CAUSES.md](docs/intel/CAUSES.md). It trades only in "winning conditions" if that test shows more total profit, because a higher win rate on fewer trades has earned less before.
+
+**First study, 7 November, from 71,734 test trades:** the biggest cause of losses is the whole market moving after entry (52.5% of test losses, 50.6% of live), then a steady move in one direction (30.4% and 38.0%). Of 12 warning signs seen before entry, none passed: even the worst still won 52.86%, above the 47.62% needed, so no rule was added. Trading only the best condition won 59.02% but earned +2,803, against 55.00% and +9,070 for all trades, so the AI keeps trading them all. Using those conditions to raise the stake is your decision, and it would need its own test first.
 
 ## All-coins contest, 7 November
 

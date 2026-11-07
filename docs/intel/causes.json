@@ -1,0 +1,311 @@
+{
+ "generated_at": "2026-11-07T12:16:43.727134+00:00",
+ "version": "both, longer",
+ "bar_z": -2.63825727347675,
+ "trades": 71734,
+ "won": 0.5471603423760002,
+ "tested_causes": {
+  "zone_market_moved": 17063,
+  "zone_steady_drift": 9889,
+  "zone_just_outside": 4315,
+  "zone_sudden_jump": 1169,
+  "zone_jumpier": 48
+ },
+ "tested_wins": {
+  "zone_came_back": 23823,
+  "zone_stayed_inside": 15427
+ },
+ "live": {
+  "lost": 86,
+  "won": 113,
+  "causes": {
+   "zone_market_moved": 40,
+   "zone_steady_drift": 30,
+   "zone_just_outside": 7,
+   "zone_jumpier": 1,
+   "zone_sudden_jump": 1
+  },
+  "unmeasured": 7
+ },
+ "signs": [
+  {
+   "name": "market_jumpy",
+   "words": "the whole market has just turned jumpier than usual",
+   "column": "mkt_jumpy",
+   "side": "high",
+   "limit": 1.3287523984909058,
+   "trades": 20439,
+   "won": 0.5640197661333725,
+   "avg": 0.1844415088800822,
+   "total": 3769.8,
+   "z": 13.596945704836852,
+   "exam_trades": 4709,
+   "exam_avg": 0.18802293480569124,
+   "passed": false
+  },
+  {
+   "name": "market_split",
+   "words": "coins are moving very differently from each other",
+   "column": "mkt_spread_60",
+   "side": "high",
+   "limit": 0.005686549842357636,
+   "trades": 9466,
+   "won": 0.5343334037608283,
+   "avg": 0.12210014789773929,
+   "total": 1155.8000000000002,
+   "z": 6.826958690101351,
+   "exam_trades": 3775,
+   "exam_avg": 0.15374834437086096,
+   "passed": false
+  },
+  {
+   "name": "market_running",
+   "words": "the whole market has just made a big move",
+   "column": "abs:mkt_ret_60",
+   "side": "high",
+   "limit": 0.006647204980254175,
+   "trades": 11626,
+   "won": 0.5507483227249269,
+   "avg": 0.15657147772234647,
+   "total": 1820.3000000000002,
+   "z": 9.597190063608712,
+   "exam_trades": 3013,
+   "exam_avg": 0.16047129107202127,
+   "passed": false
+  },
+  {
+   "name": "coin_alone",
+   "words": "this coin has just moved far from the rest of the market",
+   "column": "abs:own_vs_mkt_60",
+   "side": "high",
+   "limit": 0.004624186642467977,
+   "trades": 11235,
+   "won": 0.5424121050289274,
+   "avg": 0.13906542056074767,
+   "total": 1562.4,
+   "z": 12.294200604358942,
+   "exam_trades": 3456,
+   "exam_avg": 0.13628472222222224,
+   "passed": false
+  },
+  {
+   "name": "corridor_failing_day",
+   "words": "the corridor has often failed on this coin in the last 24 hours",
+   "column": "hit_24h",
+   "side": "low",
+   "limit": 0.4000000059604645,
+   "trades": 6922,
+   "won": 0.5401618029471251,
+   "avg": 0.13433978618896275,
+   "total": 929.9000000000001,
+   "z": 7.92880779102426,
+   "exam_trades": 2163,
+   "exam_avg": 0.13495145631067965,
+   "passed": false
+  },
+  {
+   "name": "corridor_failing_week",
+   "words": "the corridor has often failed on this coin in the last 7 days",
+   "column": "hit_7d",
+   "side": "low",
+   "limit": 0.42222222685813904,
+   "trades": 2730,
+   "won": 0.5622710622710623,
+   "avg": 0.18076923076923082,
+   "total": 493.5000000000001,
+   "z": 7.448590755770213,
+   "exam_trades": 1228,
+   "exam_avg": 0.14918566775244305,
+   "passed": false
+  },
+  {
+   "name": "corridor_narrow_day",
+   "words": "the corridor is narrow compared with today's range",
+   "column": "zone_vs_day",
+   "side": "low",
+   "limit": 0.044701692461967465,
+   "trades": 1834,
+   "won": 0.534896401308615,
+   "avg": 0.12328244274809161,
+   "total": 226.10000000000002,
+   "z": 3.9511266982832383,
+   "exam_trades": 648,
+   "exam_avg": 0.030555555555555586,
+   "passed": false
+  },
+  {
+   "name": "corridor_narrow",
+   "words": "the corridor is unusually narrow",
+   "column": "zone_width",
+   "side": "low",
+   "limit": 0.0019957203883677723,
+   "trades": 7657,
+   "won": 0.5784249706151234,
+   "avg": 0.21469243829175919,
+   "total": 1643.9,
+   "z": 12.50956869033792,
+   "exam_trades": 1851,
+   "exam_avg": 0.2366288492706645,
+   "passed": false
+  },
+  {
+   "name": "week_jumpy",
+   "words": "this coin has been jumpy all week",
+   "column": "vol_7d",
+   "side": "high",
+   "limit": 0.28808242082595825,
+   "trades": 7787,
+   "won": 0.5285732631308592,
+   "avg": 0.11000385257480418,
+   "total": 856.6000000000001,
+   "z": 5.378519937923777,
+   "exam_trades": 3141,
+   "exam_avg": 0.10248328557784148,
+   "passed": false
+  },
+  {
+   "name": "day_running",
+   "words": "this coin has made a big move in the last day",
+   "column": "abs:ret_1d",
+   "side": "high",
+   "limit": 0.043295636773109436,
+   "trades": 8675,
+   "won": 0.5439769452449568,
+   "avg": 0.14235158501440923,
+   "total": 1234.9,
+   "z": 7.026582364661131,
+   "exam_trades": 2655,
+   "exam_avg": 0.12237288135593223,
+   "passed": false
+  },
+  {
+   "name": "far_from_average",
+   "words": "the price is far from its 200-day average",
+   "column": "abs:dist_200d",
+   "side": "high",
+   "limit": 0.35242900252342224,
+   "trades": 24716,
+   "won": 0.548268328208448,
+   "avg": 0.15136348923774076,
+   "total": 3741.1000000000004,
+   "z": 11.703564532180058,
+   "exam_trades": 1921,
+   "exam_avg": 0.05491931285788654,
+   "passed": false
+  },
+  {
+   "name": "range_edge",
+   "words": "the price is at the top of its 30-day range",
+   "column": "range_30d",
+   "side": "high",
+   "limit": 0.7701704502105713,
+   "trades": 7505,
+   "won": 0.5372418387741505,
+   "avg": 0.1282078614257162,
+   "total": 962.2,
+   "z": 8.530653495756884,
+   "exam_trades": 2143,
+   "exam_avg": 0.05832944470368644,
+   "passed": false
+  }
+ ],
+ "active": [],
+ "best": [
+  {
+   "name": "market_jumpy",
+   "words": "the whole market has just turned jumpier than usual",
+   "trades": 11699,
+   "won": 0.5362851525771434,
+   "avg": 0.12619882041200106,
+   "total": 1476.4000000000003
+  },
+  {
+   "name": "market_split",
+   "words": "coins are moving very differently from each other",
+   "trades": 11699,
+   "won": 0.5670570134199504,
+   "avg": 0.19081972818189594,
+   "total": 2232.4000000000005
+  },
+  {
+   "name": "market_running",
+   "words": "the whole market has just made a big move",
+   "trades": 11700,
+   "won": 0.5563247863247863,
+   "avg": 0.1682820512820513,
+   "total": 1968.9
+  },
+  {
+   "name": "coin_alone",
+   "words": "this coin has just moved far from the rest of the market",
+   "trades": 11699,
+   "won": 0.5541499273442174,
+   "avg": 0.16371484742285666,
+   "total": 1915.3000000000002
+  },
+  {
+   "name": "corridor_failing_day",
+   "words": "the corridor has often failed on this coin in the last 24 hours",
+   "trades": 11704,
+   "won": 0.5811688311688312,
+   "avg": 0.2204545454545455,
+   "total": 2580.2000000000003
+  },
+  {
+   "name": "corridor_failing_week",
+   "words": "the corridor has often failed on this coin in the last 7 days",
+   "trades": 11710,
+   "won": 0.5901793339026473,
+   "avg": 0.23937660119555937,
+   "total": 2803.1000000000004
+  },
+  {
+   "name": "corridor_narrow_day",
+   "words": "the corridor is narrow compared with today's range",
+   "trades": 11699,
+   "won": 0.5858620394905547,
+   "avg": 0.230310282930165,
+   "total": 2694.4000000000005
+  },
+  {
+   "name": "corridor_narrow",
+   "words": "the corridor is unusually narrow",
+   "trades": 11699,
+   "won": 0.5578254551671084,
+   "avg": 0.17143345585092745,
+   "total": 2005.6000000000004
+  },
+  {
+   "name": "week_jumpy",
+   "words": "this coin has been jumpy all week",
+   "trades": 11701,
+   "won": 0.5446543030510212,
+   "avg": 0.1437740364071447,
+   "total": 1682.3000000000002
+  },
+  {
+   "name": "day_running",
+   "words": "this coin has made a big move in the last day",
+   "trades": 11699,
+   "won": 0.5611590734250791,
+   "avg": 0.17843405419266603,
+   "total": 2087.5
+  },
+  {
+   "name": "far_from_average",
+   "words": "the price is far from its 200-day average",
+   "trades": 11699,
+   "won": 0.5614155055987691,
+   "avg": 0.1789725617574152,
+   "total": 2093.8
+  },
+  {
+   "name": "range_edge",
+   "words": "the price is at the top of its 30-day range",
+   "trades": 11699,
+   "won": 0.5513291734336268,
+   "avg": 0.15779126421061634,
+   "total": 1846.0000000000005
+  }
+ ]
+}

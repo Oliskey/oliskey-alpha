@@ -17,11 +17,12 @@ Q = 0.511            # the corridor factor (engine.updown.IZ_Q), repeated here s
 MINUTES = 60
 NEAR = 1.15          # finishing within 15% of the corridor's edge counts as just outside
 JUMPY = 1.5          # moving this many times more than the corridor expected counts as jumpier than expected
+JUMP = 2.0           # a move of this many corridors inside 5 minutes is a sudden jump: one corridor is ordinary movement, because corridors are set narrow on purpose
 
 CAUSES = {
     "zone_just_outside": "InZone: it finished just outside the corridor, so a small late move decided it.",
     "zone_market_moved": "InZone: the whole market moved as far as the corridor, taking this coin with it.",
-    "zone_sudden_jump": "InZone: a sudden jump inside 5 minutes crossed the corridor.",
+    "zone_sudden_jump": "InZone: a sudden jump of at least twice the corridor, inside 5 minutes.",
     "zone_jumpier": "InZone: the coin moved far more than the recent prices that set the corridor had shown.",
     "zone_steady_drift": "InZone: a steady move in one direction carried it out, with no jump and no unusual movement.",
     "zone_late_price": "InZone: the signal itself won, but the trade opened later at a different price and lost.",
@@ -55,7 +56,7 @@ def classify(closes: np.ndarray, zone: float, market_move: float) -> str:
         return "zone_just_outside"
     if abs(market_move) >= zone and market_move * final > 0:
         return "zone_market_moved"
-    if len(log) > 5 and float(np.abs(log[5:] - log[:-5]).max()) >= zone:
+    if len(log) > 5 and float(np.abs(log[5:] - log[:-5]).max()) >= JUMP * zone:
         return "zone_sudden_jump"
     if float(np.diff(log).std()) >= JUMPY * zone / (Q * np.sqrt(MINUTES)):
         return "zone_jumpier"

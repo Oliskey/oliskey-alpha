@@ -25,7 +25,7 @@ from psycopg.types.json import Jsonb
 
 from . import backtest as bt, db, news, scout
 from .indicators import add_all
-from .settings import APP_ASSETS, asset_cfg, variants
+from .settings import APP_ASSETS, asset_cfg, ROOT, variants
 from .strategies import split_variant
 
 SCHEMA = """
@@ -741,6 +741,16 @@ def _open_by_type() -> list:
         return c.execute("""select t.mode::text, count(*) from intel.paper_trades p join public.trades t on t.id = p.trade_id where t.status = 'open' group by 1""").fetchall()
 
 
+def _timing() -> dict | None:
+    """The last when-to-trade test (run_time_test.py)."""
+    import json
+    try:
+        t = json.loads((ROOT / "docs" / "intel" / "time.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return {"tried": t["windows_tried"], "at": t["generated_at"], "sit_out": sorted({w for k in t["kinds"].values() for w in k["sit_out"]})}
+
+
 def report() -> dict:
     with db.connect() as c:
         j = c.execute(
@@ -782,6 +792,7 @@ def report() -> dict:
     def check_state(family: str) -> str:
         on = [f"{'only when' if k == 'require' else 'skips when'}: {label(t).lower()}" for t, k in rules_now.items() if t.startswith(family + ":")]
         return f"Now a rule, {'; '.join(on)}." if on else "Watching. It is recorded on every trade, and becomes a rule only if live results prove it."
+    latest = clean[:100]
     from . import scanner, updown
     fx = max(scanner.forex_readings, key=lambda r: r[1]) if scanner.forex_readings else None
     open_by = {r[0]: r[1] for r in _open_by_type()}
@@ -808,6 +819,8 @@ def report() -> dict:
         "checks_12h": [{"at": r[0], "balance": r[1], "total": r[2], "change": r[3], "trades": r[4], "won": r[5]} for r in checks],
         "picks": {"finished": len(picks), "won": sum(1 for r in picks if r[4]), "lost": sum(1 for r in picks if not r[4]), "pnl": sum(r[6] for r in picks), "too_few": len(clean) < TOO_FEW,
                   "clean": {"finished": len(clean), "won": sum(1 for r in clean if r[4]), "pnl": sum(r[6] for r in clean), "moments": len({r[10].replace(minute=0, second=0, microsecond=0) for r in clean})}},
+        "last_100": {"finished": len(latest), "won": sum(1 for r in latest if r[4]), "lost": sum(1 for r in latest if not r[4]), "pnl": sum(r[6] for r in latest)},
+        "timing": _timing(),
         "measured": {"finished": len(measured), "won": sum(1 for r in measured if r[4]), "lost": sum(1 for r in measured if not r[4]), "pnl": sum(r[6] for r in measured)},
         "strategies": strategies,
         "finished": len(j), "won": wins, "lost": len(j) - wins, "skipped": skipped, "avg_r": sum(r[5] for r in j) / len(j) if j else None,

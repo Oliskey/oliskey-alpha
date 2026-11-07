@@ -134,6 +134,8 @@ export type AiTrader = {
   findings?: { title: string; url: string; idea: string; type: string; free_data: boolean; at: string }[];
   after_trade?: { asset: string; at: string; pnl: number; won: boolean; total: number }[];
   checks_12h?: { at: string; balance: number | null; total: number; change: number | null; trades: number | null; won: number | null }[];
+  last_100?: { finished: number; won: number; lost: number; pnl: number };
+  timing?: { tried: number; at: string; sit_out: string[] } | null;
   picks: { finished: number; won: number; lost: number; pnl: number; too_few: boolean; clean: { finished: number; won: number; pnl: number; moments: number } };
   measured: { finished: number; won: number; lost: number; pnl: number };
   finished_trades: Trade[];

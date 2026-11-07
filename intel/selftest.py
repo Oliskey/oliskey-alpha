@@ -164,4 +164,23 @@ check("candles: new ones join on, and the window keeps its size", len(_joined) =
 check("candles: the newest copy of a candle wins", _joined.loc[_joined["t"] == 540_000, "c"].iat[0] == 2.0)
 check("candles: a gap asks for a full download", _merge_candles(_old, _cd([60_000 * 20])) is None)
 check("candles: nothing new changes nothing", _merge_candles(_old, _cd([]))["t"].equals(_old["t"]))
+from datetime import datetime as _dt, timezone as _tz  # noqa: E402
+from engine.sessions import is_open  # noqa: E402
+_u = lambda *a: _dt(*a, tzinfo=_tz.utc)  # noqa: E731
+check("hours: crypto never closes", is_open("BTCUSD", _u(2026, 11, 7, 12)))
+check("hours: forex closed on Saturday", not is_open("EURUSD", _u(2026, 11, 7, 12)))
+check("hours: forex open Tuesday", is_open("EURUSD", _u(2026, 11, 10, 12)))
+check("hours: forex closes Friday 5 pm New York", is_open("EURUSD", _u(2026, 11, 13, 21, 59)) and not is_open("EURUSD", _u(2026, 11, 13, 22, 0)))
+check("hours: forex reopens Sunday 5 pm New York", not is_open("EURUSD", _u(2026, 11, 8, 21, 59)) and is_open("EURUSD", _u(2026, 11, 8, 22, 0)))
+check("hours: clock change respected (summer is an hour earlier)", is_open("EURUSD", _u(2026, 7, 12, 21, 0)) and not is_open("EURUSD", _u(2026, 7, 12, 20, 59)))
+check("hours: gold has its daily break", not is_open("XAUUSD", _u(2026, 11, 10, 22, 30)) and is_open("XAUUSD", _u(2026, 11, 10, 23, 0)))
+check("hours: S&P only in New York's session", is_open("US500", _u(2026, 11, 10, 15)) and not is_open("US500", _u(2026, 11, 10, 22)) and not is_open("US500", _u(2026, 11, 7, 15)))
+check("hours: Tokyo closes for lunch", is_open("JP225", _u(2026, 11, 10, 1)) and not is_open("JP225", _u(2026, 11, 10, 3)))
+check("hours: an unknown market is not hidden", is_open("NOPE", _u(2026, 11, 7, 12)))
+from run_wide_contest import winner as _winner  # noqa: E402
+_base = {"trades": 1000, "avg": 0.01, "luck": 0.001, "total": 100.0, "low": 0.0, "periods_up": 3, "max_dd": 50.0, "usual_total": 10.0, "exam_total": 5.0}
+_better = {**_base, "avg": 0.05, "total": 200.0}
+check("exam: a winner that earns in the exam is chosen", _winner({"today": _base, "new": {**_better, "exam_total": 6.0}}) == "new")
+check("exam: a winner that earns less than today in the exam is refused", _winner({"today": _base, "new": {**_better, "exam_total": 4.0}}) == "today")
+check("exam: a winner that loses in the exam is refused", _winner({"today": {**_base, "exam_total": -9.0}, "new": {**_better, "exam_total": -1.0}}) == "today")
 print("all engine self-tests passed")

@@ -285,6 +285,7 @@ function AiTab() {
         <Txt style={[styles.big, { color: clean.pnl > 0 ? colors.up : clean.pnl < 0 ? colors.down : colors.text }]}>{clean.pnl > 0 ? '+' : clean.pnl < 0 ? '-' : ''}α{Math.abs(clean.pnl).toFixed(2)}</Txt>
         <Txt style={styles.reason}>{clean.won} of {clean.finished} won. {a.open} open now.</Txt>
         {a.picks.too_few ? <Txt style={[styles.reason, { color: colors.demo }]}>Too few trades to judge yet.</Txt> : null}
+        {a.last_100 ? <Txt style={styles.meta}>Last {a.last_100.finished} of 100 signals: {a.last_100.won} right, {a.last_100.lost} wrong{a.last_100.finished ? ` (${Math.round((a.last_100.won / a.last_100.finished) * 100)}%)` : ''}.</Txt> : null}
       </View>
 
       <Grid columns={columns}>{a.listening?.map((l) => <ListenCard key={l.mode} l={l} fill={columns > 1} />)}</Grid>
@@ -296,6 +297,10 @@ function AiTab() {
           <Txt style={styles.reason}>Clean record: {clean.finished} trades matched what was tested, across {clean.moments} separate {clean.moments === 1 ? 'hour' : 'hours'}. It needs at least {a.needed} clean trades to judge, and even a profit can be luck.</Txt>
           {a.measured.finished ? <Txt style={styles.meta}>Not counted: {a.measured.finished} earlier test trades on setups it had marked don't enter ({a.measured.won} won, {a.measured.lost} lost, {a.measured.pnl >= 0 ? '+' : '-'}α{Math.abs(a.measured.pnl).toFixed(2)}).</Txt> : null}
           <Txt style={styles.meta}>{a.watching.scanned_at ? `Last checked ${time(a.watching.scanned_at)}: ${a.watching.markets} real markets. ${a.watching.signals} with a signal, ${a.watching.setups_skipped} with a setup marked don't enter, ${a.watching.waiting} waiting for a setup.` : 'Its first check is running.'}</Txt>
+        </Row>
+        <Row icon={Clock} title="When it trades" subtitle={a.timing?.sit_out.length ? `Sits out: ${a.timing.sit_out.join(', ')}` : 'All hours, on crypto'} open={open === 'when'} onPress={() => show('when')}>
+          <Txt style={styles.reason}>Crypto never closes. Forex, indices and commodities get no signal while their market is closed. Public holidays are not known yet.</Txt>
+          {a.timing ? <Txt style={styles.reason}>{a.timing.sit_out.length ? `It tested ${a.timing.tried} windows of time. These lost money in every test: ${a.timing.sit_out.join(', ')}.` : `It tested ${a.timing.tried} windows of time, by hour, day and session. None lost money reliably enough to avoid, so it trades at any hour.`}</Txt> : null}
         </Row>
         <Row icon={Wallet} title="Money checks" subtitle="Every 12 hours, and after each trade" open={open === 'money'} onPress={() => show('money')}>
           {a.checks_12h?.some((c) => c.change != null) ? a.checks_12h.filter((c) => c.change != null).map((c) => (

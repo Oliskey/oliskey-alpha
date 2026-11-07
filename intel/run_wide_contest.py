@@ -10,7 +10,9 @@ RULE, FIXED BEFORE ANY RESULT WAS SEEN, not to be loosened afterwards. A new ver
   1. average per trade higher than today's by more than training luck explains, and by at least 0.005;
   2. total profit at least as high; 3. corrected lower bound no worse; 4. as many periods in profit;
   5. worst losing run no more than 10% larger; 6. still in profit on the 5 usual coins alone;
-  7. at least 500 trades.
+  7. at least 500 trades;
+  8. HELD-BACK EXAM, added 2026-11-07 before this contest had ever run: the newest 60 days play no part in rules 1 to 7. On them the
+     winner must make a profit, and no less than today's version. Otherwise today's version stays.
 Usage: python intel/run_wide_contest.py (needs intel/fetch_history.py first)"""
 from __future__ import annotations
 
@@ -27,17 +29,20 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import run_train_hard as rt                                     # noqa: E402
 from engine.settings import ROOT                                # noqa: E402
-from engine.updown import _frame, _sigma, ALL_COINS, BREAKEVEN, IZ_BREAKEVEN, IZ_PAYOUT, IZ_Q, PAYOUT   # noqa: E402
+from engine.updown import _frame, _sigma, ALL_COINS, BREAKEVEN, IZ_BREAKEVEN, IZ_PAYOUT, IZ_Q, money_proof, PAYOUT   # noqa: E402
 
 lab = rt.lab
 FOLDER = lab.CACHE / "all"
 STEP = 15             # every 15th minute: the answers span 60 minutes, and all 17 coins must fit in memory
 SEEDS = (7, 42)
+EXAM_DAYS = 60        # the newest days, kept out of every choice
+TRAINING = {"rows": 700_000, "rounds": 150, "lr": None, "blend": 3}
 PERIODS, PERIOD_DAYS, MINUTES = rt.PERIODS, rt.PERIOD_DAYS, rt.MINUTES
 LABELS = ("t", "y_ft", "y_iz", "coin_name")
 LONG = ["ret_1d", "ret_3d", "ret_7d", "ret_30d", "dist_200d", "range_30d", "vol_7d", "vol_30d"]
 KINDS = {"fixed_time": ("y_ft", PAYOUT, BREAKEVEN, True), "inzone": ("y_iz", IZ_PAYOUT, IZ_BREAKEVEN, False)}
 USUAL = list(lab.COINS)
+READINGS = lab.CACHE / "readings"
 DAY = 1440
 
 
@@ -101,14 +106,34 @@ def versions(cols: list[str]) -> dict:
     }
 
 
-def judge(d: pd.DataFrame, cols: list[str], kind: str) -> dict:
+def trades_on(train: pd.DataFrame, test: pd.DataFrame, v: dict, kind: str, seed: int) -> pd.DataFrame:
+    """The trades one training run would take on the test rows, one at a time per coin as tested."""
     y, payout, be, directional = KINDS[kind]
+    if v["coins"]:
+        train = train[train["coin_name"].isin(v["coins"])]
+    t = test[["t", "coin_name"]].rename(columns={"coin_name": "coin"}).assign(y=test[y].to_numpy(), p=rt._train_one(train, test, v["cols"], y, TRAINING, seed))
+    t["coin"] = t["coin"].astype(str)
+    if directional:
+        up = t["p"] > 0.5
+        t["conf"] = np.where(up, t["p"], 1 - t["p"])
+        t["win"] = np.where(up, t["y"] == 1, t["y"] == 0)
+        t["up"] = up
+    else:
+        t["up"] = True
+        t["conf"], t["win"] = t["p"], t["y"] == 1
+    t["r"] = np.where(t["win"], payout, -1.0)
+    return lab.one_at_a_time(t[t["conf"] > be + lab.MARGIN], pd.Timedelta(minutes=MINUTES))
+
+
+def judge(d: pd.DataFrame, cols: list[str], kind: str) -> dict:
+    y = KINDS[kind][0]
     x = d[d[y] >= 0]
-    last, gap = x["t"].max(), pd.Timedelta(minutes=MINUTES + 60)
+    exam_from = x["t"].max() - pd.Timedelta(days=EXAM_DAYS)
+    last, gap = exam_from - pd.Timedelta(minutes=MINUTES + 60), pd.Timedelta(minutes=MINUTES + 60)
     out = {}
+    READINGS.mkdir(exist_ok=True)
     for name, v in versions(cols).items():
-        v_train = {"rows": 700_000, "rounds": 150, "lr": None, "blend": 3}
-        runs, usual_runs = [], []
+        runs, usual_runs, coin_runs, saved = [], [], [], []
         for seed in SEEDS:
             taken, by_period = [], []
             for k in range(PERIODS):
@@ -116,25 +141,15 @@ def judge(d: pd.DataFrame, cols: list[str], kind: str) -> dict:
                 lo = hi - pd.Timedelta(days=PERIOD_DAYS)
                 test = x[(x["t"] >= lo) & (x["t"] < hi)]
                 train = x[(x["t"] < lo - gap) & (x["t"] >= lo - pd.Timedelta(days=v["days"]))]
-                if v["coins"]:
-                    train = train[train["coin_name"].isin(v["coins"])]
-                t = test[["t", "coin_name"]].rename(columns={"coin_name": "coin"}).assign(y=test[y].to_numpy(), p=rt._train_one(train, test, v["cols"], y, v_train, seed))
-                t["coin"] = t["coin"].astype(str)
-                if directional:
-                    up = t["p"] > 0.5
-                    t["conf"] = np.where(up, t["p"], 1 - t["p"])
-                    t["win"] = np.where(up, t["y"] == 1, t["y"] == 0)
-                    t["up"] = up
-                else:
-                    t["up"] = True
-                    t["conf"], t["win"] = t["p"], t["y"] == 1
-                t["r"] = np.where(t["win"], payout, -1.0)
-                take = lab.one_at_a_time(t[t["conf"] > be + lab.MARGIN], pd.Timedelta(minutes=MINUTES))
+                take = trades_on(train, test, v, kind, seed).assign(period=k)
                 taken.append(take)
                 by_period.append(float(take["r"].sum()) if len(take) else 0.0)
-                del train, test, t
+                del train, test
                 gc.collect()
             all_taken = pd.concat(taken)
+            coin_runs.append(all_taken.groupby("coin")["r"].sum())
+            if seed == SEEDS[0]:
+                saved = all_taken[["t", "coin", "period", "conf", "win", "r"]]
             runs.append(rt.score(all_taken, by_period))
             mine = all_taken[all_taken["coin"].isin(USUAL)]
             usual_runs.append(float(mine["r"].sum()) if len(mine) else 0.0)
@@ -143,8 +158,19 @@ def judge(d: pd.DataFrame, cols: list[str], kind: str) -> dict:
         r["periods_up"] = sum(1 for a in r["periods"] if a > 0)
         r["luck"] = float(np.std([s["avg"] for s in runs], ddof=1))
         r["usual_total"] = float(np.mean(usual_runs))
+        r["coins"] = {k: float(a) for k, a in pd.concat(coin_runs, axis=1).fillna(0).mean(axis=1).items()}
+        r["money_proof"] = money_proof(r)
+        exam_test = x[x["t"] >= exam_from]
+        exam_train = x[(x["t"] < exam_from - gap) & (x["t"] >= exam_from - pd.Timedelta(days=v["days"]))]
+        exams = [trades_on(exam_train, exam_test, v, kind, seed) for seed in SEEDS]
+        r["exam_total"] = float(np.mean([float(e["r"].sum()) for e in exams]))
+        r["exam_trades"] = float(np.mean([len(e) for e in exams]))
+        r["exam_won"] = float(np.mean([float(e["win"].mean()) if len(e) else 0.0 for e in exams]))
+        del exam_test, exam_train, exams
+        gc.collect()
+        saved.to_pickle(READINGS / f"{kind}__{name.split(' (')[0].replace(' ', '_')}.pkl")
         out[name] = r
-        print(f"  {kind} {name}: {r['trades']:.0f} trades, won {r['won']:.2%}, avg {r['avg']:+.4f} (luck {r['luck']:.4f}), total {r['total']:+.1f}, worst run {r['max_dd']:.1f}, worst day {r['worst_day']:.1f}, low {r['low']:+.4f}, by period {[round(a, 1) for a in r['periods']]}, usual coins {r['usual_total']:+.1f}, up {r['up_share']:.0%}, top coin {r['top_coin']:.0%}", flush=True)
+        print(f"  {kind} {name}: {r['trades']:.0f} trades, won {r['won']:.2%}, avg {r['avg']:+.4f} (luck {r['luck']:.4f}), total {r['total']:+.1f}, worst run {r['max_dd']:.1f}, worst day {r['worst_day']:.1f}, low {r['low']:+.4f}, by period {[round(a, 1) for a in r['periods']]}, usual coins {r['usual_total']:+.1f}, up {r['up_share']:.0%}, top coin {r['top_coin']:.0%}, exam {r['exam_trades']:.0f} trades won {r['exam_won']:.2%} total {r['exam_total']:+.1f}", flush=True)
     return out
 
 
@@ -157,7 +183,7 @@ def winner(res: dict) -> str:
         if (r["trades"] >= 500 and r["avg"] >= base["avg"] + need and r["total"] >= base["total"] and r["low"] >= base["low"] and r["periods_up"] >= base["periods_up"]
                 and r["max_dd"] <= base["max_dd"] * 1.1 and r["usual_total"] > 0 and r["total"] > res[best]["total"]):
             best = n
-    return best
+    return best if res[best]["exam_total"] > 0 and res[best]["exam_total"] >= base["exam_total"] else names[0]
 
 
 def main() -> None:
@@ -166,13 +192,16 @@ def main() -> None:
     print(f"{len(d):,} rows, {d['coin_name'].nunique()} coins, {d['t'].min():%Y-%m-%d} to {d['t'].max():%Y-%m-%d}", flush=True)
     results = {kind: judge(d, cols, kind) for kind in KINDS}
     picks = {k: winner(v) for k, v in results.items()}
+    for k, name in picks.items():     # the when-to-trade test reads the trades of the version that won
+        src = READINGS / f"{k}__{name.split(' (')[0].replace(' ', '_')}.pkl"
+        pd.read_pickle(src).to_pickle(READINGS / f"{k}.pkl")
     docs = ROOT / "docs" / "intel"
     (docs / "wide.json").write_text(json.dumps({"generated_at": datetime.now(timezone.utc).isoformat(), "picks": picks, "results": results}, indent=1), encoding="utf-8")
     lines = ["# All coins and the long view", "", f"Generated {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC from {len(d):,} real readings of {d['coin_name'].nunique()} coins, {d['t'].min():%Y-%m-%d} to {d['t'].max():%Y-%m-%d}.",
              "Report only: nothing here changes a model. The rule is at the top of intel/run_wide_contest.py and was fixed before any result was seen. Totals and worst runs are in units of the fixed stake per trade.", ""]
     for kind, res in results.items():
-        lines += [f"## {'Fixed Time' if kind == 'fixed_time' else 'InZone'}", "", "| Version | Trades | Won | Average | Luck | Total | Worst run | Worst day | Corrected low | Periods up | Usual coins | Result |", "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|"]
-        lines += [f"| {n} | {r['trades']:,.0f} | {r['won']:.2%} | {r['avg']:+.4f} | {r['luck']:.4f} | {r['total']:+.1f} | {r['max_dd']:.1f} | {r['worst_day']:.1f} | {r['low']:+.4f} | {r['periods_up']} of {PERIODS} | {r['usual_total']:+.1f} | {'**Chosen**' if n == picks[kind] else ''} |" for n, r in res.items()]
+        lines += [f"## {'Fixed Time' if kind == 'fixed_time' else 'InZone'}", "", "| Version | Trades | Won | Average | Luck | Total | Worst run | Worst day | Corrected low | Periods up | Usual coins | Exam total | Earns money proof | Result |", "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|"]
+        lines += [f"| {n} | {r['trades']:,.0f} | {r['won']:.2%} | {r['avg']:+.4f} | {r['luck']:.4f} | {r['total']:+.1f} | {r['max_dd']:.1f} | {r['worst_day']:.1f} | {r['low']:+.4f} | {r['periods_up']} of {PERIODS} | {r['usual_total']:+.1f} | {r['exam_total']:+.1f} | {'Yes' if r['money_proof'] else 'No'} | {'**Chosen**' if n == picks[kind] else ''} |" for n, r in res.items()]
         lines.append("")
     (docs / "WIDE.md").write_text("\n".join(lines), encoding="utf-8")
     print("picks:", picks, flush=True)

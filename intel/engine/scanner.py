@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 
 from psycopg.types.json import Jsonb
 
-from . import db, ml, tracking
+from . import db, ml, sessions, tracking
 from .indicators import add_all
 from .settings import APP_ASSETS, ASSETS, asset_cfg, variants
 from .strategies import REWARDS, STOP_ATR, STRATEGIES, TARGET_ATR, plain_reasons, signals, split_variant, variant_name
@@ -45,6 +45,7 @@ def scan_variant(asset_id: str, cls: str, stats: dict, evidence: dict) -> dict:
     base = {"asset": asset_id, "class": ASSETS[asset_id]["class"], "variant": cls, "regime": reg, "timeframe": tf,
             "last_close": float(row["close"]), "bar_close": bar_close.isoformat()}
 
+    market_open = sessions.is_open(asset_id, datetime.now(timezone.utc))
     fired = [(s, int(sig[s].iat[-1])) for s in STRATEGIES if sig[s].iat[-1] != 0]
     if not fired:
         if reg == "chaos":
@@ -65,7 +66,7 @@ def scan_variant(asset_id: str, cls: str, stats: dict, evidence: dict) -> dict:
         # a test group publishes on the model's reading alone: the app says plainly that this is unproven
         ml_ok = (bool(ml_stats["accepted"]) or (bool(group) and group["status"] == "test")) and ml_p is not None and ml_p > breakeven + ml.MARGIN
         cand = {"strat": strat, "direction": direction, "st": st, "rule_p": rule_p, "ml_p": ml_p,
-                "approved": (rule_ok or ml_ok) and reg != "chaos" and may_publish, "by": "rules" if rule_ok else "ml" if ml_ok else None}
+                "approved": (rule_ok or ml_ok) and reg != "chaos" and may_publish and market_open, "by": "rules" if rule_ok else "ml" if ml_ok else None}
         if best is None or (cand["approved"], cand["ml_p"] or 0) > (best["approved"], best["ml_p"] or 0):
             best = cand
         if ml_p is not None and cls.startswith("crypto"):
@@ -94,7 +95,9 @@ def scan_variant(asset_id: str, cls: str, stats: dict, evidence: dict) -> dict:
         label = {"experimental": "Experimental signal", "test": "Test signal"}.get(group["status"], "Signal")
         return {**base, "status": "trade", "strategy": strat, "direction": direction,
                 "reason": f"{TF_LABEL[tf]}: {label}, {NAMES[base_strat]} {side}, with a target {reward:g}x the stop. It can lose."}
-    if reg == "chaos":
+    if not market_open:
+        why = f"{TF_LABEL[tf]}: setup found, but this market is closed right now. Don't enter."
+    elif reg == "chaos":
         why = f"{TF_LABEL[tf]}: setup found, but volatility is chaotic. Don't enter."
     elif group and group["paused"]:
         why = f"{TF_LABEL[tf]}: signals for this group are paused. {group['paused']} Don't enter."

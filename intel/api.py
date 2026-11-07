@@ -211,7 +211,7 @@ def strength():
         saved = json.loads((HERE.parent / "docs" / "intel" / "strength.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {"strongest_bar": None, "tops": []}
-    return {"strongest_bar": saved.get("strongest_bar"), "tops": saved.get("tops", [])}
+    return {"strongest_bar": saved.get("strongest_bar"), "sure_bar": saved.get("sure_bar"), "tops": saved.get("tops", [])}
 
 
 @app.get("/performance")

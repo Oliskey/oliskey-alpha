@@ -1,12 +1,12 @@
 # Oliskey Alpha: the AI's real numbers
 
-Updated by the engine 2026-11-07 14:53 UTC. Demo money on real crypto prices. Test accounts are not counted. It can lose.
+Updated by the engine 2026-11-07 16:21 UTC. Demo money on real crypto prices. Test accounts are not counted. It can lose.
 
 ## Score
 
-**Last 100 of 100 signals: 64 right, 36 wrong (64.0%), +α3,215.12.**
+**Last 100 of 100 signals: 59 right, 41 wrong (59.0%), +α2,165.12.**
 
-Clean record: 200 trades across 21 separate hours. It needs at least 100 to judge, and even a profit can be luck.
+Clean record: 209 trades across 23 separate hours. It needs at least 100 to judge, and even a profit can be luck.
 
 ## New InZone model, since it went live on 2026-11-07 11:16 UTC
 
@@ -20,7 +20,7 @@ It needs at least 100 finished trades before anyone can say it works. Its tests:
 
 | Who | Trade type | Finished | Won | Won % | Profit |
 |---|---|---:|---:|---:|---:|
-| AI, on real accounts | inzone | 77 | 42 | 54.5% | +α1,120.00 |
+| AI, on real accounts | inzone | 71 | 41 | 57.7% | +α1,510.00 |
 
 ## All time, real accounts
 

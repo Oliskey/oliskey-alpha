@@ -396,7 +396,8 @@ export function signalRouter({ engine, settlement, orders }) {
       return [];
     }) : [];
     // the test's own numbers for the bar it chose, so what the app says is what was measured
-    const top = result.strongest_bar == null ? null : (result.tops ?? []).find((t) => t.bar === result.strongest_bar);
+    // when every trade already has to clear the same bar, the two choices are the same thing, so the choice is not shown
+    const top = result.strongest_bar == null || result.strongest_bar === result.sure_bar ? null : (result.tops ?? []).find((t) => t.bar === result.strongest_bar);
     const strongest = { offered: !!top, won: top?.won ?? null, perDay: top?.per_day ?? null };
     return { min: AUTO_MIN, demo, real: of('real'), waiting, strongest };
   }

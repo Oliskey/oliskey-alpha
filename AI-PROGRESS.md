@@ -1,6 +1,6 @@
 # Oliskey Alpha: your questions and answers
 
-The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 7 November 2026, version 0.0.12.
+The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 7 November 2026, version 0.0.13.
 
 ## Your AI goal
 
@@ -36,7 +36,9 @@ Last test, on different minutes and entering 2 minutes late: the 5 usual coins w
 
 ## When in doubt, no trade (your rule, 7 November)
 
-The AI trades a level of confidence only if trades at that level earned money on data it never trained on, even entering 2 minutes late. Test: `intel/run_strength_test.py`, weekly. It can only make the AI stricter. Users can choose Most profit (the default) or Strongest signals, once a level passes its test. No level has been tested yet on the current model, so the option does not show until then.
+The AI trades a level of confidence only if trades at that level earned money on data it never trained on, even entering 2 minutes late. Test: `intel/run_strength_test.py`, weekly. It can only make the AI stricter. Users can choose Most profit (the default) or Strongest signals, once a level passes its test. **First result, 7 November, version 0.0.13, in force on demo:** the rule set the bar at a reading of 0.70, so the AI now takes about 18 trades a day instead of about 215. In the test, entering late, that won 70.78% and earned +2,434, against 54.55% and +8,548 for all trades, with a worst day of -15.6 against -66.0. Two thin levels (0.58 to 0.60 and 0.65 to 0.70) failed the money proof, though they won 59% and 67%, and that pushed the bar up. Most profit and Strongest signals are now the same, so the choice is hidden. Your decision is open: see `docs/intel/STRENGTH.md`.
+
+**Third contest, 7 November:** nothing beat the model trading now ([docs/intel/RISK.md](docs/intel/RISK.md)). Forecasting market moves earned +7,624 and a limit of 8 open trades +5,966, against +8,951.
 
 ## The AI learns from every trade, automatically
 

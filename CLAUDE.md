@@ -38,8 +38,8 @@ MARKET INTELLIGENCE ENGINE (intel/, Python, added 2026-10-30):
   publishes trade ideas only from strategies that pass out-of-sample; other setups are logged as "avoid".
   Every idea and avoided setup is resolved and kept as the track record. Never present ideas as certain.
 - Crypto in the app now uses live Binance prices (assets.price_source = 'binance'); everything else is simulated.
-- All 17 live coins are read every minute (owner decision 2026-11-06). The other 12 coins are their own groups ('crypto_ft_wide', 'crypto_iz_wide') with their own test numbers. InZone trains on all 17 with 4 years and the long view (intel/engine/longview.py); Fixed Time still trains on 5 coins and gets no users' money.
-- Tests before trust: intel/run_train_hard.py (contest), intel/run_harder_test.py (late entry, unseen coins), intel/run_wide_contest.py (all coins, 4 years), intel/run_wide_harder.py (last test before InZone money, reruns weekly). Pass rules are fixed before any result and never loosened.
+- All 17 live coins are read every minute (owner decision 2026-11-06). The other 12 coins are their own groups ('crypto_ft_wide', 'crypto_iz_wide') with their own test numbers. InZone trains on all 17 with 4 years, the long view (intel/engine/longview.py), market and corridor inputs (intel/engine/marketview.py); Fixed Time still trains on 5 coins and gets no users' money.
+- Tests before trust: intel/run_train_hard.py (contest), intel/run_harder_test.py (late entry, unseen coins), intel/run_wide_contest.py (all coins, 4 years), intel/run_wide_harder.py (last test before InZone money, reruns weekly). Why trades win or lose: intel/run_loss_causes.py, weekly; a warning sign joins the strategy only if it passes its rule. Pass rules are fixed before any result and never loosened.
 
 AI GOAL (owner decision 2026-11-07): profit, not more trades. The AI trades only when the evidence says the trade should pay. A change that adds trades without adding profit is refused. Between trade lengths, longer only if really better.
 

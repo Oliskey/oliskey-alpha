@@ -24,6 +24,7 @@ import pandas as pd
 from psycopg.types.json import Jsonb
 
 from . import backtest as bt, db, news, scout
+from . import rootcause
 from .indicators import add_all
 from .settings import APP_ASSETS, asset_cfg, ROOT, variants
 from .strategies import split_variant
@@ -116,6 +117,7 @@ CAUSES = {
     "wrong_from_start": "Wrong from the start: the price barely moved in the trade's favour.",
     "normal_stop": "Normal stop-out: it moved a little in favour, then reached the stop.",
     "time_loss": "Ran out of time at a loss: neither the stop nor the target was reached.",
+    **rootcause.CAUSES,
 }
 LABEL = {
     "trend:against": "Trading against the long-term trend", "trend:with": "Trading with the long-term trend",
@@ -309,6 +311,12 @@ def write_journal() -> int:
         checked = list(d[0]) if d else []
         if tf == "1m":   # no chart levels: it ended right or wrong at the close
             cause = ("zone_right" if float(pnl) > 0 else "zone_wrong") if cls.startswith("crypto_iz") else ("fixed_right" if float(pnl) > 0 else "fixed_wrong")
+            if cause == "zone_wrong":     # the root cause, measured from real prices
+                from . import updown      # here, because it needs the research module, which needs this package
+                cause = "zone_late_price" if status == "won" else updown.zone_cause(asset, bar_time, float(entry), float(target)) or cause
+            elif cause == "zone_right":   # why it won, measured the same way, so the AI learns from wins too
+                from . import updown      # here, because it needs the research module, which needs this package
+                cause = updown.zone_cause(asset, bar_time, float(entry), float(target), won=True) or cause
             with db.connect() as c:
                 c.execute("""insert into intel.ai_journal (idea_id, trade_id, won, result_r, pnl, cause, notes, best_r, worst_r, tags, closed_at)
                              values (%s, %s, %s, %s, %s, %s, %s, 0, 0, %s, %s) on conflict do nothing""",
@@ -588,6 +596,17 @@ def training_picks() -> dict:
         return {}
 
 
+def note_causes(before: list[str]) -> None:
+    """The weekly study of why trades fail may add a warning sign to the strategy, or remove one."""
+    after = {s["name"]: s["words"] for s in rootcause.active_signs()}
+    for name, words in after.items():
+        if name not in before:
+            _say("research", f"Added to its strategy: it now skips trades when {words}. Tests showed those trades lose money.")
+    for name in before:
+        if name not in after:
+            _say("research", f"Removed from its strategy: the warning sign {name} no longer passes its test.")
+
+
 def note_training(before: dict, after: dict) -> None:
     """Says what the weekly training contest decided, including when nothing beat the current model."""
     names = {"fixed_time": "Fixed Time", "inzone": "InZone"}
@@ -831,7 +850,7 @@ def report() -> dict:
         "strategies": strategies,
         "finished": len(j), "won": wins, "lost": len(j) - wins, "skipped": skipped, "avg_r": sum(r[5] for r in j) / len(j) if j else None,
         "pnl": sum(r[6] for r in j), "too_few": len(j) < TOO_FEW, "needed": TOO_FEW,
-        "causes": sorted(({"cause": k, "text": CAUSES[k], "count": n, "loss": k not in ("reached_target", "time_win", "fixed_right", "zone_right")} for k, n in causes.items()), key=lambda x: -x["count"]),
+        "causes": sorted(({"cause": k, "text": CAUSES[k], "count": n, "loss": k not in ("reached_target", "time_win", "fixed_right", "zone_right", *rootcause.WINS)} for k, n in causes.items()), key=lambda x: -x["count"]),
         "lessons": lessons,
         "rules": [{"id": r[0], "tag": r[1], "label": label(r[1]), "status": r[2], "evidence": r[3], "created_at": r[4], "retired_at": r[5]} for r in rules],
         "log": [{"kind": r[0], "message": r[1], "at": r[2]} for r in log],

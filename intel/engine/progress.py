@@ -9,7 +9,7 @@ from . import db, learning
 from .settings import ROOT
 
 OUT = ROOT / "AI-NUMBERS.md"
-LONG_MODEL_LIVE = "2026-11-07 05:28:12+00"
+LONG_MODEL_LIVE = "2026-11-07 11:16:32+00"   # when the InZone model of run_market_contest.py went live
 REAL = "u.email not like '%@test.local' and u.email not like '%.invalid' and u.email not like 'engine@%'"
 
 
@@ -75,6 +75,10 @@ def build(now: datetime) -> str:
     q = _saved("quality.json")
     if q:
         lines.append("- Fewer, stronger trades: " + "; ".join(f"{k}: {v['passing'] or 'none passed'}" for k, v in q["kinds"].items()) + ".")
+    why = _saved("causes.json")
+    if why:
+        added = [a["words"] for a in why["active"]]
+        lines.append(f"- Why trades fail, {why['generated_at'][:16]}: {len(why['signs'])} warning signs tested. Added to its strategy: {'; '.join(added) or 'none passed'}. Details: docs/intel/CAUSES.md.")
     s = _saved("stakes.json")
     if s:
         lines.append("- Stake by strength: " + "; ".join(f"{k}: {'passed' if v['passes'] else 'failed'}" for k, v in s["kinds"].items()) + ".")

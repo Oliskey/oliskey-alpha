@@ -7,7 +7,9 @@ A group of coins may receive users' money only if ALL hold for that group:
   1. money proof on the trades as tested (engine.updown.money_proof: corrected lower bound above zero, every period earns, no period above 60% of the profit);
   2. the same money proof entering LATE_MINUTES late, as live trades can;
   3. a profit on the newest EXAM_DAYS days, as tested and entering late.
-A group that fails keeps trading no one's money. Usage: python intel/run_wide_harder.py"""
+A group that fails keeps trading no one's money.
+TESTED: the version that won run_market_contest.py ("both, longer"), on minutes neither contest nor the earlier run of this test read. The rule above is unchanged.
+Usage: python intel/run_wide_harder.py next (before it is live, writes wide_harder_next.json) or python intel/run_wide_harder.py (the version trading now, writes wide_harder.json)"""
 from __future__ import annotations
 
 import gc
@@ -20,43 +22,18 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import run_market_contest as rm                                  # noqa: E402
 import run_wide_contest as rw                                    # noqa: E402
-from engine.longview import LONG, long_view                      # noqa: E402
 from engine.settings import ROOT                                 # noqa: E402
-from engine.updown import _frame, _sigma, ALL_COINS, IZ_BREAKEVEN, IZ_PAYOUT, IZ_Q, money_proof   # noqa: E402
+from engine.updown import ALL_COINS, IZ_BREAKEVEN, IZ_PAYOUT, money_proof   # noqa: E402
 
 rt, lab = rw.rt, rw.lab
-OFFSET, LATE_MINUTES = 7, 2
+OFFSET, LATE_MINUTES = 11, 2
+VERSION = "both, longer"
 GROUPS = {"usual": list(lab.COINS), "others": [s for s in ALL_COINS if s not in lab.COINS]}
-LABELS = ("t", "y_iz", "y_iz_late", "coin_name")
+LABELS = (*rm.LABELS, "y_iz_late")
 MINUTES = rw.MINUTES
-
-
-def build() -> pd.DataFrame:
-    fng = lab.fear_greed()
-    frames, btc = [], None
-    for sym in ALL_COINS:      # Bitcoin comes first
-        z = np.load(rw.FOLDER / f"{sym}.npz")
-        df = pd.DataFrame({k: z[k] for k in ("t", "o", "h", "l", "c", "v", "tb")})
-        f = _frame(df, 0, lab.funding(sym), fng).drop(columns="coin")
-        if sym == "BTCUSDT":
-            btc = f.set_index("t")[["r5", "r15"]].rename(columns={"r5": "btc5", "r15": "btc15"})
-        f = f.join(btc, on="t")
-        c, sigma = df["c"], _sigma(df["c"])
-        f["y_iz"] = (np.log(c.shift(-MINUTES) / c).abs() <= IZ_Q * sigma * np.sqrt(MINUTES)).astype("int8")
-        a, b = c.shift(-LATE_MINUTES), c.shift(-MINUTES - LATE_MINUTES)
-        f["y_iz_late"] = (np.log(b / a).abs() <= IZ_Q * sigma.shift(-LATE_MINUTES) * np.sqrt(MINUTES)).astype("int8")
-        extra = long_view(df)
-        for col in LONG:
-            f[col] = extra[col].to_numpy()
-        f["coin_name"] = sym
-        frames.append(f.iloc[1500 + OFFSET:-MINUTES - LATE_MINUTES - 10].iloc[::rw.STEP].copy())
-        del f, df, extra, c, sigma
-        gc.collect()
-        print("features", sym, flush=True)
-    d = pd.concat(frames, ignore_index=True)
-    d["coin_name"] = d["coin_name"].astype("category")
-    return d
+SUFFIX = "_next" if sys.argv[1:] == ["next"] else ""
 
 
 def taken(test: pd.DataFrame, p: np.ndarray, label: str) -> pd.DataFrame:
@@ -75,8 +52,9 @@ def part(take: pd.DataFrame, coins: list[str], periods: int) -> dict:
 
 
 def main() -> None:
-    d = build()
+    d = rm.build(OFFSET, LATE_MINUTES)
     cols = [c for c in d.columns if c not in LABELS]
+    v = rm.versions(cols, "inzone")[VERSION]
     print(f"{len(d):,} rows, offset {OFFSET}", flush=True)
     exam_from = d["t"].max() - pd.Timedelta(days=rw.EXAM_DAYS)
     gap = pd.Timedelta(minutes=MINUTES + 60)
@@ -91,14 +69,14 @@ def main() -> None:
             lo = hi - pd.Timedelta(days=rw.PERIOD_DAYS)
             test = d[(d["t"] >= lo) & (d["t"] < hi)]
             train = d[(d["t"] < lo - gap) & (d["t"] >= lo - pd.Timedelta(days=4 * 365))]
-            p = rt._train_one(train, test, cols, "y_iz", rw.TRAINING, seed)
+            p = rt._train_one(train, test, v["cols"], "y_iz", v["training"], seed)
             for name, label in (("as_tested", "y_iz"), ("late", "y_iz_late")):
                 found[name].append(taken(test, p, label).assign(period=k))
             del train, test
             gc.collect()
         test = d[d["t"] >= exam_from]
         train = d[(d["t"] < exam_from - gap) & (d["t"] >= exam_from - pd.Timedelta(days=4 * 365))]
-        p = rt._train_one(train, test, cols, "y_iz", rw.TRAINING, seed)
+        p = rt._train_one(train, test, v["cols"], "y_iz", v["training"], seed)
         for name, label in (("as_tested", "y_iz"), ("late", "y_iz_late")):
             take = pd.concat(found[name])
             per_coin[name].append(take.groupby("coin")["r"].sum())
@@ -110,7 +88,7 @@ def main() -> None:
         del train, test
         gc.collect()
         print("seed done", seed, flush=True)
-    results: dict = {"version": "long view (17, 4 years, days to months)", "offset": OFFSET, "late_minutes": LATE_MINUTES, "groups": {}}
+    results: dict = {"version": VERSION, "offset": OFFSET, "late_minutes": LATE_MINUTES, "groups": {}}
     for g in GROUPS:
         out = {}
         for n in ("as_tested", "late"):
@@ -126,8 +104,8 @@ def main() -> None:
         results["groups"][g] = out
     results["coins"] = {n: {k: float(a) for k, a in pd.concat(v, axis=1).fillna(0).mean(axis=1).items()} for n, v in per_coin.items()}
     docs = ROOT / "docs" / "intel"
-    (docs / "wide_harder.json").write_text(json.dumps({"generated_at": datetime.now(timezone.utc).isoformat(), "results": results}, indent=1), encoding="utf-8")
-    lines = ["# InZone long view: last test before users' money", "", f"Generated {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC. Report only: nothing here changes a model. The rule is at the top of intel/run_wide_harder.py and was fixed before any result was seen.",
+    (docs / f"wide_harder{SUFFIX}.json").write_text(json.dumps({"generated_at": datetime.now(timezone.utc).isoformat(), "results": results}, indent=1), encoding="utf-8")
+    lines = ["# InZone: last test before users' money", "", f"Generated {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC. Report only: nothing here changes a model. The rule is at the top of intel/run_wide_harder.py and was fixed before any result was seen.",
              "", "Totals are in units of the fixed stake per trade, averaged over training runs.", "", "| Coins | Test | Trades | Won | Average | Total | Corrected low | By period | Exam trades | Exam won | Exam total | Money proof |", "|---|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---|"]
     for g, out in results["groups"].items():
         for n, title in (("as_tested", "As tested"), ("late", f"{LATE_MINUTES} minutes late")):
@@ -135,7 +113,7 @@ def main() -> None:
             lines.append(f"| {'5 usual' if g == 'usual' else '12 others'} | {title} | {r['trades']:,.0f} | {r['won']:.2%} | {r['avg']:+.4f} | {r['total']:+.1f} | {r['low']:+.4f} | {[round(a, 1) for a in r['periods']]} | {r['exam']['trades']:,.0f} | {r['exam']['won']:.2%} | {r['exam']['total']:+.1f} | {'Yes' if r['money_proof'] else 'No'} |")
         lines.append(f"| {'5 usual' if g == 'usual' else '12 others'} | **Result** | | | | | | | | | | **{'Passed' if out['passed'] else 'Failed'}** |")
     lines.append("")
-    (docs / "WIDE_HARDER.md").write_text("\n".join(lines), encoding="utf-8")
+    (docs / f"WIDE_HARDER{SUFFIX}.md").write_text("\n".join(lines), encoding="utf-8")
     print(json.dumps({g: {"passed": o["passed"], **{n: {k: round(o[n][k], 4) if not isinstance(o[n][k], (list, dict)) else o[n][k] for k in ("trades", "won", "avg", "total", "low", "periods", "exam")} for n in ("as_tested", "late")}} for g, o in results["groups"].items()}), flush=True)
     print("coins", results["coins"], flush=True)
 

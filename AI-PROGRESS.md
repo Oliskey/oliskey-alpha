@@ -1,6 +1,6 @@
 # Oliskey Alpha: your questions and answers
 
-The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 7 November 2026, version 0.0.9.
+The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 7 November 2026, version 0.0.10.
 
 ## Your AI goal
 
@@ -20,6 +20,27 @@ Profit, not more trades. The AI trades only when the evidence says the trade sho
 | Stop asking me to restart | The server now restarts itself. It still needs `npm run start:all` after the PC is shut down or the terminal is closed. | Done, tested |
 | Commit always, with version numbers | Every step goes to GitHub as the next version. | Doing it. Tags are progress, not proof that everything passes |
 | Keep answers in an MD file | This file and AI-NUMBERS.md. | Done |
+
+## New inputs contest, 7 November: the model trading now
+
+It adds what all 17 coins are doing together, how the corridor has been holding on each coin, and stronger training. Live on demo since 11:16 UTC. Full tables: [docs/intel/MARKET.md](docs/intel/MARKET.md) and [docs/intel/WIDE_HARDER.md](docs/intel/WIDE_HARDER.md).
+
+| InZone version | Won | Per trade | Total | Worst day | Newest 60 days |
+|---|---:|---:|---:|---:|---:|
+| Previous | 54.21% | +0.138 | +7,928 | -59.7 | +1,521, won 52.40% |
+| **Now live** | 54.89% | +0.153 | +8,939 | -45.5 | +1,690, won 54.04% |
+
+Last test, on different minutes and entering 2 minutes late: the 5 usual coins won 55.89% and earned +394 on the newest 60 days; the other 12 won 54.25% and earned +1,045. Both passed. Those 60 days had already helped choose the earlier version, so they are no longer fully untouched. Live results are the real judge. The previous model finished 48 trades live, 24 won (50.0%), +α240.
+
+## The AI learns from every trade, automatically
+
+| When | What it does |
+|---|---|
+| Every finished InZone trade | Records why it won or lost, measured from real prices |
+| Every day | Retrains on the newest prices. A restart or a sleeping PC delays this, never cancels it |
+| Every week | Studies its wins and losses. A warning sign seen before entry joins the strategy only if it passes a fixed test showing those trades lose money. One that stops passing leaves |
+
+Results will be in [docs/intel/CAUSES.md](docs/intel/CAUSES.md) when the first study finishes. It trades only in "winning conditions" if that test shows more total profit, because a higher win rate on fewer trades has earned less before.
 
 ## All-coins contest, 7 November
 

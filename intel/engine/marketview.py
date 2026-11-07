@@ -1,4 +1,4 @@
-"""Two more kinds of input, in testing in run_market_contest.py, not used by any live model yet. All from that minute and earlier only: selftest.py checks it.
+"""Two more kinds of input, for the InZone model that won run_market_contest.py and passed run_wide_harder.py. All from that minute and earlier only: selftest.py checks it.
 
 market_view: what all 17 coins are doing together. corridor_view: how the InZone corridor has been holding on this coin lately."""
 from __future__ import annotations
@@ -10,6 +10,8 @@ MARKET = ["mkt_ret_60", "mkt_up_60", "mkt_spread_60", "mkt_jumpy", "own_vs_mkt_6
 CORRIDOR = ["zone_width", "zone_vs_day", "hit_24h", "hit_7d"]
 DAY = 1440
 IZ_MINUTES = 60
+CORRIDOR_ROWS = 7 * DAY + 400     # enough for the 7-day window, the hour before it and the longest volatility window
+MARKET_ROWS = 300                 # enough for the longest window in market_view
 
 
 def market_view(closes: pd.DataFrame) -> dict[str, pd.Series]:

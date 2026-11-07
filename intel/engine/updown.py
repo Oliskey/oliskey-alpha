@@ -19,8 +19,10 @@ from psycopg.types.json import Jsonb
 import run_crypto_lab as lab
 from engine import db
 from engine.backtest import wilson_low
-from engine.longview import DAY, Holder, HISTORY_DAYS, LONG, long_view
+from engine.longview import DAY, Holder, HISTORY_DAYS, LONG
+from engine.marketview import CORRIDOR, CORRIDOR_ROWS, corridor_view, MARKET, MARKET_ROWS, market_view
 from engine.ml import apply_isotonic, fit_isotonic, PARAMS
+from engine.rootcause import active_signs, classify, classify_win, hits
 from engine.settings import INTEL, ROOT
 
 CLASS, STRATEGY, MINUTES = "crypto_ft", "updown_60m", 60
@@ -42,7 +44,8 @@ IZ_PAYOUT = lab.PAYOUT_INZONE
 IZ_BREAKEVEN = 1 / (1 + IZ_PAYOUT)
 IZ_Q = 0.511
 IZ_MINUTES, IZ_STEP = 60, 15   # 60 minutes by the owner's rule in run_wide_contest.py, every 15th minute as it was judged
-IZ_TRAINING = {"days": 4 * 365, "rounds": 150, "lr": None, "rows": 700_000, "blend": 3}
+IZ_TRAINING = {"days": 4 * 365, "rounds": 300, "lr": 0.03, "rows": 700_000, "blend": 3}
+IZ_VERSION = "both, longer"    # the winner of run_market_contest.py
 # The other live coins (owner decision 2026-11-06: scan and trade all 17 on demo). They are their own groups with their own test numbers: the original five's results
 # must never be shown for them. Fixed Time never trained on them. InZone does since 2026-11-07, and they passed run_wide_harder.py as their own group.
 WIDE_COINS = {"ADAUSDT": "ADAUSD", "ATOMUSDT": "ATOMUSD", "AVAXUSDT": "AVAXUSD", "BCHUSDT": "BCHUSD", "DOGEUSDT": "DOGEUSD", "DOTUSDT": "DOTUSD",
@@ -72,26 +75,14 @@ def iz_result() -> tuple[int, dict] | None:
 
 
 def train_inzone() -> dict:
-    """The version that won the all-coins contest and passed run_wide_harder.py, trained exactly as it was judged: all 17 coins, 4 years, the long view, every 15th minute."""
-    import fetch_history       # here, because it imports this module
-    fng = lab.fear_greed()
-    frames, btc = [], None
-    for sym in ALL_COINS:      # Bitcoin comes first
+    """The version that won run_market_contest.py and passed run_wide_harder.py, trained on exactly what it was judged on, built by the same code."""
+    import fetch_history       # here, because these import this module
+    import run_market_contest as rm
+    for sym in ALL_COINS:
         fetch_history.one(sym) # only fetches what is new
-        df = _stored(sym, ("t", "o", "h", "l", "c", "v", "tb"), (IZ_TRAINING["days"] + 2) * DAY + HISTORY)
-        f = _frame(df, 0, lab.funding(sym), fng).drop(columns="coin")
-        if sym == "BTCUSDT":
-            btc = f.set_index("t")[["r5", "r15"]].rename(columns={"r5": "btc5", "r15": "btc15"})
-        f = f.join(btc, on="t")
-        c = df["c"]
-        f["y"] = (np.log(c.shift(-IZ_MINUTES) / c).abs() <= IZ_Q * _sigma(c) * np.sqrt(IZ_MINUTES)).astype("int8")
-        extra = long_view(df)
-        for col in LONG:
-            f[col] = extra[col].to_numpy()
-        frames.append(f.iloc[1500:-IZ_MINUTES - 10].iloc[::IZ_STEP].copy())
-        del f, df, extra, c
-    d = pd.concat(frames, ignore_index=True)
-    cols = [c for c in d.columns if c not in ("t", "y")]
+    d = rm.build()
+    cols = rm.versions([c for c in d.columns if c not in rm.LABELS], "inzone")[IZ_VERSION]["cols"]
+    d = d.rename(columns={"y_iz": "y"})[["t", "y", *cols]]
     models, iso = _fit(d, cols, IZ_TRAINING)
     _save(models, IZ_MODEL)
     IZ_META.write_text(json.dumps({"cols": cols, "iso": iso, "minutes": IZ_MINUTES, "models": len(models), "trained_at": datetime.now(timezone.utc).isoformat()}), encoding="utf-8")
@@ -108,8 +99,9 @@ def scan_inzone(frames: dict | None = None) -> int:
     with db.connect() as c:
         busy = {r[0] for r in c.execute("select asset_id from intel.ideas where asset_class = any(%s) and status = 'open'", ([IZ_CLASS, IZ_WIDE],)).fetchall()}
     made, readings = 0, []
+    signs = active_signs()
     for asset, (df, last) in frames.items():
-        if last[[c for c in meta["cols"] if c in LONG]].isna().any(axis=None):   # no real long view for this coin right now: the model must not guess one
+        if last[[c for c in meta["cols"] if c in LONG + CORRIDOR + MARKET]].isna().any(axis=None):   # no real reading of these for this coin right now: the model must not guess one
             continue
         p = float(apply_isotonic(meta["iso"], _predict(models, last[meta["cols"]]))[0])
         readings.append((asset, p))
@@ -121,13 +113,15 @@ def scan_inzone(frames: dict | None = None) -> int:
         bar = last["t"].iat[0].to_pydatetime() + timedelta(minutes=1)
         reasons = ["the engine read recent real 1-minute prices, volume, and how jumpy the market is",
                    f"it expects the price to finish within about {zone * 100:.3f}% of where it is, in {minutes} minutes"]
+        warned = hits(signs, last)        # a warning sign proven by run_loss_causes.py: logged and tracked, but no one trades it
+        reasons += [f"It skipped this one: {s['words']}, and tests showed those trades lose money" for s in warned]
         with db.connect() as c:
             c.execute(
                 """insert into intel.ideas (asset_id, asset_class, strategy, regime, direction, tf, bar_time, enter_until, expires_at, entry, stop, target,
                      probability, ev_per_100, reasons, kind, horizon_hours)
-                   values (%s, %s, %s, 'n/a', 1, '1m', %s, %s, %s, %s, %s, %s, %s, 0, %s, 'idea', 1) on conflict do nothing""",
-                (asset, IZ_WIDE if asset in WIDE_ASSETS else IZ_CLASS, f"inzone_{minutes}m", bar, bar + timedelta(minutes=ENTER_MINUTES), bar + timedelta(minutes=minutes), entry, entry * (1 - zone), entry * (1 + zone), p, Jsonb(reasons)))
-        made += 1
+                   values (%s, %s, %s, 'n/a', 1, '1m', %s, %s, %s, %s, %s, %s, %s, 0, %s, %s, 1) on conflict do nothing""",
+                (asset, IZ_WIDE if asset in WIDE_ASSETS else IZ_CLASS, f"inzone_{minutes}m", bar, bar + timedelta(minutes=ENTER_MINUTES), bar + timedelta(minutes=minutes), entry, entry * (1 - zone), entry * (1 + zone), p, Jsonb(reasons), "avoid" if warned else "idea"))
+        made += 0 if warned else 1
     _note("inzone", readings, IZ_BREAKEVEN + lab.MARGIN)
     return made
 
@@ -288,6 +282,25 @@ def _stored(symbol: str, cols: tuple[str, ...], rows: int) -> pd.DataFrame:
 _holders: dict[str, Holder] = {}
 
 
+def corridor_now(h: Holder) -> dict[str, float]:
+    """How the corridor has been holding on this coin, at its newest minute."""
+    m = h.recent(CORRIDOR_ROWS)
+    return {k: float(v) for k, v in corridor_view(m["c"], m["h"], m["l"], _sigma(m["c"]), IZ_Q).iloc[-1].items()}
+
+
+def market_now(candles: dict[str, pd.DataFrame]) -> dict[str, dict[str, float]]:
+    """What all the coins that answered are doing together, per coin at that coin's newest minute."""
+    table = pd.DataFrame({s: df.tail(MARKET_ROWS).set_index("t")["c"] for s, df in candles.items()}).sort_index()
+    view = market_view(table)
+    moved = np.log(table).diff(IZ_MINUTES)
+    out = {}
+    for s, df in candles.items():
+        t = int(df["t"].iat[-1])
+        out[s] = {k: float(v.loc[t]) for k, v in view.items()}
+        out[s]["own_vs_mkt_60"] = float(moved[s].loc[t]) - out[s]["mkt_ret_60"]
+    return out
+
+
 def _long_reading(symbol: str, df: pd.DataFrame) -> dict[str, float] | None:
     """The long view for a coin's newest minute. None if it cannot be read for real, so that coin waits."""
     try:
@@ -302,7 +315,7 @@ def _long_reading(symbol: str, df: pd.DataFrame) -> dict[str, float] | None:
                     return None
                 h.add(part)
         h.add(df)
-        return h.reading() if h.last == int(df["t"].iat[-1]) else None
+        return {**h.reading(), **corridor_now(h)} if h.last == int(df["t"].iat[-1]) else None
     except (httpx.HTTPError, OSError, KeyError, ValueError) as err:
         print(f"long view {symbol}: {type(err).__name__}", flush=True)
         return None
@@ -316,6 +329,7 @@ def read_market() -> dict:
         fetched = [x for x in pool.map(_fetch, ALL_COINS) if x]
     trained = list(lab.COINS)
     frames, btc = {}, None
+    together = market_now({sym: df for sym, df, _ in fetched if len(df) >= HISTORY})
     for sym, df, fund in fetched:
         asset = ALL_COINS[sym]
         if len(df) < HISTORY:
@@ -329,8 +343,8 @@ def read_market() -> dict:
             continue
         f = f.join(btc, on="t")
         f[["btc5", "btc15"]] = f[["btc5", "btc15"]].ffill()   # a coin read just after a new minute began has no Bitcoin value for it yet
-        extra = _long_reading(sym, df) or {}
-        last = f.iloc[[-1]].assign(**{k: np.float32(extra.get(k, np.nan)) for k in LONG})
+        extra = {**(_long_reading(sym, df) or {}), **together[sym]}
+        last = f.iloc[[-1]].assign(**{k: np.float32(extra.get(k, np.nan)) for k in LONG + CORRIDOR + MARKET})
         if datetime.now(timezone.utc) - last["t"].iat[0].to_pydatetime() <= timedelta(minutes=3):
             frames[asset] = (df, last)
     return frames
@@ -399,6 +413,27 @@ def resolve() -> int:
             c.execute("update intel.ideas set status = %s, result_r = %s, exit_price = %s, resolved_at = %s where id = %s and status = 'open'", (status, r, close, ends, iid))
         done += 1
     return done
+
+
+def zone_cause(asset: str, bar_time: datetime, entry: float, high: float, won: bool = False) -> str | None:
+    """Why an InZone signal ended as it did, from the candles already held. None if they no longer cover it."""
+    symbol = {v: k for k, v in ALL_COINS.items()}.get(asset)
+    start = int(bar_time.timestamp() * 1000) - 60_000
+    end = start + IZ_MINUTES * 60_000
+    held = _candles.get(symbol) if symbol else None
+    if held is None:
+        return None
+    closes = held[(held["t"] >= start) & (held["t"] <= end)]["c"].to_numpy(dtype="float64")
+    if len(closes) != IZ_MINUTES + 1:
+        return None
+    if won:
+        return classify_win(closes, high / entry - 1)
+    moves = []
+    for other in _candles.values():
+        a, b = other[other["t"] == start]["c"], other[other["t"] == end]["c"]
+        if len(a) and len(b):
+            moves.append(float(np.log(b.iat[0] / a.iat[0])))
+    return classify(closes, high / entry - 1, float(np.mean(moves)))
 
 
 def money_proof(m: dict | None) -> bool:

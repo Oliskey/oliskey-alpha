@@ -7,6 +7,7 @@ import asyncio
 import json
 import subprocess
 import sys
+import threading
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -16,7 +17,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from engine import data, db, learning, news, progress, scanner, tracking, updown   # noqa: E402
+from engine import data, db, learning, news, progress, scanner, tracking, updown, rootcause   # noqa: E402
 from engine.settings import APP_ASSETS, ASSETS, PORT   # noqa: E402
 
 CYCLE_SEC = 5 * 60
@@ -26,6 +27,8 @@ RESEARCH_EVERY_SEC = 7 * 24 * 60 * 60  # the full crypto research, once a week o
 CANDLE_SETTLE_SEC = 1.5   # the exchange needs a moment to publish a finished candle
 HERE = Path(__file__).resolve().parent
 RESEARCH_MARK = HERE / "models" / "research.stamp"
+DAILY_MARK = HERE / "models" / "daily.stamp"
+HEAVY_ONE_AT_A_TIME = threading.Lock()   # the daily and weekly work can fall due together, and together they would not fit in memory
 
 state = {"scan": [], "scanned_at": None, "last_daily": 0.0, "last_backtest": time.time(), "error": None, "quick_at": None, "quick_sec": None}
 
@@ -89,7 +92,8 @@ async def quick_loop() -> None:
 def heavy_job(script: str) -> None:
     """Long, memory-hungry work runs as its own low-priority process, so live scanning and trading never wait for it."""
     flags = subprocess.IDLE_PRIORITY_CLASS | subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-    done = subprocess.run([sys.executable, "-u", str(HERE / script)], cwd=HERE.parent, creationflags=flags, capture_output=True, text=True)
+    with HEAVY_ONE_AT_A_TIME:
+        done = subprocess.run([sys.executable, "-u", str(HERE / script)], cwd=HERE.parent, creationflags=flags, capture_output=True, text=True)
     if done.returncode:
         print(f"{script} failed:", done.stderr[-400:], flush=True)
 
@@ -101,14 +105,23 @@ def daily() -> None:
     learning.learn()    # rules change at most once a day, and only with proof
 
 
+def due(mark: Path, every: int) -> bool:
+    """Remembered on disk, so a restart or a sleeping PC delays this work but never cancels it. The first run ever starts the clock."""
+    if not mark.exists():
+        mark.write_text(str(time.time()), encoding="utf-8")
+        return False
+    return time.time() - float(mark.read_text(encoding="utf-8")) >= every
+
+
 async def daily_loop() -> None:
-    await asyncio.sleep(REVALIDATE_EVERY_SEC)
     while True:
         try:
-            await asyncio.to_thread(daily)
+            if due(DAILY_MARK, REVALIDATE_EVERY_SEC):
+                await asyncio.to_thread(daily)
+                DAILY_MARK.write_text(str(time.time()), encoding="utf-8")
         except Exception as err:
             print("daily job failed:", err, flush=True)
-        await asyncio.sleep(REVALIDATE_EVERY_SEC)
+        await asyncio.sleep(3600)
 
 
 def research() -> None:
@@ -126,6 +139,9 @@ def research() -> None:
     learning.note_training(picks_before, learning.training_picks())
     heavy_job("run_harder_test.py")   # late entry and coins it never saw, on the versions that just won
     heavy_job("run_wide_harder.py")   # InZone on all coins: a group that stops passing stops getting users' money
+    signs_before = [s["name"] for s in rootcause.active_signs()]
+    heavy_job("run_loss_causes.py")   # why trades fail: a warning sign that passes its fixed rule joins the strategy, one that stops passing leaves it
+    learning.note_causes(signs_before)
     RESEARCH_MARK.write_text(str(time.time()), encoding="utf-8")
 
 
@@ -133,10 +149,7 @@ async def research_loop() -> None:
     """Runs apart from the scan cycle: it takes many minutes, and signals must keep flowing meanwhile."""
     while True:
         try:
-            last = float(RESEARCH_MARK.read_text(encoding="utf-8")) if RESEARCH_MARK.exists() else time.time()
-            if not RESEARCH_MARK.exists():
-                RESEARCH_MARK.write_text(str(last), encoding="utf-8")
-            if time.time() - last >= RESEARCH_EVERY_SEC:
+            if due(RESEARCH_MARK, RESEARCH_EVERY_SEC):
                 await asyncio.to_thread(research)
         except Exception as err:
             print("research failed:", err, flush=True)

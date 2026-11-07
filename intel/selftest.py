@@ -217,7 +217,8 @@ _cut = long_view(_lv.iloc[:_n - 100]).iloc[-1]
 _full = long_view(_lv).iloc[_n - 101]
 check("long view: cannot see ahead", all(np.isclose(float(_cut[k]), float(_full[k]), rtol=1e-4, atol=1e-5) for k in LONG))
 from engine import updown as _ud  # noqa: E402
-from run_wide_contest import STEP as _ws, TRAINING as _wt  # noqa: E402
+from run_market_contest import LONGER as _wt  # noqa: E402
+from run_wide_contest import STEP as _ws  # noqa: E402
 check("inzone: live training is the version that was judged", _ud.IZ_STEP == _ws and all(_ud.IZ_TRAINING[k] == v for k, v in _wt.items()) and _ud.IZ_MINUTES == 60)
 from engine.marketview import corridor_view, market_view  # noqa: E402
 _mv_rng = np.random.default_rng(9)
@@ -235,4 +236,32 @@ _hit_now = corridor_view(_cs, _ch, _cl, _sg, 0.511)["hit_24h"].iat[_mv_at]
 _later = _cs.copy()
 _later.iloc[_mv_at + 1:] *= 3      # a huge jump after this minute must change nothing at this minute
 check("corridor view: a later jump changes nothing now", np.isclose(float(corridor_view(_later, _later * 1.001, _later * 0.999, _sg, 0.511)["hit_24h"].iat[_mv_at]), float(_hit_now)))
+_hc = Holder(_lv.iloc[:_built])
+_hc.add(_lv.iloc[_built:_n])
+_wantc = corridor_view(_lv["c"], _lv["h"], _lv["l"], _ud._sigma(_lv["c"]), _ud.IZ_Q).iloc[-1]
+_gotc = _ud.corridor_now(_hc)
+check("corridor view: the live reader gives the training numbers", all(np.isclose(_gotc[k], float(_wantc[k]), rtol=1e-3, atol=1e-5) for k in _gotc))
+_mcoins = {f"c{i}": pd.DataFrame({"t": 1_700_000_040_000 + np.arange(_mv_n, dtype="int64") * 60_000, "c": _mv[f"c{i}"].to_numpy()}) for i in range(4)}
+_mnow = _ud.market_now(_mcoins)
+_mfull = market_view(_mv)
+check("market view: the live reader gives the training numbers", all(np.isclose(_mnow["c1"][k], _mfull[k].iat[-1], rtol=1e-3, atol=1e-5) for k in _mfull)
+      and np.isclose(_mnow["c1"]["own_vs_mkt_60"], np.log(_mv["c1"]).diff(60).iat[-1] - _mfull["mkt_ret_60"].iat[-1], rtol=1e-3, atol=1e-5))
+from engine.rootcause import classify as _rc, classify_win as _rw, hits as _rh  # noqa: E402
+_z = 0.01
+_flat = np.full(61, 100.0)
+_end = lambda move: _flat * np.r_[np.ones(60), np.exp(move)]  # noqa: E731
+_ramp = lambda move: 100 * np.exp(np.linspace(0, move, 61))  # noqa: E731
+check("cause: finishing just past the edge", _rc(_end(0.011), _z, 0.0) == "zone_just_outside")
+check("cause: the whole market moved the same way", _rc(_ramp(0.03), _z, 0.02) == "zone_market_moved")
+check("cause: the market moving the other way is not the cause", _rc(_ramp(0.03), _z, -0.02) != "zone_market_moved")
+check("cause: a sudden jump", _rc(_end(0.03), _z, 0.0) == "zone_sudden_jump")
+check("cause: a steady drift", _rc(_ramp(0.03), _z, 0.0) == "zone_steady_drift")
+_sawtooth = 100 * np.exp(np.cumsum(np.r_[0.0, np.tile([0.008, -0.0075], 30)]))
+check("cause: jumpier than the corridor expected", _rc(_sawtooth, _z * 1.2, 0.0) == "zone_jumpier")
+check("win: it stayed inside all along", _rw(_ramp(0.005), _z) == "zone_stayed_inside")
+check("win: it left and came back", _rw(100 * np.exp(np.r_[np.linspace(0, 0.02, 31), np.linspace(0.02, 0.002, 30)]), _z) == "zone_came_back")
+_sign = [{"name": "x", "words": "x", "column": "abs:ret_1d", "side": "high", "limit": 0.05}, {"name": "y", "words": "y", "column": "hit_24h", "side": "low", "limit": 0.3}]
+check("sign: a big move in either direction shows", [s["name"] for s in _rh(_sign, pd.DataFrame({"ret_1d": [-0.06], "hit_24h": [0.5]}))] == ["x"])
+check("sign: a low reading shows", [s["name"] for s in _rh(_sign, pd.DataFrame({"ret_1d": [0.01], "hit_24h": [0.2]}))] == ["y"])
+check("sign: a reading that cannot be made never blocks", _rh(_sign, pd.DataFrame({"ret_1d": [np.nan], "hit_24h": [np.nan]})) == [])
 print("all engine self-tests passed")

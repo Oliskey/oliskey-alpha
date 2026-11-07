@@ -37,7 +37,8 @@ LABELS = ("t", "y_ft", "y_iz", "coin_name")
 LONGER = {**rw.TRAINING, "rounds": 300, "lr": 0.03}
 
 
-def build() -> pd.DataFrame:
+def build(offset: int = 0, late: int = 0) -> pd.DataFrame:
+    """offset: read other minutes than the contest did. late: also add the answer for entering that many minutes late."""
     fng = lab.fear_greed()
     closes = {}
     for sym in ALL_COINS:
@@ -61,6 +62,9 @@ def build() -> pd.DataFrame:
         c, sigma = df["c"], _sigma(df["c"])
         f["y_ft"] = np.where(c.shift(-60) > c, 1, np.where(c.shift(-60) < c, 0, -1)).astype("int8")
         f["y_iz"] = (np.log(c.shift(-60) / c).abs() <= IZ_Q * sigma * np.sqrt(60)).astype("int8")
+        if late:
+            a, b = c.shift(-late), c.shift(-60 - late)
+            f["y_iz_late"] = (np.log(b / a).abs() <= IZ_Q * sigma.shift(-late) * np.sqrt(60)).astype("int8")
         extra = long_view(df)
         for col in LONG:
             f[col] = extra[col].to_numpy()
@@ -72,7 +76,7 @@ def build() -> pd.DataFrame:
         for col in CORRIDOR:
             f[col] = corridor[col].to_numpy()
         f["coin_name"] = sym
-        frames.append(f.iloc[1500:-70].iloc[::rw.STEP].copy())
+        frames.append(f.iloc[1500 + offset:-70 - late].iloc[::rw.STEP].copy())
         del f, df, extra, c, sigma, corridor
         gc.collect()
         print("features", sym, flush=True)

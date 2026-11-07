@@ -81,6 +81,10 @@ class Holder:
             for d in [d for d in table if d < oldest]:
                 del table[d]
 
+    def recent(self, rows: int) -> pd.DataFrame:
+        """The newest minutes held."""
+        return pd.DataFrame({"h": self._h[-rows:], "l": self._l[-rows:], "c": self._c[-rows:]})
+
     def _day_inputs(self, today: int) -> tuple[float, float, float]:
         """The inputs that use finished days only, so they change once a day."""
         if self._table and self._table[0] == today:

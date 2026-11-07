@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Check, History as HistoryIcon, PieChart } from 'lucide-react-native';
 import { api, type Trade } from '@/lib/api';
 import { dayLabel, money } from '@/lib/format';
@@ -28,7 +28,11 @@ const RESULTS = [
   { key: 'any', label: 'Any Result' }, { key: 'win', label: 'Profit' }, { key: 'loss', label: 'Loss' }, { key: 'refund', label: 'Refund' },
 ];
 
-type Row = { kind: 'header'; label: string; key: string } | { kind: 'trade'; trade: Trade; key: string };
+type Row = { kind: 'header'; label: string; key: string; day: string } | { kind: 'trade'; trade: Trade; key: string };
+type Totals = { start: string; trades: number; traded: number; won: number; lost: number; net: number };
+// the person's own calendar day, as the server counts it
+const ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const dayKey = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: ZONE });
 
 export default function History() {
   const column = useColumn('regular');
@@ -61,12 +65,20 @@ export default function History() {
     enabled: !!account,
   });
 
+  // totals for every finished trade on this account, whatever the filters show: worked out by the server
+  const sums = useQuery({
+    queryKey: ['trades', 'summary', account?.id, ZONE],
+    queryFn: () => api<{ days: Totals[]; weeks: Totals[] }>(`/trades/summary?accountId=${account!.id}&tz=${encodeURIComponent(ZONE)}`),
+    enabled: !!account, refetchInterval: 30_000,
+  });
+  const byDay = new Map((sums.data?.days ?? []).map((d) => [d.start, d]));
+
   const trades = q.data?.pages.flatMap((p) => p.trades) ?? [];
   const rows: Row[] = [];
   let lastDay = '';
   for (const t of trades) {
     const d = dayLabel(t.close_time ?? t.open_time);
-    if (d !== lastDay) { rows.push({ kind: 'header', label: d, key: `h${d}` }); lastDay = d; }
+    if (d !== lastDay) { rows.push({ kind: 'header', label: d, key: `h${d}`, day: dayKey(t.close_time ?? t.open_time) }); lastDay = d; }
     rows.push({ kind: 'trade', trade: t, key: t.id });
   }
 
@@ -104,6 +116,7 @@ export default function History() {
           data={rows}
           keyExtractor={(r) => r.key}
           contentContainerStyle={[column, { paddingBottom: 30, gap: 8 }]}
+          ListHeaderComponent={account ? <Summary today={byDay.get(dayKey(new Date().toISOString()))} week={sums.data?.weeks[0]} accountType={account.type} /> : undefined}
           onEndReached={() => { if (q.hasNextPage && !q.isFetchingNextPage) void q.fetchNextPage(); }}
           onEndReachedThreshold={0.4}
           ListEmptyComponent={<EmptyState icon={<HistoryIcon size={26} color={colors.muted} />} title="No trades yet" text="Finished trades that match these filters show here, newest first.">
@@ -111,7 +124,7 @@ export default function History() {
           </EmptyState>}
           ListFooterComponent={q.isFetchingNextPage ? <Spinner /> : undefined}
           renderItem={({ item }) => item.kind === 'header'
-            ? <Txt style={styles.day}>{item.label}</Txt>
+            ? <DayHeader label={item.label} totals={byDay.get(item.day)} accountType={account?.type ?? 'DEMO'} />
             : <TradeCard showOwner trade={item.trade} accountType={account?.type} onPress={() => setSelected(item.trade)} />}
         />
       )}
@@ -128,6 +141,38 @@ export default function History() {
       </Sheet>
       <TradeDetailSheet trade={selected} accountType={account?.type} onClose={() => setSelected(null)} />
     </SafeAreaView>
+  );
+}
+
+// Today and this week, one line each: the amount traded and the result, then won and lost underneath.
+function Summary({ today, week, accountType }: { today?: Totals; week?: Totals; accountType: 'DEMO' | 'NGN' | 'USDT' }) {
+  const line = (title: string, s?: Totals) => (
+    <View style={styles.sumRow} key={title} testID={`summary-${title}`}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+        <Txt style={{ fontSize: 16, fontFamily: font.semibold }}>{title}</Txt>
+        <Txt style={{ fontSize: 18, fontFamily: font.bold, fontVariant: ['tabular-nums'], color: !s || s.net === 0 ? colors.text : s.net > 0 ? colors.up : colors.down }}>
+          {s ? money(s.net, accountType, { sign: true }) : money(0, accountType)}
+        </Txt>
+      </View>
+      <Txt style={styles.sumMeta}>
+        {s ? `Traded ${money(s.traded, accountType)} in ${s.trades} ${s.trades === 1 ? 'trade' : 'trades'} · won ${money(s.won, accountType)} · lost ${money(s.lost, accountType)}` : 'No finished trades yet'}
+      </Txt>
+    </View>
+  );
+  return <View style={styles.sumCard}>{line('Today', today)}<View style={styles.sumLine} />{line('This week', week)}</View>;
+}
+
+// A day in the list, with that day's result beside it.
+function DayHeader({ label, totals, accountType }: { label: string; totals?: Totals; accountType: 'DEMO' | 'NGN' | 'USDT' }) {
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+      <Txt style={styles.day}>{label}</Txt>
+      {totals ? (
+        <Txt style={[styles.dayNet, { color: totals.net === 0 ? colors.muted : totals.net > 0 ? colors.up : colors.down }]}>
+          {`${money(totals.traded, accountType)} traded · ${money(totals.net, accountType, { sign: true })}`}
+        </Txt>
+      ) : null}
+    </View>
   );
 }
 
@@ -172,6 +217,11 @@ const styles = createStyles(() => ({
   bar: { flexDirection: 'row', justifyContent: 'space-between', height: 52, alignItems: 'center' },
   chips: { gap: 8, paddingVertical: 14 },
   day: { fontSize: 13, fontFamily: font.bold, color: colors.muted, letterSpacing: 0.5, marginTop: 8 },
+  dayNet: { fontSize: 13, fontFamily: font.semibold, fontVariant: ['tabular-nums'] },
+  sumCard: { backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 14, gap: 12, marginBottom: 6 },
+  sumRow: { gap: 4 },
+  sumLine: { height: 1, backgroundColor: colors.border },
+  sumMeta: { fontSize: 13, color: colors.muted, fontVariant: ['tabular-nums'] },
   option: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 52, paddingHorizontal: 20 },
   analytics: { flex: 1, padding: SIDE, maxWidth: 520, width: '100%', alignSelf: 'center' },
 }));

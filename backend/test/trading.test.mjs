@@ -84,6 +84,26 @@ test('two trades at once can never overspend', async () => {
   assert.equal(await balance(u), 400);
 });
 
+test('the day and week totals are the settled trades, added up by the server', async () => {
+  const u = await signUp();
+  const open = async (amount) => (await call('POST', '/trades', { token: u.token, body: { accountId: u.demo.id, assetId: 'EURUSD', mode: 'forex', direction: 'up', amount, leverage: 100 } })).body;
+  const a = await open(40), b = await open(60);
+  await call('POST', `/trades/${a.id}/close`, { token: u.token });
+  await call('POST', `/trades/${b.id}/close`, { token: u.token });
+  const list = (await call('GET', `/trades?status=closed&accountId=${u.demo.id}`, { token: u.token })).body.trades;
+  const s = (await call('GET', `/trades/summary?accountId=${u.demo.id}&tz=Africa/Lagos`, { token: u.token })).body;
+  const pnl = list.reduce((x, t) => x + Number(t.pnl), 0);
+  assert.equal(s.tz, 'Africa/Lagos');
+  assert.equal(s.days[0].trades, 2);
+  assert.equal(s.days[0].traded, 100);
+  assert.ok(Math.abs(s.days[0].net - pnl) < 0.005, 'net is the sum of the results');
+  assert.ok(Math.abs(s.days[0].won - s.days[0].lost - s.days[0].net) < 0.005, 'won minus lost is the net');
+  assert.equal(s.weeks[0].traded, 100, 'the week holds today');
+  assert.equal((await call('GET', `/trades/summary?accountId=${u.demo.id}&tz=Not/AZone'%3B`, { token: u.token })).body.tz, 'UTC', 'an unknown zone falls back');
+  assert.equal((await call('GET', '/trades/summary?accountId=bad', { token: u.token })).status, 400);
+  assert.equal((await call('GET', `/trades/summary?accountId=${u.demo.id}`, {})).status, 401, 'needs a login');
+});
+
 test('inzone and forex settle, manual close works, analysis returns three points', async () => {
   const u = await signUp();
   const iz = await call('POST', '/trades', { token: u.token, body: { accountId: u.demo.id, assetId: 'EURUSD', mode: 'inzone', amount: 10, durationSec: 5 } });

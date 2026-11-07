@@ -58,6 +58,24 @@ export function tradesRouter({ engine, settlement, assetNames }) {
     res.json({ trades: rows, nextCursor: rows.length === limit ? rows.at(-1)[time] : null });
   });
 
+  // What a person traded and made, per day and per week, worked out by the server from settled trades (the app never adds up money).
+  // Days and weeks follow the person's own clock: tz is their time zone, checked before use; weeks start on Monday.
+  r.get('/trades/summary', async (req, res) => {
+    const tz = validZone(req.query.tz) ? req.query.tz : 'UTC';
+    if (!isUuid(req.query.accountId)) return res.status(400).json({ error: 'Choose an account.' });
+    const totals = (unit, since) => pool.query(
+      `select to_char(date_trunc('${unit}', close_time at time zone $3), 'YYYY-MM-DD') as start, count(*)::int as trades,
+              coalesce(sum(amount), 0) as traded, coalesce(sum(pnl) filter (where pnl > 0), 0) as won,
+              coalesce(-sum(pnl) filter (where pnl < 0), 0) as lost, coalesce(sum(pnl), 0) as net
+         from trades
+        where user_id = $1 and account_id = $2 and status = 'closed'
+          and close_time >= (date_trunc('${unit}', now() at time zone $3) - interval '${since}') at time zone $3
+        group by 1 order by 1 desc`, [req.user.id, req.query.accountId, tz]);
+    const [days, weeks] = await Promise.all([totals('day', '13 days'), totals('week', '3 weeks')]);
+    const num = (r) => ({ start: r.start, trades: r.trades, traded: Number(r.traded), won: Number(r.won), lost: Number(r.lost), net: Number(r.net) });
+    res.json({ tz, days: days.rows.map(num), weeks: weeks.rows.map(num) });
+  });
+
   r.get('/trades/:id', async (req, res) => {
     if (!isUuid(req.params.id)) return res.status(404).json({ error: 'Trade not found.' });
     const { rows } = await pool.query('select * from trades where id = $1 and user_id = $2', [req.params.id, req.user.id]);
@@ -101,4 +119,10 @@ export function tradesRouter({ engine, settlement, assetNames }) {
   });
 
   return r;
+}
+
+// A time zone name the database and the browser both know, such as Africa/Lagos. Anything else falls back to UTC.
+function validZone(tz) {
+  if (typeof tz !== 'string' || tz.length > 64 || !/^[A-Za-z_]+(\/[A-Za-z0-9_+-]+){0,2}$/.test(tz)) return false;
+  try { new Intl.DateTimeFormat('en', { timeZone: tz }); return true; } catch { return false; }
 }

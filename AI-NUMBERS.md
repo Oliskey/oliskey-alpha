@@ -1,12 +1,12 @@
 # Oliskey Alpha: the AI's real numbers
 
-Updated by the engine 2026-11-07 16:21 UTC. Demo money on real crypto prices. Test accounts are not counted. It can lose.
+Updated by the engine 2026-11-07 20:58 UTC. Demo money on real crypto prices. Test accounts are not counted. It can lose.
 
 ## Score
 
-**Last 100 of 100 signals: 59 right, 41 wrong (59.0%), +α2,165.12.**
+**Last 100 of 100 signals: 62 right, 38 wrong (62.0%), +α2,480.01.**
 
-Clean record: 209 trades across 23 separate hours. It needs at least 100 to judge, and even a profit can be luck.
+Clean record: 232 trades across 25 separate hours. It needs at least 100 to judge, and even a profit can be luck.
 
 ## New InZone model, since it went live on 2026-11-07 11:16 UTC
 
@@ -20,22 +20,22 @@ It needs at least 100 finished trades before anyone can say it works. Its tests:
 
 | Who | Trade type | Finished | Won | Won % | Profit |
 |---|---|---:|---:|---:|---:|
-| AI, on real accounts | inzone | 71 | 41 | 57.7% | +α1,510.00 |
+| AI, on real accounts | inzone | 51 | 26 | 51.0% | +α360.00 |
 
 ## All time, real accounts
 
 | Who | Trade type | Finished | Won | Won % | Profit |
 |---|---|---:|---:|---:|---:|
-| AI, on real accounts | fixed_time | 5 | 4 | 80.0% | +α199.50 |
+| AI, on real accounts | fixed_time | 6 | 4 | 66.7% | +α42.89 |
 | AI, on real accounts | inzone | 114 | 60 | 52.6% | +α1,162.94 |
-| AI, on real accounts | forex | 3 | 3 | 100.0% | +α171.88 |
+| AI, on real accounts | forex | 4 | 4 | 100.0% | +α257.51 |
 | People, by hand | fixed_time | 53 | 25 | 47.2% | +α6,590.76 |
 | People, by hand | inzone | 2 | 0 | 0.0% | -α20.00 |
 | People, by hand | forex | 7 | 7 | 100.0% | +α9.21 |
 
 ## Open now, real accounts
 
-- forex, by hand: 3 trades, α2,288 staked
+- forex, by hand: 2 trades, α1,120 staked
 - forex, AI: 2 trades, α200 staked
 
 ## Tests
@@ -44,6 +44,7 @@ It needs at least 100 finished trades before anyone can say it works. Its tests:
 - When to trade, 2026-11-07T04:59: 80 windows tested. To sit out: none proved.
 - Fewer, stronger trades: inzone: none passed; fixed_time: none passed.
 - Why trades fail, 2026-11-07T12:16: 12 warning signs tested. Added to its strategy: none passed. Details: docs/intel/CAUSES.md.
+- If it is not sure, it does not trade, 2026-11-07T16:26: it trades InZone only at a reading of 0.7 or higher. Strongest signals level: 0.7. Details: docs/intel/STRENGTH.md.
 - Stake by strength: inzone: failed; fixed_time: passed.
 
 Questions, answers and what is still open: see AI-PROGRESS.md.

@@ -1,5 +1,6 @@
-// Publishes the screens-only preview to Vercel. Only the built web files are uploaded, never source code or .env files.
-// The bundle has no server address: sign-in and trading stay off (app/src/lib/preview.ts).
+// Publishes the web app to Vercel. Only the built web files are uploaded, never source code or .env files.
+// With HOSTED_API_URL set (on Vercel) it is the real app, talking to that server. Without it, the bundle has no server address and is screens only:
+// sign-in and trading stay off (app/src/lib/preview.ts).
 //   npm run deploy:preview
 import { execSync } from 'node:child_process';
 import { cpSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -14,7 +15,10 @@ const keep = mkdtempSync(path.join(tmpdir(), 'oliskey-vercel-'));
 const link = path.join(out, '.vercel');
 if (existsSync(link)) cpSync(link, path.join(keep, '.vercel'), { recursive: true });
 
-const env = { ...process.env, EXPO_PUBLIC_PREVIEW: '1', EXPO_PUBLIC_API_URL: 'https://preview.invalid', EXPO_PUBLIC_WS_URL: 'wss://preview.invalid/stream' };
+const server = process.env.HOSTED_API_URL?.replace(/\/$/, '');
+const env = server
+  ? { ...process.env, EXPO_PUBLIC_API_URL: server, EXPO_PUBLIC_WS_URL: `${server.replace(/^http/, 'ws')}/stream` }
+  : { ...process.env, EXPO_PUBLIC_PREVIEW: '1', EXPO_PUBLIC_API_URL: 'https://preview.invalid', EXPO_PUBLIC_WS_URL: 'wss://preview.invalid/stream' };
 execSync('npx expo export -p web --output-dir dist-preview', { cwd: app, env, stdio: 'inherit' });
 
 if (existsSync(path.join(keep, '.vercel'))) cpSync(path.join(keep, '.vercel'), link, { recursive: true });

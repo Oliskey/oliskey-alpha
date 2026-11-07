@@ -2,10 +2,12 @@
 // to signed-in users at /intel/*. A trade placed from a signal carries that signal's id, so the app can show exactly
 // "you took this" or "you skipped this" and how it turned out.
 import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { Router } from 'express';
 import { pool } from './db.js';
+import { createUser, usingSupabase } from './supabaseAuth.js';
 import { isUuid, messageFor } from './http.js';
 import { notify } from './notify.js';
 import { openTrade } from './openTrade.js';
@@ -152,9 +154,12 @@ export function startPaperTrading({ engine, settlement }) {
   async function ensureAccount() {
     let { rows } = await pool.query('select id from auth.users where email = $1', [ENGINE_EMAIL]);
     if (!rows[0]) {
-      ({ rows } = await pool.query(
-        `insert into auth.users (email, raw_user_meta_data) values ($1, '{"full_name":"Oliskey Alpha Engine"}') returning id`,
-        [ENGINE_EMAIL]));
+      if (usingSupabase()) rows = [{ id: await createUser({ email: ENGINE_EMAIL, password: randomBytes(32).toString('hex'), fullName: 'Oliskey Alpha Engine' }) }];   // nobody knows this password
+      else {
+        ({ rows } = await pool.query(
+          `insert into auth.users (email, raw_user_meta_data) values ($1, '{"full_name":"Oliskey Alpha Engine"}') returning id`,
+          [ENGINE_EMAIL]));
+      }
     }
     userId = rows[0].id;
     demoId = (await pool.query("select id from accounts where user_id = $1 and type = 'DEMO'", [userId])).rows[0].id;

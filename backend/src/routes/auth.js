@@ -4,6 +4,7 @@ import { rateLimit } from 'express-rate-limit';
 import { pool } from '../db.js';
 import { DUMMY_HASH, hashPassword, requireAuth, signMfaTicket, signToken, verifyMfaTicket, verifyPassword } from '../auth.js';
 import { newSecret, otpauthUrl, verifyCode } from '../totp.js';
+import { createUser, googleSignInUrl, passwordIsRight, setPassword, usingSupabase, userFromToken } from '../supabaseAuth.js';
 
 export const authRouter = Router();
 // Sign-up / login / code attempts per IP per 15 minutes. Tests and CI raise it (they create many users).
@@ -22,11 +23,18 @@ authRouter.post('/register', async (req, res) => {
   if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
 
   try {
-    const { rows } = await pool.query(
-      `insert into auth.users (email, encrypted_password, raw_user_meta_data)
-       values ($1, $2, jsonb_build_object('full_name', $3::text)) returning id, email`,
-      [email, await hashPassword(password), fullName],
-    );
+    let rows;
+    if (usingSupabase()) {
+      const id = await createUser({ email, password, fullName });
+      if (!id) return res.status(409).json({ error: 'An account with this email already exists.' });
+      rows = [{ id, email }];
+    } else {
+      ({ rows } = await pool.query(
+        `insert into auth.users (email, encrypted_password, raw_user_meta_data)
+         values ($1, $2, jsonb_build_object('full_name', $3::text)) returning id, email`,
+        [email, await hashPassword(password), fullName],
+      ));
+    }
     const inviteCode = typeof req.body?.inviteCode === 'string' ? req.body.inviteCode.slice(0, 16) : '';
     if (inviteCode) await pool.query('select set_referrer($1, $2)', [rows[0].id, inviteCode]);
     void notify(rows[0].id, 'platform', 'Welcome to Oliskey Alpha', 'Your demo account has α10,000 to practise with. No real money is involved.', '/terminal');
@@ -44,11 +52,37 @@ authRouter.post('/login', async (req, res) => {
     `select u.id, u.email, u.encrypted_password, p.is_admin,
             exists (select 1 from admin_mfa m where m.user_id = u.id and m.enabled_at is not null) as mfa
      from auth.users u left join profiles p on p.id = u.id where u.email = $1`, [email]);
-  const ok = await verifyPassword(password, rows[0]?.encrypted_password ?? DUMMY_HASH);
+  const ok = usingSupabase() ? rows[0] && await passwordIsRight(email, password) : await verifyPassword(password, rows[0]?.encrypted_password ?? DUMMY_HASH);
   if (!rows[0] || !ok) return res.status(401).json({ error: 'Email or password is incorrect.' });
-  // Admins with 2-step login enabled get a 5-minute ticket and must send their code next.
-  if (rows[0].is_admin && rows[0].mfa) return res.json({ mfaRequired: true, mfaTicket: await signMfaTicket(rows[0]) });
-  res.json({ token: await signToken(rows[0]) });
+  await sendSession(res, rows[0]);
+});
+
+// Admins with 2-step login enabled get a 5-minute ticket and must send their code next.
+async function sendSession(res, user) {
+  if (user.is_admin && user.mfa) return res.json({ mfaRequired: true, mfaTicket: await signMfaTicket(user) });
+  res.json({ token: await signToken(user) });
+}
+
+// What the sign-in screens can offer. Google is on only when the server is told it has been set up.
+authRouter.get('/config', (req, res) => {
+  const on = usingSupabase() && process.env.GOOGLE_SIGNIN === 'on';
+  // back to the site the person started on, only if it is one of ours
+  const own = `${req.protocol}://${req.get('host')}`;
+  const from = String(req.query.from ?? '');
+  const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim());
+  res.json({ googleUrl: on ? googleSignInUrl(`${allowed.includes(from) ? from : own}/`) : null });
+});
+
+// Back from Google: Supabase gave the browser a token. It is only trusted once Supabase confirms whose it is.
+authRouter.post('/oauth', async (req, res) => {
+  if (!usingSupabase()) return res.status(404).json({ error: 'Not available.' });
+  const who = await userFromToken(String(req.body?.accessToken ?? ''));
+  if (!who) return res.status(401).json({ error: 'Google sign-in did not complete. Please try again.' });
+  const { rows } = await pool.query(
+    `select u.id, u.email, p.is_admin, exists (select 1 from admin_mfa m where m.user_id = u.id and m.enabled_at is not null) as mfa
+     from auth.users u left join profiles p on p.id = u.id where u.id = $1`, [who.id]);
+  if (!rows[0]) return res.status(401).json({ error: 'Google sign-in did not complete. Please try again.' });
+  await sendSession(res, rows[0]);
 });
 
 authRouter.post('/login/mfa', async (req, res) => {
@@ -98,11 +132,11 @@ authRouter.post('/change-password', requireAuth, async (req, res) => {
   const current = String(req.body?.currentPassword ?? '');
   const next = String(req.body?.newPassword ?? '');
   if (next.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
-  const { rows } = await pool.query('select encrypted_password from auth.users where id = $1', [req.user.id]);
-  if (!rows[0] || !(await verifyPassword(current, rows[0].encrypted_password))) {
-    return res.status(400).json({ error: 'Current password is incorrect.' });
-  }
-  await pool.query('update auth.users set encrypted_password = $2 where id = $1', [req.user.id, await hashPassword(next)]);
+  const { rows } = await pool.query('select email, encrypted_password from auth.users where id = $1', [req.user.id]);
+  const right = rows[0] && (usingSupabase() ? await passwordIsRight(rows[0].email, current) : await verifyPassword(current, rows[0].encrypted_password));
+  if (!right) return res.status(400).json({ error: 'Current password is incorrect.' });
+  if (usingSupabase()) await setPassword(req.user.id, next);
+  else await pool.query('update auth.users set encrypted_password = $2 where id = $1', [req.user.id, await hashPassword(next)]);
   res.json({ ok: true });
 });
 

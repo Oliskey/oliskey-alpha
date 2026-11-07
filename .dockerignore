@@ -1,0 +1,22 @@
+**/node_modules
+**/.env
+**/.env.*
+!app/.env.production
+.git
+.vercel
+.claude
+.github
+**/__pycache__
+**/*.pyc
+app/dist
+app/dist-next
+app/dist-old
+app/dist-preview
+app/.expo
+backend/.data
+intel/models
+Frontend Skills
+supabase
+docs/audit
+**/*.pem
+**/*.key

@@ -1,0 +1,21 @@
+{
+ "generated_at": "2026-11-06T21:04:01.690036+00:00",
+ "picks": {
+  "fixed_time": {
+   "days": 99999,
+   "rounds": 150,
+   "lr": null,
+   "rows": 400000,
+   "blend": 3,
+   "name": "3 years, blend of 3 models"
+  },
+  "inzone": {
+   "days": 99999,
+   "rounds": 150,
+   "lr": null,
+   "rows": 400000,
+   "blend": 3,
+   "name": "3 years, blend of 3 models"
+  }
+ }
+}

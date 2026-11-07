@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { AuthError, AuthField, AuthShell, QuietButton, SwitchLine } from '@/components/AuthShell';
+import { GoogleButton } from '@/components/GoogleButton';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/ui/Button';
 
@@ -44,6 +45,7 @@ export default function Login() {
       <AuthField label="Password" value={password} onChangeText={setPassword} placeholder="Your password" secureTextEntry autoComplete="current-password" textContentType="password" onSubmitEditing={submit}
         right={<QuietButton label="Forgot password?" onPress={() => router.push('/forgot')} />} />
       <Button label="Sign in" height={54} onPress={submit} loading={busy} />
+      <GoogleButton />
       <SwitchLine text="New to Oliskey Alpha?" action="Create an account" onPress={() => router.replace('/register')} />
     </AuthShell>
   );

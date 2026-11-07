@@ -1,3 +1,4 @@
+import { usingSupabase, passwordIsRight } from '../supabaseAuth.js';
 // Profile, wallets, tasks, notifications, promo codes and ledger for the signed-in user.
 import { Router } from 'express';
 import { pool } from '../db.js';
@@ -24,10 +25,10 @@ accountRouter.get('/me', async (req, res) => {
 // Delete account: password required; refused until real-money wallets are empty and no trade is open.
 // Trades and ledger are kept; the person is anonymised (close_account in 007_close_account.sql).
 accountRouter.delete('/me', async (req, res) => {
-  const { rows } = await pool.query('select encrypted_password from auth.users where id = $1', [req.user.id]);
-  if (!rows[0] || !(await verifyPassword(String(req.body?.password ?? ''), rows[0].encrypted_password))) {
-    return res.status(400).json({ error: 'Password is incorrect.' });
-  }
+  const { rows } = await pool.query('select email, encrypted_password from auth.users where id = $1', [req.user.id]);
+  const password = String(req.body?.password ?? '');
+  const right = rows[0] && (usingSupabase() ? await passwordIsRight(rows[0].email, password) : await verifyPassword(password, rows[0].encrypted_password));
+  if (!right) return res.status(400).json({ error: 'Password is incorrect.' });
   await pool.query('select close_account($1)', [req.user.id]);
   res.json({ ok: true });
 });

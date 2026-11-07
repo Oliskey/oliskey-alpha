@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import subprocess
 import sys
 import threading
@@ -98,6 +99,21 @@ def heavy_job(script: str) -> None:
         print(f"{script} failed:", done.stderr[-400:], flush=True)
 
 
+# Small hosts: the 4-year retraining needs several GB of memory, so it can be switched off there. Live reading and trading never depend on it.
+HEAVY_JOBS = os.environ.get("INTEL_HEAVY_JOBS", "on") != "off"
+
+
+def seed_history() -> None:
+    """A new server has no price history for the long view, so InZone waits, safely, until this has fetched it."""
+    if not list((lab_cache() / "all").glob("*.npz")):
+        heavy_job("fetch_history.py")
+
+
+def lab_cache() -> Path:
+    import run_crypto_lab as lab
+    return lab.CACHE
+
+
 def daily() -> None:
     # Strategies earn (or lose) "accepted" only through the out-of-sample test, never from live results alone.
     for script in ("run_backtest.py", "run_stress.py", "run_ft_model.py"):
@@ -114,6 +130,9 @@ def due(mark: Path, every: int) -> bool:
 
 
 async def daily_loop() -> None:
+    if not HEAVY_JOBS:
+        await asyncio.to_thread(seed_history)
+        return
     while True:
         try:
             if due(DAILY_MARK, REVALIDATE_EVERY_SEC):
@@ -148,6 +167,8 @@ def research() -> None:
 
 async def research_loop() -> None:
     """Runs apart from the scan cycle: it takes many minutes, and signals must keep flowing meanwhile."""
+    if not HEAVY_JOBS:
+        return
     while True:
         try:
             if due(RESEARCH_MARK, RESEARCH_EVERY_SEC):

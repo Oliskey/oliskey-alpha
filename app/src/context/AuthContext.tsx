@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Platform } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, setApiToken, setOnUnauthorized } from '@/lib/api';
 import { turnOffPush } from '@/lib/push';
@@ -33,7 +34,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setOnUnauthorized(() => { void apply(null); });
-    loadToken().then((t) => {
+    // back from Google: the address holds a Supabase token for a moment. It is swapped for a session and wiped from the address at once.
+    const back = Platform.OS === 'web' && typeof window !== 'undefined' ? new URLSearchParams(window.location.hash.slice(1)) : null;
+    const fromGoogle = back?.get('access_token');
+    if (back && (fromGoogle || back.get('error'))) window.history.replaceState(null, '', window.location.pathname);
+    (fromGoogle
+      ? api<{ token?: string }>('/auth/oauth', { method: 'POST', body: { accessToken: fromGoogle } }).then((r) => r.token ?? loadToken()).catch(() => loadToken())
+      : loadToken()
+    ).then(async (t) => {
+      if (fromGoogle && t) await saveToken(t);
       setApiToken(t);
       setStreamToken(t);
       setToken(t);

@@ -2,6 +2,7 @@
 months and years) is built from these. Safe to stop and run again: it saves as it goes and only fetches what is missing. Usage: python intel/fetch_history.py"""
 from __future__ import annotations
 
+import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -15,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import run_crypto_lab as lab                   # noqa: E402
 from engine.updown import ALL_COINS            # noqa: E402
 
-YEARS = 4
+YEARS = float(os.environ.get("HISTORY_YEARS", 4))   # a server without retraining only needs enough for the long view
 FOLDER = lab.CACHE / "all"
 COLS = ["t", "o", "h", "l", "c", "v", "tb"]
 SAVE_EVERY = 200_000
@@ -62,7 +63,7 @@ def one(sym: str) -> None:
     path = FOLDER / f"{sym}.npz"
     df = _load(path) if path.exists() else seed(sym)
     now = int(time.time() * 1000)
-    start = now - YEARS * 365 * 86_400_000
+    start = now - int(YEARS * 365 * 86_400_000)
     with httpx.Client(timeout=25) as c:
         if df is None:
             df = pd.DataFrame(rows_of(fetch(c, sym, {"startTime": now - 86_400_000}), now), columns=COLS)

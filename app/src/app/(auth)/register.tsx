@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AuthError, AuthField, AuthShell, PasswordStrength, QuietButton, SwitchLine } from '@/components/AuthShell';
+import { GoogleButton } from '@/components/GoogleButton';
 import { useAuth } from '@/context/AuthContext';
 import { colors } from '@/theme';
 import { Button } from '@/ui/Button';
@@ -49,6 +50,7 @@ export default function Register() {
         <QuietButton label="I have an invite code" onPress={() => setShowInvite(true)} />
       )}
       <Button label="Create account" height={54} onPress={submit} loading={busy} />
+      <GoogleButton />
       <Txt style={{ color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: 'center' }}>
         By continuing you confirm you are 18 or older, accept the{' '}
         <Txt style={{ color: colors.accent, fontSize: 12 }} onPress={() => router.push('/terms')} accessibilityRole="link">Terms of Service</Txt>

@@ -1,6 +1,6 @@
 # Oliskey Alpha: your questions and answers
 
-The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 7 November 2026, version 0.0.13.
+The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 7 November 2026, version 0.0.14.
 
 ## Your AI goal
 
@@ -74,15 +74,15 @@ Tested on all 17 coins, on 3 separate 91-day periods the models never trained on
 - **It went live on 7 November 2026 at 05:28 UTC, on demo money.** AI trades can now use all 17 coins. Every coin earned in this test, the weakest being UNI (+129) and NEAR (+232) entering late. The test reruns every week, and a group that stops passing stops getting money.
 - **What to expect:** even at these numbers, the AI loses close to half its trades, and losing days and nights will happen. Live results are the real judge. It needs at least 100 finished trades on this model before anyone can say anything.
 
-## Hosting, paused at your request
+## Hosting
 
 | Item | Status |
 |---|---|
 | GitHub | Connected and private |
-| Vercel | Connected, screens only. People cannot sign up or trade there yet |
-| Supabase | Database ready, with 14 migrations applied. The app is not switched to it yet |
-| Backend server | Oracle free server was chosen, and your account was in progress. Supabase cannot run the backend or the AI engine |
-| Sign-in | Moving to Supabase Auth. Needs your publishable key in `app/.env` |
+| Railway | Backend and AI engine, one copy in Europe: https://oliskey-alpha-production.up.railway.app . Retraining is off there for now |
+| Supabase | Database and accounts. 15 migrations applied |
+| Vercel | Builds the real app, talking to Railway |
+| Google sign-in | Button built, stays hidden until you set it up |
 | Cloudflare domain | Later |
 
 ## Still open

@@ -1,5 +1,6 @@
 {
   "name": "oliskey-alpha",
+  "version": "0.0.2",
   "private": true,
   "workspaces": [
     "backend",
@@ -13,7 +14,7 @@
     "db:admin": "node scripts/db.mjs admin",
     "build": "npm run build -w app",
     "deploy:preview": "node scripts/deploy-preview.mjs",
-    "start": "npm start -w backend",
+    "start": "node scripts/run-server.mjs",
     "start:all": "npm run db:up && npm start",
     "test": "npm test -w backend",
     "app:dev": "npm run web -w app"

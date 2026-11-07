@@ -24,7 +24,7 @@ npm install          # first time only
 npm run db:up        # start the local database (Docker container oliskey-alpha-app-db)
 npm run db:reset     # WIPES local data, then applies all migrations
 npm run build        # build the web app into app/dist (after changing app code)
-npm start            # app + API + live prices, all on http://localhost:3311
+npm start            # app + API + live prices, all on http://localhost:3311; restarts itself (scripts/run-server.mjs)
 npm test             # end-to-end tests against the running server
 npm run db:test      # check the money rules
 ```

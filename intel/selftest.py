@@ -183,4 +183,11 @@ _better = {**_base, "avg": 0.05, "total": 200.0}
 check("exam: a winner that earns in the exam is chosen", _winner({"today": _base, "new": {**_better, "exam_total": 6.0}}) == "new")
 check("exam: a winner that earns less than today in the exam is refused", _winner({"today": _base, "new": {**_better, "exam_total": 4.0}}) == "today")
 check("exam: a winner that loses in the exam is refused", _winner({"today": {**_base, "exam_total": -9.0}, "new": {**_better, "exam_total": -1.0}}) == "today")
+from run_wide_contest import length_choice as _lc  # noqa: E402
+_long = {"luck": 0.001, "trades": 1000, "total": 100.0}
+_short = {"luck": 0.001, "trades": 3000, "total": 100.0, "money_proof": True, "exam_total": 5.0}
+check("length: the same result goes to the shorter trade", _lc(_long, _short) == "15 minutes")
+check("length: a clearly better long trade stays", _lc({**_long, "total": 500.0}, _short) == "60 minutes")
+check("length: a short trade without the money proof stays out", _lc(_long, {**_short, "money_proof": False, "total": 900.0}) == "60 minutes")
+check("length: a short trade that loses in the exam stays out", _lc(_long, {**_short, "exam_total": -1.0, "total": 900.0}) == "60 minutes")
 print("all engine self-tests passed")

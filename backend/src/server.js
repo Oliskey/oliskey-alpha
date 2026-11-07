@@ -48,8 +48,10 @@ if (PRICE_SNAPSHOT !== LEGACY_SNAPSHOT && !existsSync(PRICE_SNAPSHOT) && existsS
 await engine.start(PRICE_SNAPSHOT);
 // Save price history every 5 minutes and on shutdown so charts and past trades survive restarts.
 setInterval(() => engine.save(PRICE_SNAPSHOT), 5 * 60_000).unref();
+const closeDown = () => { engine.save(PRICE_SNAPSHOT); process.exit(0); };
+process.on('message', (m) => { if (m === 'shutdown') closeDown(); });   // from scripts/run-server.mjs
 for (const sig of ['SIGINT', 'SIGTERM']) {
-  process.on(sig, () => { engine.save(PRICE_SNAPSHOT); process.exit(0); });
+  process.on(sig, closeDown);
 }
 
 const app = express();

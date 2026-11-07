@@ -13,6 +13,10 @@ RULE, FIXED BEFORE ANY RESULT WAS SEEN, not to be loosened afterwards. A new ver
   7. at least 500 trades;
   8. HELD-BACK EXAM, added 2026-11-07 before this contest had ever run: the newest 60 days play no part in rules 1 to 7. On them the
      winner must make a profit, and no less than today's version. Otherwise today's version stays.
+
+TRADE LENGTH, owner's rule 2026-11-07, fixed before this contest ran (earlier research on an older model had shown 15-minute InZone earning): a longer
+trade is used only if it is really better. 15-minute InZone replaces 60-minute only if it passes the money proof, earns in the exam, and its total profit
+over the same days is not lower than the 60-minute total by more than training luck explains. Fixed Time stays at 60 minutes: shorter lost in research.
 Usage: python intel/run_wide_contest.py (needs intel/fetch_history.py first)"""
 from __future__ import annotations
 
@@ -38,9 +42,11 @@ SEEDS = (7, 42)
 EXAM_DAYS = 60        # the newest days, kept out of every choice
 TRAINING = {"rows": 700_000, "rounds": 150, "lr": None, "blend": 3}
 PERIODS, PERIOD_DAYS, MINUTES = rt.PERIODS, rt.PERIOD_DAYS, rt.MINUTES
-LABELS = ("t", "y_ft", "y_iz", "coin_name")
+LABELS = ("t", "y_ft", "y_iz", "y_iz15", "coin_name")
 LONG = ["ret_1d", "ret_3d", "ret_7d", "ret_30d", "dist_200d", "range_30d", "vol_7d", "vol_30d"]
-KINDS = {"fixed_time": ("y_ft", PAYOUT, BREAKEVEN, True), "inzone": ("y_iz", IZ_PAYOUT, IZ_BREAKEVEN, False)}
+KINDS = {"fixed_time": ("y_ft", PAYOUT, BREAKEVEN, True), "inzone": ("y_iz", IZ_PAYOUT, IZ_BREAKEVEN, False), "inzone_15": ("y_iz15", IZ_PAYOUT, IZ_BREAKEVEN, False)}
+LENGTH = {"fixed_time": MINUTES, "inzone": MINUTES, "inzone_15": 15}
+TITLES = {"fixed_time": "Fixed Time", "inzone": "InZone, 60 minutes", "inzone_15": "InZone, 15 minutes"}
 USUAL = list(lab.COINS)
 READINGS = lab.CACHE / "readings"
 DAY = 1440
@@ -83,6 +89,7 @@ def build() -> pd.DataFrame:
         c = df["c"]
         f["y_ft"] = np.where(c.shift(-MINUTES) > c, 1, np.where(c.shift(-MINUTES) < c, 0, -1)).astype("int8")
         f["y_iz"] = (np.log(c.shift(-MINUTES) / c).abs() <= IZ_Q * _sigma(c) * np.sqrt(MINUTES)).astype("int8")
+        f["y_iz15"] = (np.log(c.shift(-15) / c).abs() <= IZ_Q * _sigma(c) * np.sqrt(15)).astype("int8")
         extra = long_view(df)
         for col in LONG:
             f[col] = extra[col].to_numpy()
@@ -122,7 +129,7 @@ def trades_on(train: pd.DataFrame, test: pd.DataFrame, v: dict, kind: str, seed:
         t["up"] = True
         t["conf"], t["win"] = t["p"], t["y"] == 1
     t["r"] = np.where(t["win"], payout, -1.0)
-    return lab.one_at_a_time(t[t["conf"] > be + lab.MARGIN], pd.Timedelta(minutes=MINUTES))
+    return lab.one_at_a_time(t[t["conf"] > be + lab.MARGIN], pd.Timedelta(minutes=LENGTH[kind]))
 
 
 def judge(d: pd.DataFrame, cols: list[str], kind: str) -> dict:
@@ -186,6 +193,12 @@ def winner(res: dict) -> str:
     return best if res[best]["exam_total"] > 0 and res[best]["exam_total"] >= base["exam_total"] else names[0]
 
 
+def length_choice(long: dict, short: dict) -> str:
+    """The owner's rule at the top of this file. Both are the chosen versions, measured over the same days at the same stake."""
+    luck = 2 * math.sqrt((long["luck"] ** 2 * long["trades"] ** 2 + short["luck"] ** 2 * short["trades"] ** 2) / len(SEEDS))
+    return "15 minutes" if short["money_proof"] and short["exam_total"] > 0 and short["total"] >= long["total"] - luck else "60 minutes"
+
+
 def main() -> None:
     d = build()
     cols = [c for c in d.columns if c not in LABELS]
@@ -195,14 +208,17 @@ def main() -> None:
     for k, name in picks.items():     # the when-to-trade test reads the trades of the version that won
         src = READINGS / f"{k}__{name.split(' (')[0].replace(' ', '_')}.pkl"
         pd.read_pickle(src).to_pickle(READINGS / f"{k}.pkl")
+    length = length_choice(results["inzone"][picks["inzone"]], results["inzone_15"][picks["inzone_15"]])
+    print("InZone length:", length, flush=True)
     docs = ROOT / "docs" / "intel"
-    (docs / "wide.json").write_text(json.dumps({"generated_at": datetime.now(timezone.utc).isoformat(), "picks": picks, "results": results}, indent=1), encoding="utf-8")
+    (docs / "wide.json").write_text(json.dumps({"generated_at": datetime.now(timezone.utc).isoformat(), "picks": picks, "inzone_length": length, "results": results}, indent=1), encoding="utf-8")
     lines = ["# All coins and the long view", "", f"Generated {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC from {len(d):,} real readings of {d['coin_name'].nunique()} coins, {d['t'].min():%Y-%m-%d} to {d['t'].max():%Y-%m-%d}.",
              "Report only: nothing here changes a model. The rule is at the top of intel/run_wide_contest.py and was fixed before any result was seen. Totals and worst runs are in units of the fixed stake per trade.", ""]
     for kind, res in results.items():
-        lines += [f"## {'Fixed Time' if kind == 'fixed_time' else 'InZone'}", "", "| Version | Trades | Won | Average | Luck | Total | Worst run | Worst day | Corrected low | Periods up | Usual coins | Exam total | Earns money proof | Result |", "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|"]
+        lines += [f"## {TITLES[kind]}", "", "| Version | Trades | Won | Average | Luck | Total | Worst run | Worst day | Corrected low | Periods up | Usual coins | Exam total | Earns money proof | Result |", "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|"]
         lines += [f"| {n} | {r['trades']:,.0f} | {r['won']:.2%} | {r['avg']:+.4f} | {r['luck']:.4f} | {r['total']:+.1f} | {r['max_dd']:.1f} | {r['worst_day']:.1f} | {r['low']:+.4f} | {r['periods_up']} of {PERIODS} | {r['usual_total']:+.1f} | {r['exam_total']:+.1f} | {'Yes' if r['money_proof'] else 'No'} | {'**Chosen**' if n == picks[kind] else ''} |" for n, r in res.items()]
         lines.append("")
+    lines += [f"InZone length by the owner's rule: **{length}**.", ""]
     (docs / "WIDE.md").write_text("\n".join(lines), encoding="utf-8")
     print("picks:", picks, flush=True)
 

@@ -1,0 +1,73 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { api, setApiToken, setOnUnauthorized } from '@/lib/api';
+import { turnOffPush } from '@/lib/push';
+import { loadToken, saveToken } from '@/lib/storage';
+import { setStreamToken } from '@/lib/ws';
+
+type AuthState = {
+  ready: boolean;
+  token: string | null;
+  // Resolves to an mfaTicket when the account is an admin with 2-step login: finish with signInWithCode.
+  signIn: (email: string, password: string) => Promise<{ mfaTicket?: string }>;
+  signInWithCode: (mfaTicket: string, code: string) => Promise<void>;
+  setSession: (token: string) => Promise<void>;
+  register: (fullName: string, email: string, password: string, inviteCode?: string) => Promise<void>;
+  signOut: () => Promise<void>;
+};
+
+const AuthContext = createContext<AuthState | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [ready, setReady] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const apply = useCallback(async (t: string | null) => {
+    setApiToken(t);
+    setStreamToken(t);
+    await saveToken(t);
+    setToken(t);
+    if (!t) queryClient.clear();
+  }, [queryClient]);
+
+  useEffect(() => {
+    setOnUnauthorized(() => { void apply(null); });
+    loadToken().then((t) => {
+      setApiToken(t);
+      setStreamToken(t);
+      setToken(t);
+      setReady(true);
+    });
+  }, [apply]);
+
+  const value = useMemo<AuthState>(() => ({
+    ready,
+    token,
+    signIn: async (email, password) => {
+      const r = await api<{ token?: string; mfaRequired?: boolean; mfaTicket?: string }>('/auth/login', { method: 'POST', body: { email, password } });
+      if (r.mfaRequired) return { mfaTicket: r.mfaTicket };
+      await apply(r.token!);
+      return {};
+    },
+    signInWithCode: async (mfaTicket, code) => {
+      const r = await api<{ token: string }>('/auth/login/mfa', { method: 'POST', body: { mfaTicket, code } });
+      await apply(r.token);
+    },
+    setSession: (t) => apply(t),
+    register: async (fullName, email, password, inviteCode) => {
+      const r = await api<{ token: string }>('/auth/register', { method: 'POST', body: { fullName, email, password, inviteCode: inviteCode || undefined } });
+      await apply(r.token);
+    },
+    // this device stops getting this person's alerts
+    signOut: async () => { await turnOffPush().catch(() => {}); await apply(null); },
+  }), [ready, token, apply]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
+  return ctx;
+}

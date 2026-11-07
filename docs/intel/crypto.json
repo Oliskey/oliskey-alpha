@@ -1,0 +1,343 @@
+{
+ "generated_at": "2026-11-06T08:46:24.609039+00:00",
+ "fixed_time": {
+  "5m": {
+   "trades": 31185,
+   "wins": 16903,
+   "win_rate": 0.5420234086900754,
+   "low": 0.5364887142555537,
+   "high": 0.547547750888442,
+   "breakeven": 0.5555555555555556,
+   "avg": -0.024357864357864373,
+   "corrected_low": -0.05923774868149084,
+   "harder": -0.03298380631713966,
+   "months_positive": "6 of 11",
+   "top_coin_share": 1.0,
+   "passed": false,
+   "failed": [
+    "Average result above zero after correcting for 69 combinations, counting each day once",
+    "Still makes money entered one candle late",
+    "More than 60% of months positive",
+    "Profit not from one coin alone"
+   ],
+   "minutes": 5,
+   "took_every_candle_hit": 0.5175723051156709,
+   "by_confidence": [
+    {
+     "from": 0.5,
+     "to": 0.52,
+     "rows": 1069390,
+     "said": 0.5093287954221778,
+     "won": 0.5061147009042538
+    },
+    {
+     "from": 0.52,
+     "to": 0.54,
+     "rows": 681584,
+     "said": 0.5294592990657029,
+     "won": 0.5228570506349914
+    },
+    {
+     "from": 0.54,
+     "to": 0.56,
+     "rows": 283265,
+     "said": 0.5479685423278534,
+     "won": 0.5350219758883025
+    },
+    {
+     "from": 0.56,
+     "to": 0.58,
+     "rows": 87606,
+     "said": 0.5642624138421961,
+     "won": 0.5508983402963268
+    },
+    {
+     "from": 0.58,
+     "to": 0.6,
+     "rows": 61761,
+     "said": 0.5917704232306839,
+     "won": 0.5252343712051295
+    },
+    {
+     "from": 0.6,
+     "to": 0.65,
+     "rows": 4579,
+     "said": 0.6119089914410073,
+     "won": 0.580694474776152
+    },
+    {
+     "from": 0.65,
+     "to": 1.01,
+     "rows": 1881,
+     "said": 0.7476676309093226,
+     "won": 0.531632110579479
+    }
+   ]
+  },
+  "15m": {
+   "trades": 33015,
+   "wins": 17849,
+   "win_rate": 0.54063304558534,
+   "low": 0.5352529712669548,
+   "high": 0.5460036649440502,
+   "breakeven": 0.5555555555555556,
+   "avg": -0.026860517946388017,
+   "corrected_low": -0.05263899493595345,
+   "harder": -0.03127669241253977,
+   "months_positive": "4 of 11",
+   "top_coin_share": 1.0,
+   "passed": false,
+   "failed": [
+    "Average result above zero after correcting for 69 combinations, counting each day once",
+    "Still makes money entered one candle late",
+    "More than 60% of months positive",
+    "Profit not from one coin alone"
+   ],
+   "minutes": 15,
+   "took_every_candle_hit": 0.5209515558705136,
+   "by_confidence": [
+    {
+     "from": 0.5,
+     "to": 0.52,
+     "rows": 1023107,
+     "said": 0.5080980129846254,
+     "won": 0.5066752548853639
+    },
+    {
+     "from": 0.52,
+     "to": 0.54,
+     "rows": 554319,
+     "said": 0.5285522878638514,
+     "won": 0.5225420741486401
+    },
+    {
+     "from": 0.54,
+     "to": 0.56,
+     "rows": 309219,
+     "said": 0.548148207316785,
+     "won": 0.5470718164149033
+    },
+    {
+     "from": 0.56,
+     "to": 0.58,
+     "rows": 211920,
+     "said": 0.5699733809485743,
+     "won": 0.533498489996225
+    },
+    {
+     "from": 0.58,
+     "to": 0.6,
+     "rows": 30929,
+     "said": 0.5884678883134701,
+     "won": 0.5622231562611142
+    },
+    {
+     "from": 0.6,
+     "to": 0.65,
+     "rows": 75443,
+     "said": 0.60698191679372,
+     "won": 0.5422504407300877
+    },
+    {
+     "from": 0.65,
+     "to": 1.01,
+     "rows": 2037,
+     "said": 0.783614190148974,
+     "won": 0.5714285714285714
+    }
+   ]
+  },
+  "60m": {
+   "trades": 5563,
+   "wins": 3107,
+   "win_rate": 0.558511594463419,
+   "low": 0.5454266554287244,
+   "high": 0.5715157774222481,
+   "breakeven": 0.5555555555555556,
+   "avg": 0.005320870034154226,
+   "corrected_low": -0.052381348140950176,
+   "harder": -0.004817544490382889,
+   "months_positive": "4 of 10",
+   "top_coin_share": 2.0000000000000013,
+   "passed": false,
+   "failed": [
+    "Average result above zero after correcting for 69 combinations, counting each day once",
+    "Still makes money entered one candle late",
+    "More than 60% of months positive",
+    "Profit not from one coin alone"
+   ],
+   "minutes": 60,
+   "took_every_candle_hit": 0.5107069167299942,
+   "by_confidence": [
+    {
+     "from": 0.5,
+     "to": 0.52,
+     "rows": 1017297,
+     "said": 0.5078010591585606,
+     "won": 0.4953204423093747
+    },
+    {
+     "from": 0.52,
+     "to": 0.54,
+     "rows": 491966,
+     "said": 0.5285821270642046,
+     "won": 0.5164950423403243
+    },
+    {
+     "from": 0.54,
+     "to": 0.56,
+     "rows": 554301,
+     "said": 0.5501651927930215,
+     "won": 0.5231201098320227
+    },
+    {
+     "from": 0.56,
+     "to": 0.58,
+     "rows": 38690,
+     "said": 0.5695341436790754,
+     "won": 0.5286120444559318
+    },
+    {
+     "from": 0.58,
+     "to": 0.6,
+     "rows": 40240,
+     "said": 0.5842668915851181,
+     "won": 0.5622763419483101
+    },
+    {
+     "from": 0.6,
+     "to": 0.65,
+     "rows": 48399,
+     "said": 0.6134557285137223,
+     "won": 0.543358333849873
+    },
+    {
+     "from": 0.65,
+     "to": 1.01,
+     "rows": 26140,
+     "said": 0.8063541098911595,
+     "won": 0.5706962509563887
+    }
+   ]
+  }
+ },
+ "inzone": {
+  "60s": {
+   "trades": 2676928,
+   "wins": 2224283,
+   "win_rate": 0.8309087879838382,
+   "low": 0.8304592836271864,
+   "high": 0.8313573425821283,
+   "breakeven": 0.47619047619047616,
+   "avg": 0.7449084547660602,
+   "corrected_low": 0.7059941822543446,
+   "harder": 0.7449068858034282,
+   "months_positive": "14 of 14",
+   "top_coin_share": 0.21855396683650888,
+   "passed": true,
+   "failed": [],
+   "seconds": 60,
+   "zone_btc_pct": 0.0743612802471824
+  },
+  "300s": {
+   "trades": 535387,
+   "wins": 443485,
+   "win_rate": 0.8283447300737597,
+   "low": 0.8273322937719787,
+   "high": 0.8293524544192762,
+   "breakeven": 0.47619047619047616,
+   "avg": 0.7395239331548953,
+   "corrected_low": 0.6994894845239213,
+   "harder": 0.7382844559169347,
+   "months_positive": "14 of 14",
+   "top_coin_share": 0.21926267548805792,
+   "passed": true,
+   "failed": [],
+   "seconds": 300,
+   "zone_btc_pct": 0.16627687752661224
+  },
+  "900s": {
+   "trades": 178464,
+   "wins": 147883,
+   "win_rate": 0.8286433118163887,
+   "low": 0.8268879455600799,
+   "high": 0.8303845296845582,
+   "breakeven": 0.47619047619047616,
+   "avg": 0.7401509548144163,
+   "corrected_low": 0.6990900885937741,
+   "harder": 0.7381740855298548,
+   "months_positive": "14 of 14",
+   "top_coin_share": 0.22120549351466381,
+   "passed": true,
+   "failed": [],
+   "seconds": 900,
+   "zone_btc_pct": 0.28800000000000003
+  }
+ },
+ "forex": {
+  "1:1": {
+   "trades": 907,
+   "wins": 462,
+   "win_rate": 0.5093715545755237,
+   "low": 0.47686603724860294,
+   "high": 0.541798020256017,
+   "breakeven": 0.5403468844426548,
+   "avg": -0.05101843650503036,
+   "corrected_low": -0.17615156273574234,
+   "harder": -0.1317122053903399,
+   "months_positive": "17 of 40",
+   "top_coin_share": 1.0,
+   "passed": false,
+   "failed": [
+    "Average result above zero after correcting for 69 combinations, counting each day once",
+    "Still makes money with costs doubled",
+    "More than 60% of months positive",
+    "Profit not from one coin alone"
+   ],
+   "reward": 1.0
+  },
+  "1.5:1": {
+   "trades": 1609,
+   "wins": 720,
+   "win_rate": 0.44748290863890616,
+   "low": 0.4233403848317305,
+   "high": 0.47187561158106056,
+   "breakeven": 0.4377033631597738,
+   "avg": -0.01624518327866484,
+   "corrected_low": -0.13166943196858694,
+   "harder": -0.11050359117809931,
+   "months_positive": "17 of 38",
+   "top_coin_share": 1.0,
+   "passed": false,
+   "failed": [
+    "Average result above zero after correcting for 69 combinations, counting each day once",
+    "Still makes money with costs doubled",
+    "More than 60% of months positive",
+    "Profit not from one coin alone"
+   ],
+   "reward": 1.5
+  },
+  "2:1": {
+   "trades": 4466,
+   "wins": 1725,
+   "win_rate": 0.3862516793551276,
+   "low": 0.37207528090882586,
+   "high": 0.40062359951682497,
+   "breakeven": 0.3691157956753756,
+   "avg": -0.07488136648543836,
+   "corrected_low": -0.1528310268262839,
+   "harder": -0.18222875351156537,
+   "months_positive": "15 of 44",
+   "top_coin_share": 1.0,
+   "passed": false,
+   "failed": [
+    "Average result above zero after correcting for 69 combinations, counting each day once",
+    "Still makes money with costs doubled",
+    "More than 60% of months positive",
+    "Profit not from one coin alone"
+   ],
+   "reward": 2.0
+  }
+ },
+ "no_lookahead": true
+}

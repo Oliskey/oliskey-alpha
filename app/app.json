@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "Oliskey Alpha",
+    "slug": "oliskey-alpha",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "oliskeyalpha",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#000000",
+    "ios": {
+      "bundleIdentifier": "com.oliskeylee.alpha",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.oliskeylee.alpha",
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "name": "Oliskey Alpha",
+      "backgroundColor": "#000000",
+      "themeColor": "#000000"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#000000",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "owner": "oliskeylee",
+    "extra": {
+      "eas": {
+        "projectId": "6f7e6114-3f37-4a82-8eae-63a6e221f45b"
+      }
+    }
+  }
+}

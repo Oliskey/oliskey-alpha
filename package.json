@@ -1,0 +1,24 @@
+{
+  "name": "oliskey-alpha",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "app"
+  ],
+  "scripts": {
+    "db:up": "node scripts/db.mjs up",
+    "db:reset": "node scripts/db.mjs reset",
+    "db:test": "node scripts/db.mjs test",
+    "db:clean-test": "node scripts/clean-test-accounts.mjs",
+    "db:admin": "node scripts/db.mjs admin",
+    "build": "npm run build -w app",
+    "deploy:preview": "node scripts/deploy-preview.mjs",
+    "start": "npm start -w backend",
+    "start:all": "npm run db:up && npm start",
+    "test": "npm test -w backend",
+    "app:dev": "npm run web -w app"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}

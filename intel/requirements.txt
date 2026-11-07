@@ -1,0 +1,10 @@
+# Market Intelligence Engine (Python 3.14). Pinned to the versions it was tested with.
+fastapi==0.162.0
+uvicorn==0.54.0
+pandas==3.1.0
+numpy==2.5.4
+lightgbm==4.7.0
+PyYAML==6.0.3
+psycopg[binary]==3.3.6
+httpx==0.28.1
+python-dotenv==1.2.4

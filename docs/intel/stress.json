@@ -1,0 +1,86 @@
+{
+ "generated_at": "2026-11-06T09:40:02.134188+00:00",
+ "groups": {
+  "commodity": {
+   "status": "experimental",
+   "trades": 106,
+   "wins": 61,
+   "low": 0.4803591504335626,
+   "high": 0.6653051516159342,
+   "breakeven": 0.4251665142814491,
+   "avg_r": 0.20300088494146595,
+   "corrected_low": -0.10493919005409524,
+   "failed": [
+    "At least 200 separate trades",
+    "Average result above zero after correcting for 60 combinations",
+    "Profit not from one market alone"
+   ],
+   "label": "Commodities"
+  },
+  "currency": {
+   "status": "blocked",
+   "trades": 290,
+   "wins": 132,
+   "low": 0.3988155289059699,
+   "high": 0.512701424445768,
+   "breakeven": 0.4204780356653282,
+   "avg_r": -0.04795015869165391,
+   "corrected_low": -0.23480946376308115,
+   "failed": [
+    "Average result above zero after correcting for 60 combinations",
+    "Still makes money with costs doubled",
+    "Still makes money with the stop and time limit nudged",
+    "Most years positive",
+    "Profit not from one market alone"
+   ],
+   "label": "Forex"
+  },
+  "index": {
+   "status": "blocked",
+   "trades": 130,
+   "wins": 64,
+   "low": 0.40782903157362527,
+   "high": 0.5772279312839618,
+   "breakeven": 0.42102451905670996,
+   "avg_r": 0.09157215730509506,
+   "corrected_low": -0.2135413119001318,
+   "failed": [
+    "At least 200 separate trades",
+    "Average result above zero after correcting for 60 combinations",
+    "Still makes money with the stop and time limit nudged",
+    "Profit not from one market alone"
+   ],
+   "label": "Indices"
+  },
+  "crypto": {
+   "status": "test",
+   "label": "Crypto, 1-hour",
+   "trades": 27032,
+   "wins": 10300,
+   "low": 0.3752578114533968,
+   "high": 0.38683577915263784,
+   "breakeven": 0.3733678784201017,
+   "avg_r": -0.050651155066045624,
+   "corrected_low": -0.07550996639112617,
+   "failed": [
+    "Has not been through the full rule",
+    "Average result above zero"
+   ]
+  },
+  "crypto_4h": {
+   "status": "test",
+   "label": "Crypto, 4-hour",
+   "trades": 25225,
+   "wins": 11496,
+   "low": 0.44959942317454105,
+   "high": 0.4618907658954161,
+   "breakeven": 0.4245535710199035,
+   "avg_r": -0.036017060511440546,
+   "corrected_low": -0.05433974932660213,
+   "failed": [
+    "Has not been through the full rule",
+    "Average result above zero"
+   ]
+  }
+ }
+}

@@ -1,0 +1,85 @@
+# Markets the engine scans. app_id = Oliskey Alpha asset id; provider symbol = where real data comes from.
+# Only symbols the current keys can actually fetch are listed (checked 2026-10-30).
+classes:
+  crypto:    { provider: binance, timeframe: 1h, horizon_bars: 24, cost_pct: 0.15, history_years: 5 }
+  # Second crypto test (owner request 2026-10-30): same strategies and rules on 4-hour bars, held up to 24 h.
+  # Bigger moves per bar make the fixed trading cost a smaller share of the risk.
+  crypto_4h: { provider: binance, timeframe: 4h, horizon_bars: 6, cost_pct: 0.15, history_years: 5, applies_to: crypto }
+  currency:  { provider: fmp,     timeframe: 1d, horizon_bars: 10, cost_pct: 0.01 }
+  index:     { provider: fmp,     timeframe: 1d, horizon_bars: 10, cost_pct: 0.03 }
+  commodity: { provider: fmp,     timeframe: 1d, horizon_bars: 10, cost_pct: 0.04 }
+
+assets:
+  # crypto (Binance spot, USDT pairs)
+  BTCUSD: { class: crypto, symbol: BTCUSDT }
+  ETHUSD: { class: crypto, symbol: ETHUSDT }
+  SOLUSD: { class: crypto, symbol: SOLUSDT }
+  BNBUSD: { class: crypto, symbol: BNBUSDT }
+  XRPUSD: { class: crypto, symbol: XRPUSDT }
+  ADAUSD: { class: crypto, symbol: ADAUSDT }
+  DOGEUSD: { class: crypto, symbol: DOGEUSDT }
+  DOTUSD: { class: crypto, symbol: DOTUSDT }
+  LTCUSD: { class: crypto, symbol: LTCUSDT }
+  AVAXUSD: { class: crypto, symbol: AVAXUSDT }
+  LINKUSD: { class: crypto, symbol: LINKUSDT }
+  TRXUSD: { class: crypto, symbol: TRXUSDT }
+  BCHUSD: { class: crypto, symbol: BCHUSDT }
+  XLMUSD: { class: crypto, symbol: XLMUSDT }
+  UNIUSD: { class: crypto, symbol: UNIUSDT }
+  ATOMUSD: { class: crypto, symbol: ATOMUSDT }
+  NEARUSD: { class: crypto, symbol: NEARUSDT }
+  # training only (owner request 2026-10-30): 33 more Binance coins with 5+ years of history. They add
+  # examples for the crypto models and backtests, but are not app markets, so they are never scanned or shown.
+  ETCUSD: { class: crypto, symbol: ETCUSDT, train_only: true }
+  FILUSD: { class: crypto, symbol: FILUSDT, train_only: true }
+  AAVEUSD: { class: crypto, symbol: AAVEUSDT, train_only: true }
+  ALGOUSD: { class: crypto, symbol: ALGOUSDT, train_only: true }
+  VETUSD: { class: crypto, symbol: VETUSDT, train_only: true }
+  XTZUSD: { class: crypto, symbol: XTZUSDT, train_only: true }
+  THETAUSD: { class: crypto, symbol: THETAUSDT, train_only: true }
+  SANDUSD: { class: crypto, symbol: SANDUSDT, train_only: true }
+  MANAUSD: { class: crypto, symbol: MANAUSDT, train_only: true }
+  AXSUSD: { class: crypto, symbol: AXSUSDT, train_only: true }
+  GRTUSD: { class: crypto, symbol: GRTUSDT, train_only: true }
+  EGLDUSD: { class: crypto, symbol: EGLDUSDT, train_only: true }
+  HBARUSD: { class: crypto, symbol: HBARUSDT, train_only: true }
+  KAVAUSD: { class: crypto, symbol: KAVAUSDT, train_only: true }
+  ZECUSD: { class: crypto, symbol: ZECUSDT, train_only: true }
+  DASHUSD: { class: crypto, symbol: DASHUSDT, train_only: true }
+  NEOUSD: { class: crypto, symbol: NEOUSDT, train_only: true }
+  QTUMUSD: { class: crypto, symbol: QTUMUSDT, train_only: true }
+  ZILUSD: { class: crypto, symbol: ZILUSDT, train_only: true }
+  ENJUSD: { class: crypto, symbol: ENJUSDT, train_only: true }
+  CHZUSD: { class: crypto, symbol: CHZUSDT, train_only: true }
+  BATUSD: { class: crypto, symbol: BATUSDT, train_only: true }
+  COMPUSD: { class: crypto, symbol: COMPUSDT, train_only: true }
+  SNXUSD: { class: crypto, symbol: SNXUSDT, train_only: true }
+  CRVUSD: { class: crypto, symbol: CRVUSDT, train_only: true }
+  SUSHIUSD: { class: crypto, symbol: SUSHIUSDT, train_only: true }
+  YFIUSD: { class: crypto, symbol: YFIUSDT, train_only: true }
+  1INCHUSD: { class: crypto, symbol: 1INCHUSDT, train_only: true }
+  RUNEUSD: { class: crypto, symbol: RUNEUSDT, train_only: true }
+  ONTUSD: { class: crypto, symbol: ONTUSDT, train_only: true }
+  INJUSD: { class: crypto, symbol: INJUSDT, train_only: true }
+  FETUSD: { class: crypto, symbol: FETUSDT, train_only: true }
+  STXUSD: { class: crypto, symbol: STXUSDT, train_only: true }
+  # forex (FMP daily)
+  EURUSD: { class: currency, symbol: EURUSD }
+  GBPUSD: { class: currency, symbol: GBPUSD }
+  USDJPY: { class: currency, symbol: USDJPY }
+  AUDUSD: { class: currency, symbol: AUDUSD }
+  NZDUSD: { class: currency, symbol: NZDUSD }
+  USDCAD: { class: currency, symbol: USDCAD }
+  USDCHF: { class: currency, symbol: USDCHF }
+  USDMXN: { class: currency, symbol: USDMXN }
+  # indices (FMP daily)
+  US500: { class: index, symbol: "^GSPC" }
+  US30:  { class: index, symbol: "^DJI" }
+  UK100: { class: index, symbol: "^FTSE" }
+  EU50:  { class: index, symbol: "^STOXX50E" }
+  JP225: { class: index, symbol: "^N225" }
+  HK50:  { class: index, symbol: "^HSI" }
+  # commodities (FMP daily)
+  XAUUSD: { class: commodity, symbol: GCUSD }
+  XAGUSD: { class: commodity, symbol: SIUSD }
+  UKOIL:  { class: commodity, symbol: BZUSD }

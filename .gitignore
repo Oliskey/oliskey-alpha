@@ -1,0 +1,31 @@
+# Secrets
+.env
+.env*.local
+.vercel/
+*.pem
+*.key
+*.p12
+*.keystore
+*.jks
+
+# Dependencies and builds
+node_modules/
+.expo/
+dist/
+dist-next/
+dist-preview/
+dist-old/
+web-build/
+
+# Backend runtime data (price history snapshot)
+backend/.data/
+
+# Python
+__pycache__/
+*.pyc
+
+# Engine models are rebuilt by intel/run_backtest.py
+intel/models/
+
+# Claude Code session files
+.claude/

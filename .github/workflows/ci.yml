@@ -1,0 +1,66 @@
+# Runs every test on each push and pull request (audit phase 5).
+# Needs no secrets: it uses a throw-away Postgres and a random JWT secret. Paystack/Gemini keys are not used.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: oliskey_alpha
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGPASSWORD: postgres
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/oliskey_alpha
+      PORT: 3311
+      ALLOWED_ORIGINS: http://localhost:3311
+      INTEL_DISABLED: '1'          # the Python engine is tested separately below
+      AUTH_RATE_LIMIT: '1000'      # the suite signs up ~40 users; production keeps the default 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Database schema and money-rule tests
+        run: |
+          for f in supabase/local/*.sql supabase/migrations/*.sql supabase/tests/*.sql; do
+            echo "== $f"; psql -h localhost -U postgres -d oliskey_alpha -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+
+      - name: App typecheck
+        run: npx tsc --noEmit
+        working-directory: app
+
+      - name: Backend API tests (against a running server)
+        run: |
+          export SUPABASE_JWT_SECRET="$(openssl rand -hex 32)"
+          node backend/src/server.js > server.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:3311/health && break; sleep 1; done
+          cd backend && node --test --test-reporter=spec test/
+      - name: Server log on failure
+        if: failure()
+        run: cat server.log || true
+
+  intel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: pip install -r intel/requirements.txt
+      - run: python intel/selftest.py

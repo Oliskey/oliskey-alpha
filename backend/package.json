@@ -1,0 +1,24 @@
+{
+  "name": "oliskey-alpha-backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "test": "node --test --test-concurrency=1 --test-reporter=tap test/"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.2",
+    "helmet": "^8.3.0",
+    "jose": "^6.2.14",
+    "pg": "^8.23.1",
+    "web-push": "^3.6.7",
+    "ws": "^8.22.0"
+  }
+}

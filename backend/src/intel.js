@@ -58,7 +58,7 @@ async function intel(pathname) {
 const ENGINE_EMAIL = 'engine@oliskey-alpha.local';   // system user: no password, cannot log in
 const PAPER_AMOUNT = 100;
 const PAPER_LEVERAGE = 10;
-// signals with no stop or target: they run their time, as tested. "wide": the coins outside the models' training
+// signals with no stop or target: they run their time, as tested. "wide": the other 12 coins
 const QUICK = { crypto_ft: 'fixed_time', crypto_iz: 'inzone', crypto_ft_wide: 'fixed_time', crypto_iz_wide: 'inzone' };
 
 // ── The AI trading for each user ──

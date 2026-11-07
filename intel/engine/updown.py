@@ -19,6 +19,7 @@ from psycopg.types.json import Jsonb
 import run_crypto_lab as lab
 from engine import db
 from engine.backtest import wilson_low
+from engine.longview import DAY, Holder, HISTORY_DAYS, LONG, long_view
 from engine.ml import apply_isotonic, fit_isotonic, PARAMS
 from engine.settings import INTEL, ROOT
 
@@ -40,8 +41,10 @@ IZ_MODEL, IZ_META = INTEL / "models" / "inzone.txt", INTEL / "models" / "inzone.
 IZ_PAYOUT = lab.PAYOUT_INZONE
 IZ_BREAKEVEN = 1 / (1 + IZ_PAYOUT)
 IZ_Q = 0.511
-# The other live coins (owner decision 2026-11-06: scan and trade all 17 on demo). The models never trained on these, so they are their
-# own groups with their own, weaker test numbers: the original five's results must never be shown for them.
+IZ_MINUTES, IZ_STEP = 60, 15   # 60 minutes by the owner's rule in run_wide_contest.py, every 15th minute as it was judged
+IZ_TRAINING = {"days": 4 * 365, "rounds": 150, "lr": None, "rows": 700_000, "blend": 3}
+# The other live coins (owner decision 2026-11-06: scan and trade all 17 on demo). They are their own groups with their own test numbers: the original five's results
+# must never be shown for them. Fixed Time never trained on them. InZone does since 2026-11-07, and they passed run_wide_harder.py as their own group.
 WIDE_COINS = {"ADAUSDT": "ADAUSD", "ATOMUSDT": "ATOMUSD", "AVAXUSDT": "AVAXUSD", "BCHUSDT": "BCHUSD", "DOGEUSDT": "DOGEUSD", "DOTUSDT": "DOTUSD",
               "LINKUSDT": "LINKUSD", "LTCUSDT": "LTCUSD", "NEARUSDT": "NEARUSD", "TRXUSDT": "TRXUSD", "UNIUSDT": "UNIUSD", "XLMUSDT": "XLMUSD"}
 ALL_COINS = {**lab.COINS, **WIDE_COINS}
@@ -68,29 +71,31 @@ def iz_result() -> tuple[int, dict] | None:
     return best["minutes"], best
 
 
-def train_inzone() -> dict | None:
-    picked = iz_result()
-    if not picked:
-        return None
-    minutes = picked[0]
+def train_inzone() -> dict:
+    """The version that won the all-coins contest and passed run_wide_harder.py, trained exactly as it was judged: all 17 coins, 4 years, the long view, every 15th minute."""
+    import fetch_history       # here, because it imports this module
     fng = lab.fear_greed()
     frames, btc = [], None
-    for i, sym in enumerate(lab.COINS):
-        df = _candles_for_training(sym, _picked("inzone")["days"])
-        f = _frame(df, i, lab.funding(sym), fng)
-        if btc is None:
+    for sym in ALL_COINS:      # Bitcoin comes first
+        fetch_history.one(sym) # only fetches what is new
+        df = _stored(sym, ("t", "o", "h", "l", "c", "v", "tb"), (IZ_TRAINING["days"] + 2) * DAY + HISTORY)
+        f = _frame(df, 0, lab.funding(sym), fng).drop(columns="coin")
+        if sym == "BTCUSDT":
             btc = f.set_index("t")[["r5", "r15"]].rename(columns={"r5": "btc5", "r15": "btc15"})
         f = f.join(btc, on="t")
         c = df["c"]
-        f["y"] = (np.log(c.shift(-minutes) / c).abs() <= IZ_Q * _sigma(c) * np.sqrt(minutes)).astype("int8")
-        frames.append(f.iloc[1500:-minutes - 10].iloc[::TRAIN_STEP].copy())
-        del f
+        f["y"] = (np.log(c.shift(-IZ_MINUTES) / c).abs() <= IZ_Q * _sigma(c) * np.sqrt(IZ_MINUTES)).astype("int8")
+        extra = long_view(df)
+        for col in LONG:
+            f[col] = extra[col].to_numpy()
+        frames.append(f.iloc[1500:-IZ_MINUTES - 10].iloc[::IZ_STEP].copy())
+        del f, df, extra, c
     d = pd.concat(frames, ignore_index=True)
     cols = [c for c in d.columns if c not in ("t", "y")]
-    models, iso = _fit(d, cols, _picked("inzone"))
+    models, iso = _fit(d, cols, IZ_TRAINING)
     _save(models, IZ_MODEL)
-    IZ_META.write_text(json.dumps({"cols": cols, "iso": iso, "minutes": minutes, "models": len(models), "trained_at": datetime.now(timezone.utc).isoformat()}), encoding="utf-8")
-    return {"minutes": minutes, "rows": len(d)}
+    IZ_META.write_text(json.dumps({"cols": cols, "iso": iso, "minutes": IZ_MINUTES, "models": len(models), "trained_at": datetime.now(timezone.utc).isoformat()}), encoding="utf-8")
+    return {"minutes": IZ_MINUTES, "rows": len(d)}
 
 
 def scan_inzone(frames: dict | None = None) -> int:
@@ -104,6 +109,8 @@ def scan_inzone(frames: dict | None = None) -> int:
         busy = {r[0] for r in c.execute("select asset_id from intel.ideas where asset_class = any(%s) and status = 'open'", ([IZ_CLASS, IZ_WIDE],)).fetchall()}
     made, readings = 0, []
     for asset, (df, last) in frames.items():
+        if last[[c for c in meta["cols"] if c in LONG]].isna().any(axis=None):   # no real long view for this coin right now: the model must not guess one
+            continue
         p = float(apply_isotonic(meta["iso"], _predict(models, last[meta["cols"]]))[0])
         readings.append((asset, p))
         if asset in busy or p <= IZ_BREAKEVEN + lab.MARGIN:
@@ -272,9 +279,38 @@ def _fetch(sym: str) -> tuple[str, pd.DataFrame, pd.Series] | None:
         return None
 
 
+def _stored(symbol: str, cols: tuple[str, ...], rows: int) -> pd.DataFrame:
+    """The newest rows of the 4-year record that intel/fetch_history.py keeps."""
+    with np.load(lab.CACHE / "all" / f"{symbol}.npz") as z:
+        return pd.DataFrame({k: z[k] for k in cols}).tail(rows).reset_index(drop=True)
+
+
+_holders: dict[str, Holder] = {}
+
+
+def _long_reading(symbol: str, df: pd.DataFrame) -> dict[str, float] | None:
+    """The long view for a coin's newest minute. None if it cannot be read for real, so that coin waits."""
+    try:
+        h = _holders.get(symbol)
+        if h is None:
+            h = _holders[symbol] = Holder(_stored(symbol, ("t", "h", "l", "c"), HISTORY_DAYS * DAY + 1))
+        first = int(df["t"].iat[0])
+        with httpx.Client(timeout=15) as c:
+            while h.last + 60_000 < first:         # the engine was off: the missing minutes come first, in order
+                part = _finished(c.get("https://api.binance.com/api/v3/klines", params={"symbol": symbol, "interval": "1m", "limit": 1000, "startTime": h.last + 60_000}).raise_for_status().json())
+                if part.empty:
+                    return None
+                h.add(part)
+        h.add(df)
+        return h.reading() if h.last == int(df["t"].iat[-1]) else None
+    except (httpx.HTTPError, OSError, KeyError, ValueError) as err:
+        print(f"long view {symbol}: {type(err).__name__}", flush=True)
+        return None
+
+
 def read_market() -> dict:
     """The latest real candles and features for every live coin, read once and shared by both models. Coins that did not answer are
-    left out. The coins it never trained on get no coin number, exactly as they were tested (run_harder_test.py)."""
+    left out. Fixed Time never trained on the other 12 coins, so they get no coin number, exactly as they were tested (run_harder_test.py)."""
     fng = _kept("fear", FEAR_EVERY_SEC, lab.fear_greed)
     with ThreadPoolExecutor(6) as pool:   # all 17 inside the minute
         fetched = [x for x in pool.map(_fetch, ALL_COINS) if x]
@@ -293,7 +329,8 @@ def read_market() -> dict:
             continue
         f = f.join(btc, on="t")
         f[["btc5", "btc15"]] = f[["btc5", "btc15"]].ffill()   # a coin read just after a new minute began has no Bitcoin value for it yet
-        last = f.iloc[[-1]]
+        extra = _long_reading(sym, df) or {}
+        last = f.iloc[[-1]].assign(**{k: np.float32(extra.get(k, np.nan)) for k in LONG})
         if datetime.now(timezone.utc) - last["t"].iat[0].to_pydatetime() <= timedelta(minutes=3):
             frames[asset] = (df, last)
     return frames
@@ -391,17 +428,40 @@ def _deployed(g: dict, kind: str) -> dict:
             "money_ok": money_proof(m) and money_proof(late)}
 
 
+def long_model_live() -> bool:
+    """Whether the InZone model trading now is the one that passed run_wide_harder.py. Until it is, those numbers must not be shown or used for it."""
+    try:
+        return set(LONG) <= set(json.loads(IZ_META.read_text(encoding="utf-8"))["cols"])
+    except (OSError, ValueError, KeyError):
+        return False
+
+
+def _last_test(g: dict, group: str) -> dict:
+    """The group's numbers from run_wide_harder.py. Without a pass on the model trading now, no user's money goes there."""
+    try:
+        t = json.loads((ROOT / "docs" / "intel" / "wide_harder.json").read_text(encoding="utf-8"))["results"]["groups"][group]
+    except (OSError, ValueError, KeyError):
+        return {**g, "money_ok": False}
+    m = t["as_tested"]
+    trades, wins = round(m["trades"]), round(m["trades"] * m["won"])
+    return {**g, "trades": trades, "wins": wins, "low": wilson_low(wins, trades), "high": wilson_low(wins, trades, -1.96), "avg_r": m["avg"], "corrected_low": m["low"], "money_ok": t["passed"]}
+
+
 def iz_evidence_group() -> dict | None:
     picked = iz_result()
     if not picked:
         return None
     minutes, g = picked
+    if long_model_live():
+        return _last_test({"status": "experimental" if g.get("passed") else "test", "label": f"Crypto, InZone {IZ_MINUTES} minutes", "breakeven": g["breakeven"], "failed": g["failed"]}, "usual")
     return _deployed({"status": "experimental" if g.get("passed") else "test", "label": f"Crypto, InZone {minutes} minutes", "trades": g["trades"], "wins": g["wins"], "low": g["low"], "high": g["high"],
                       "breakeven": g["breakeven"], "avg_r": g["avg"], "corrected_low": g["corrected_low"], "failed": g["failed"]}, "inzone")
 
 
 def wide_evidence_group(kind: str) -> dict | None:
-    """What the harder test measured on coins the model never trained on. Always a test signal: it has not been through the full rule."""
+    """What the tests measured on the other 12 coins. Fixed Time never trained on them, and the harder test covers only 5 of them, so it stays a test signal with no users' money."""
+    if kind == "inzone" and long_model_live():
+        return _last_test({"status": "test", "label": f"Crypto, InZone {IZ_MINUTES} minutes, 12 more coins", "breakeven": IZ_BREAKEVEN, "failed": []}, "others")
     try:
         s = json.loads((ROOT / "docs" / "intel" / "harder.json").read_text(encoding="utf-8"))["results"][kind]["unseen"]
     except (OSError, ValueError, KeyError):

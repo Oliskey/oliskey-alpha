@@ -257,6 +257,11 @@ def blocked_by(tags: list[str], rules: list[tuple]) -> int | None:
     return None
 
 
+def _long_model_live() -> bool:
+    from . import updown   # here, because it needs the research module, which needs this package
+    return updown.long_model_live()
+
+
 def decide() -> int:
     """Each new setup gets a decision before the trader may act on it. Skipped setups still resolve, so a rule can be judged."""
     with db.connect() as c:
@@ -267,7 +272,7 @@ def decide() -> int:
     for iid, asset, strategy, regime, direction, tf, bar_time, cls in rows:
         if tf == "1m":   # Fixed Time and InZone signals have no chart setup to judge
             tags = ["setup:updown" if cls.startswith("crypto_ft") else "setup:inzone", "tf:1m"]
-            if cls.endswith("_wide"):
+            if cls == "crypto_ft_wide" or (cls == "crypto_iz_wide" and not _long_model_live()):
                 tags.append("coins:outside_training")
         else:
             df = add_all(db.load_bars(asset, tf))

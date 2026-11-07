@@ -197,4 +197,26 @@ _qr = {"total": 120.0, "ratio": 3.0, "trades": 2000, "avg": 0.06, "periods": [40
 check("quality: fewer trades, more profit passes", _qp(_qr, _qb))
 check("quality: better per trade but less profit fails", not _qp({**_qr, "total": 90.0}, _qb))
 check("quality: too few trades left fails", not _qp({**_qr, "trades": 300}, _qb))
+from engine.longview import DAY, Holder, LONG, long_view  # noqa: E402
+_rng = np.random.default_rng(5)
+_n = 210 * DAY
+_c = 100 * np.exp(np.cumsum(_rng.normal(0, 0.001, _n)))
+_lv = pd.DataFrame({"t": 1_700_000_040_000 + np.arange(_n, dtype="int64") * 60_000, "c": _c, "h": _c * (1 + _rng.uniform(0, 0.001, _n)), "l": _c * (1 - _rng.uniform(0, 0.001, _n))})
+_built = _n - 3 * DAY
+_holder = Holder(_lv.iloc[:_built])
+_same = True
+for _end in (_built + 5, _built + 2 * DAY + 17, _n):     # the live reader crosses midnight here, more than once
+    _holder.add(_lv.iloc[_built:_end])
+    _want = long_view(_lv.iloc[:_end]).iloc[-1]
+    _got = _holder.reading()
+    _same = _same and all(np.isclose(_got[k], float(_want[k]), rtol=1e-4, atol=1e-5) for k in LONG)
+check("long view: the live reader gives the training numbers, across midnight", _same)
+_holder.add(_lv.iloc[_built:_n])
+check("long view: minutes already held are not counted twice", all(np.isclose(_holder.reading()[k], float(_want[k]), rtol=1e-4, atol=1e-5) for k in LONG))
+_cut = long_view(_lv.iloc[:_n - 100]).iloc[-1]
+_full = long_view(_lv).iloc[_n - 101]
+check("long view: cannot see ahead", all(np.isclose(float(_cut[k]), float(_full[k]), rtol=1e-4, atol=1e-5) for k in LONG))
+from engine import updown as _ud  # noqa: E402
+from run_wide_contest import STEP as _ws, TRAINING as _wt  # noqa: E402
+check("inzone: live training is the version that was judged", _ud.IZ_STEP == _ws and all(_ud.IZ_TRAINING[k] == v for k, v in _wt.items()) and _ud.IZ_MINUTES == 60)
 print("all engine self-tests passed")

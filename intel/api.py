@@ -125,6 +125,7 @@ def research() -> None:
     heavy_job("run_ft_model.py")
     learning.note_training(picks_before, learning.training_picks())
     heavy_job("run_harder_test.py")   # late entry and coins it never saw, on the versions that just won
+    heavy_job("run_wide_harder.py")   # InZone on all coins: a group that stops passing stops getting users' money
     RESEARCH_MARK.write_text(str(time.time()), encoding="utf-8")
 
 

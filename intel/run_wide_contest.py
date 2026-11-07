@@ -34,6 +34,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import run_train_hard as rt                                     # noqa: E402
+from engine.longview import LONG, long_view                     # noqa: E402
 from engine.settings import ROOT                                # noqa: E402
 from engine.updown import _frame, _sigma, ALL_COINS, BREAKEVEN, IZ_BREAKEVEN, IZ_PAYOUT, IZ_Q, money_proof, PAYOUT   # noqa: E402
 
@@ -45,35 +46,11 @@ EXAM_DAYS = 60        # the newest days, kept out of every choice
 TRAINING = {"rows": 700_000, "rounds": 150, "lr": None, "blend": 3}
 PERIODS, PERIOD_DAYS, MINUTES = rt.PERIODS, rt.PERIOD_DAYS, rt.MINUTES
 LABELS = ("t", "y_ft", "y_iz", "y_iz15", "coin_name")
-LONG = ["ret_1d", "ret_3d", "ret_7d", "ret_30d", "dist_200d", "range_30d", "vol_7d", "vol_30d"]
 KINDS = {"fixed_time": ("y_ft", PAYOUT, BREAKEVEN, True), "inzone": ("y_iz", IZ_PAYOUT, IZ_BREAKEVEN, False), "inzone_15": ("y_iz15", IZ_PAYOUT, IZ_BREAKEVEN, False)}
 LENGTH = {"fixed_time": MINUTES, "inzone": MINUTES, "inzone_15": 15}
 TITLES = {"fixed_time": "Fixed Time", "inzone": "InZone, 60 minutes", "inzone_15": "InZone, 15 minutes"}
 USUAL = list(lab.COINS)
 READINGS = lab.CACHE / "readings"
-DAY = 1440
-
-
-def long_view(df: pd.DataFrame) -> pd.DataFrame:
-    """From that minute and earlier only."""
-    c = df["c"]
-    log = np.log(c)
-    out = pd.DataFrame(index=df.index)
-    for name, days in (("ret_1d", 1), ("ret_3d", 3), ("ret_7d", 7), ("ret_30d", 30)):
-        out[name] = log - log.shift(days * DAY)
-    # daily closes for the longest windows: far lighter than rolling over 288,000 minutes, and it cannot see ahead
-    day = pd.to_datetime(df["t"], unit="ms", utc=True).dt.floor("D")
-    closes = c.groupby(day).last()
-    average = closes.rolling(200, min_periods=120).mean().shift(1)     # finished days only
-    out["dist_200d"] = (log - np.log(day.map(average))).to_numpy()
-    hi, lo = df["h"].rolling(30 * DAY, min_periods=10 * DAY).max(), df["l"].rolling(30 * DAY, min_periods=10 * DAY).min()
-    out["range_30d"] = (c - lo) / (hi - lo).replace(0, np.nan)
-    move = log.diff()
-    daily_var = (move ** 2).groupby(day).sum()
-    base = daily_var.rolling(90, min_periods=30).mean().shift(1)
-    out["vol_7d"] = (np.log(daily_var.rolling(7).mean().shift(1) / base)).reindex(day).to_numpy()
-    out["vol_30d"] = (np.log(daily_var.rolling(30, min_periods=15).mean().shift(1) / base)).reindex(day).to_numpy()
-    return out.astype("float32")
 
 
 def build() -> pd.DataFrame:

@@ -1,6 +1,6 @@
 # Oliskey Alpha: your questions and answers
 
-The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 7 November 2026, version 0.0.6.
+The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 7 November 2026, version 0.0.7.
 
 ## Your AI goal
 
@@ -12,14 +12,28 @@ Profit, not more trades. The AI trades only when the evidence says the trade sho
 |---|---|---|
 | 97 right out of 100 signals | Not achievable honestly. A test showing it would almost certainly be broken. The AI needs about 55.6% on Fixed Time and 47.6% on InZone to profit. The real score is in AI-NUMBERS.md. | **Not reached.** Working toward the highest real number |
 | Make money overnight and always | Auto trade runs, but profit cannot be promised and losing nights are possible. The AI has not yet proven it makes money on real prices. | Running, not proven |
-| Trading hours, days, when not to trade | Forex, indices and commodities get no signal while closed. 80 windows of time tested on crypto: none reliably bad enough to avoid. Public holidays are not known. | Built. Being retested on 17 coins |
-| Shorter trades | Fixed Time lost at 5 and 15 minutes in earlier tests. 15-minute InZone is in the contest. | Testing |
-| More profit, any better way | Stake by strength earned more in a test on the older model (+2,509 against +2,004 stakes) but failed because the worst day was too deep. Fewer, stronger trades reached 65.2% wins but less total profit. | Both being retested on the new model |
+| Trading hours, days, when not to trade | Forex, indices and commodities get no signal while closed. Retested on the contest's winning version: no window of time is reliably bad enough to sit out on crypto. Public holidays are not known. | Built and retested |
+| Shorter trades | 15-minute InZone earned more in total (+16,008 against +8,035 stakes) but less per trade (+0.119 against +0.136). Your rule needs both, so InZone stays at 60 minutes. | Decided by the rule |
+| More profit, any better way | The all-coins contest found a better InZone version: see below. Stake by strength failed again on it. Fewer, stronger trades reached 64.3% wins at the highest bar tested, but less total profit (+2,574 against +8,032 stakes), so it failed too. | New version in its last test, not live yet |
 | Rust or Python | Python. You chose it, and it is what is running. | Done |
 | Faster and lighter | Signals now appear about 10 to 17 seconds after the candle, down from about 44. A scan took 4.6 seconds, down from about 10. | Done. Trade entry times still to be measured |
 | Stop asking me to restart | The server now restarts itself. It still needs `npm run start:all` after the PC is shut down or the terminal is closed. | Done, tested |
 | Commit always, with version numbers | Every step goes to GitHub as the next version. | Doing it. Tags are progress, not proof that everything passes |
 | Keep answers in an MD file | This file and AI-NUMBERS.md. | Done |
+
+## All-coins contest, 7 November
+
+Tested on all 17 coins, on 3 separate 91-day periods the models never trained on, then on the newest 60 days kept out of every choice. Profit is in stakes: +1 means one stake earned. Full table: [docs/intel/WIDE.md](docs/intel/WIDE.md).
+
+| Version | Won | Profit per trade | Total | Newest 60 days | Result |
+|---|---:|---:|---:|---:|---|
+| InZone today (5 coins, 3 years) | 52.02% | +0.092 | +6,268 | +491, won 48.88% | Replaced in the test |
+| **InZone long view (17 coins, 4 years, adds days to months)** | 54.09% | +0.136 | +8,035 | +1,507, won 52.58% | **Winner** |
+| Fixed Time, best total (17 coins, 4 years) | 56.79% | +0.022 | +99 | -53 | Fails. Gets no one's money |
+
+- On the 5 usual coins alone, the winner earned about the same as today's model (+1,826 against +1,841). The gain comes from handling the other 12 coins better.
+- InZone needs 47.6% to break even. Live, its record is still weak: 19 of 43 won (44.2%) in the 12 hours to 04:53 UTC on 7 November, from today's model.
+- It is **not live yet**. It must first pass a last test on different minutes, with late entry, judged on the 5 usual coins and the other 12 separately. Rule: top of `intel/run_wide_harder.py`.
 
 ## Hosting, paused at your request
 
@@ -40,7 +54,7 @@ Profit, not more trades. The AI trades only when the evidence says the trade sho
 - Your own Forex trades held α9,499 when last checked. They are yours to keep or close.
 
 **Me**
-- Finish the 4-year download, the all-coins contest, and the tests after it.
+- Finish the last test of the winning InZone version. If it passes, move it into the live engine.
 - Rerun the load test on a quiet PC: it was too slow under load, with 403 of 2,000 trades failing.
 - Rerun the click-every-button test on a quiet PC. Its last run finished on 182 elements but was run under load. Direct checks cleared 3 suspect buttons, and tap sizes on 3 screens. The other 19 "no effect" flags still need checking, though most look like normal behaviour such as a tab already selected.
 - Measure real entry times since the restart.
@@ -51,7 +65,7 @@ Profit, not more trades. The AI trades only when the evidence says the trade sho
 
 ## Honest warnings about the numbers
 
-- **Test results are probably too high.** The best version was picked on the same periods that were reported. The new contest adds a 60-day exam to fix this.
+- **Test results are probably too high.** The best version was picked on the same periods that were reported. Trust the 60-day exam column more: it was kept out of the choice.
 - **InZone's profit may not be real skill.** It wins against the corridor and payout your own app sets, so in real trading that profit would be your company's loss.
 - **Fixed Time would not survive real exchange costs.** Its predicted move is about 0.05%, against about 0.25% in costs.
 - **Demo money is not real money.** These results include no real orders.

@@ -58,6 +58,12 @@ export function TradeDetailSheet({ trade, accountType = 'DEMO', onClose }: { tra
 
           {t ? <MiniTradeChart trade={t} /> : <Skeleton width="100%" height={150} />}
           {t ? <MoneySummary amount={Number(t.amount)} pnl={pnl} accountType={accountType} final /> : null}
+          {t && (t.auto || t.idea_id != null) ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }} testID="ai-trade-note">
+              <AiIcon size={16} color={colors.accent} />
+              <Txt style={{ fontSize: 14, color: colors.muted }}>AI trade, from your balance. Its result changed your money.</Txt>
+            </View>
+          ) : null}
 
           {analyze.data ? (
             <View style={styles.insight}>

@@ -59,11 +59,9 @@ export default function Trades() {
     select: (d) => d.trades,
   });
   const active = (openQ.data ?? []).filter((t) => t.mode === tab && t.account_id === accountId);
-  // The AI trader's own demo trades, shown beside yours on demo. They use its money and only it can close them.
+  // What the AI is watching. Its trades for you are in your own list above, from your balance; its practice account is not shown here.
   const ai = useAiTrader();
-  const aiOpen = accType === 'DEMO' ? (ai.data?.positions ?? []).filter((t) => t.mode === tab) : [];
-  const aiDone = accType === 'DEMO' ? (ai.data?.finished_trades ?? []).filter((t) => t.mode === tab) : [];
-  const prices = useLivePrices([...new Set([...active, ...aiOpen].map((t) => t.asset_id))]);
+  const prices = useLivePrices([...new Set(active.map((t) => t.asset_id))]);
   const totalAmount = active.reduce((s, t) => s + Number(t.amount), 0);
   const totalPnl = active.reduce((s, t) => s + (previewPnl(t, prices[t.asset_id]) ?? 0), 0);
   // Looked up from the live list, so the sheet closes by itself once the server settles the trade.
@@ -107,20 +105,10 @@ export default function Trades() {
 
             {accType === 'DEMO' && ai.data?.listening ? (
               <View style={{ gap: 8 }}>
-                {!aiOpen.length && !aiDone.length ? <SectionHeader title="AI trades" action="See why" onAction={() => router.push({ pathname: '/scanner', params: { tab: 'ai' } })} /> : null}
+                <SectionHeader title="AI trades" action="See why" onAction={() => router.push({ pathname: '/scanner', params: { tab: 'ai' } })} />
                 {ai.data.listening.filter((l) => l.mode === tab).map((l) => <ListenCard key={l.mode} l={l} />)}
               </View>
             ) : null}
-            {aiOpen.length || aiDone.length ? (
-              <View style={{ gap: 8 }}>
-                <SectionHeader title="AI trades" action="See why" onAction={() => router.push({ pathname: '/scanner', params: { tab: 'ai' } })} />
-                <Txt style={{ color: colors.muted, fontSize: 13, lineHeight: 18 }}>The AI's own practice account, for comparison. These don't change your balance.</Txt>
-                {[...aiOpen, ...aiDone].map((t) => (
-                  <TradeCard key={t.id} ai trade={t} accountType="DEMO" livePrice={prices[t.asset_id]} now={now} onPress={() => router.push({ pathname: '/scanner', params: { tab: 'ai' } })} />
-                ))}
-              </View>
-            ) : null}
-
             <SectionHeader title="History" action="Show All" onAction={() => router.push('/history')} />
             {showTip && (historyQ.data?.length ?? 0) > 0 ? (
               <Tooltip

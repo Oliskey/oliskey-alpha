@@ -120,7 +120,7 @@ async function autoBatch({ idea, mode, engineUserId, after }) {
      join auth.users u on u.id = a.user_id
      join profiles p on p.id = a.user_id
      left join auto_trade_settings s on s.user_id = a.user_id and s.scope = 'demo'
-     where a.type = 'DEMO' and p.deleted_at is null and a.user_id <> $3 and u.email not like '%@test.local'
+     where a.type = 'DEMO' and p.deleted_at is null and p.onboarded_at is not null and a.user_id <> $3 and u.email not like '%@test.local'
        and not exists (select 1 from trades t where t.user_id = a.user_id and t.status = 'open' and t.mode = $4 and t.asset_id = $5)
        and not exists (select 1 from trades t where t.user_id = a.user_id and t.idea_id = $6)
        and a.user_id > $7
@@ -162,6 +162,7 @@ export function startPaperTrading({ engine, settlement }) {
       }
     }
     userId = rows[0].id;
+    await pool.query('update profiles set onboarded_at = coalesce(onboarded_at, now()) where id = $1', [userId]);   // the engine's own account never learns
     demoId = (await pool.query("select id from accounts where user_id = $1 and type = 'DEMO'", [userId])).rows[0].id;
   }
 
@@ -404,7 +405,8 @@ export function signalRouter({ engine, settlement, orders }) {
     // when every trade already has to clear the same bar, the two choices are the same thing, so the choice is not shown
     const top = result.strongest_bar == null || result.strongest_bar === result.sure_bar ? null : (result.tops ?? []).find((t) => t.bar === result.strongest_bar);
     const strongest = { offered: !!top, won: top?.won ?? null, perDay: top?.per_day ?? null };
-    return { min: AUTO_MIN, demo, real: of('real'), waiting, strongest };
+    const onboarded = !!(await pool.query('select onboarded_at from profiles where id = $1', [userId])).rows[0]?.onboarded_at;
+    return { min: AUTO_MIN, demo, real: of('real'), waiting, strongest, onboarded };
   }
 
   async function waitingFor(userId, strength, bar) {

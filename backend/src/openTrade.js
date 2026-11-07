@@ -26,6 +26,9 @@ export function orderError(o, engine) {
 
 export async function openTrade({ userId, order, engine, settlement }) {
   const { accountId, assetId, mode, direction, amount, durationSec, leverage, takeProfit, stopLoss, riskFree, ideaId, ideaEndsAt, auto } = order;
+  // New users learn before they trade (owner decision 2026-11-07). Checked here, so no route, order or AI can get round it.
+  const { rows: learner } = await pool.query('select onboarded_at from profiles where id = $1', [userId]);
+  if (!learner[0]?.onboarded_at) throw Object.assign(new Error('NOT_ONBOARDED'), { status: 403 });
   const tick = engine.getPrice(assetId);
   if (!tick) throw Object.assign(new Error('NO_PRICE'), { status: 400 });
   if (!engine.isFresh(assetId)) throw Object.assign(new Error('NO_PRICE'), { status: 400 });   // never open on an old price

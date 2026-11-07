@@ -9,7 +9,7 @@ export const API_URL = process.env.EXPO_PUBLIC_API_URL
 export const WS_URL = process.env.EXPO_PUBLIC_WS_URL || API_URL.replace(/^http/, 'ws') + '/stream';
 
 export class ApiError extends Error {
-  constructor(message: string, public status: number, public code?: string) {
+  constructor(message: string, public status: number, public code?: string, public details?: Record<string, unknown>) {
     super(message);
   }
 }
@@ -44,7 +44,7 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {
     if (res.status === 401 && token) onUnauthorized?.();
-    throw new ApiError(data?.error ?? 'Something went wrong.', res.status, data?.code);
+    throw new ApiError(data?.error ?? 'Something went wrong.', res.status, data?.code, data ?? undefined);
   }
   return data as T;
 }
@@ -56,6 +56,7 @@ export type Profile = {
   tier: 'starter' | 'smart' | 'alpha'; kyc_status: 'none' | 'pending' | 'verified' | 'rejected';
   active_account_id: string | null; is_admin: boolean;
   mfa_enabled: boolean;   // admin 2-step login is on
+  onboarded_at?: string | null;   // when they finished the lessons; trading is locked until then
 };
 export type Me = { profile: Profile; accounts: Account[]; unreadNotifications: number };
 

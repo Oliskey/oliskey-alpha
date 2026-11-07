@@ -27,6 +27,7 @@ const MESSAGES = {
   INVALID_EARLY_RETURN: 'The early close amount is out of range. Try again.',
   ACCOUNT_HAS_OPEN_TRADES: 'Wait for your open trades to close before deleting your account.',
   NO_PRICE: 'No price is available for this asset right now. Try again in a moment.',
+  NOT_ONBOARDED: 'Finish the short lessons first. Trading opens when they are done.',
   ZONE_UNAVAILABLE: 'InZone is not available for this asset right now. Try again in a little while.',
   NO_BOOST_AVAILABLE: 'You have no boosts yet. Finish a task or invite a friend to earn one.',
   BOOST_ALREADY_ACTIVE: 'A boost is already running.',
@@ -39,10 +40,10 @@ const MESSAGES = {
 // The app-facing message for a money-rule error code (used where the error is stored, e.g. a failed order).
 export const messageFor = (code) => MESSAGES[code] ?? code;
 
-// Express error handler: known money-rule errors become 400s, anything else is a logged 500.
+// Express error handler: known money-rule errors become 400s (or the 4xx the code gave, such as 403 before the lessons), anything else is a logged 500.
 export function errorHandler(err, _req, res, _next) {
   const message = MESSAGES[err?.message];
-  if (message) return res.status(400).json({ error: message, code: err.message });
+  if (message) return res.status(err.status >= 400 && err.status < 500 ? err.status : 400).json({ error: message, code: err.message });
   // Body-parser errors are the client's fault: malformed JSON or a body over the size limit.
   if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'The request body is not valid JSON.' });
   if (err?.type === 'entity.too.large') return res.status(413).json({ error: 'The request body is too large.' });

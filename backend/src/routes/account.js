@@ -1,3 +1,4 @@
+import { wrongAnswers } from '../onboarding.js';
 import { usingSupabase, passwordIsRight } from '../supabaseAuth.js';
 // Profile, wallets, tasks, notifications, promo codes and ledger for the signed-in user.
 import { Router } from 'express';
@@ -10,7 +11,7 @@ export const accountRouter = Router();
 accountRouter.get('/me', async (req, res) => {
   const [profile, accounts, unread] = await Promise.all([
     pool.query(
-      `select p.id, u.email, p.full_name, p.phone, p.tier, p.kyc_status, p.active_account_id, p.is_admin,
+      `select p.id, u.email, p.full_name, p.phone, p.tier, p.kyc_status, p.active_account_id, p.is_admin, p.onboarded_at,
               exists (select 1 from admin_mfa m where m.user_id = p.id and m.enabled_at is not null) as mfa_enabled
        from profiles p join auth.users u on u.id = p.id where p.id = $1 and p.deleted_at is null`, [req.user.id]),
     pool.query(
@@ -157,4 +158,27 @@ accountRouter.get('/funded', async (req, res) => {
 accountRouter.post('/funded/interest', async (req, res) => {
   await pool.query('insert into funded_interest (user_id) values ($1) on conflict do nothing', [req.user.id]);
   res.status(201).json({ interested: true });
+});
+
+// The end of the lessons: the check is marked by the server, and the person's AI choice is saved. Doing it again changes nothing.
+accountRouter.post('/me/onboarding', async (req, res) => {
+  const aiMode = req.body?.aiMode;
+  if (aiMode !== 'ask' && aiMode !== 'auto') return res.status(400).json({ error: 'Choose how the AI should work with your account.' });
+  const wrong = wrongAnswers(req.body?.answers);
+  if (wrong.length) return res.status(400).json({ error: wrong.length === 1 ? 'One answer is not right yet. Look at the question in red.' : 'Some answers are not right yet. Look at the questions in red.', wrong });
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const { rowCount } = await client.query('update profiles set onboarded_at = now() where id = $1 and onboarded_at is null', [req.user.id]);
+    if (rowCount) {
+      await client.query(
+        `insert into auto_trade_settings (user_id, scope, mode) values ($1, 'demo', $2)
+         on conflict (user_id, scope) do update set mode = excluded.mode, updated_at = now()`, [req.user.id, aiMode]);
+    }
+    await client.query('commit');
+  } catch (err) {
+    await client.query('rollback');
+    throw err;
+  } finally { client.release(); }
+  res.json({ ok: true });
 });

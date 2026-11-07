@@ -13,14 +13,11 @@ export function useTradeCounts() {
   const orders = useQuery({
     queryKey: ['orders', 'pending'], queryFn: () => api<{ account_id: string }[]>('/orders?status=pending'), refetchInterval: 15_000,
   });
-  // The AI trader's trades appear on the demo account's Trades page, so they count there too.
-  const ai = useAiTrader();
-  const aiOpen = activeAccount?.type === 'DEMO' ? ai.data?.positions?.length ?? 0 : 0;
   const mine = (open.data ?? []).filter((t) => t.account_id === activeAccount?.id);
   const waiting = (orders.data ?? []).filter((o) => o.account_id === activeAccount?.id).length;
-  const aiPositions = activeAccount?.type === 'DEMO' ? ai.data?.positions ?? [] : [];
-  const byMode = (mode: Trade['mode']) => mine.filter((t) => t.mode === mode).length + aiPositions.filter((t) => t.mode === mode).length;
-  return { total: mine.length + waiting + aiOpen, open: mine.length, waiting, aiOpen, byMode };
+  // only trades made with this account's own money, the AI's for this person included
+  const byMode = (mode: Trade['mode']) => mine.filter((t) => t.mode === mode).length;
+  return { total: mine.length + waiting, open: mine.length, waiting, byMode };
 }
 
 export const useAiTrader = () => useQuery({

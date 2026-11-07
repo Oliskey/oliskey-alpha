@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check } from 'lucide-react-native';
+import { PracticeTrade } from '@/components/PracticeTrade';
 import { AI_LESSON, LESSONS, QUIZ } from '@/content/onboarding';
 import { useAccount } from '@/context/AccountContext';
 import { api, type ApiError } from '@/lib/api';
@@ -17,7 +18,7 @@ import { Txt } from '@/ui/Txt';
 import { useColumn } from '@/ui/Page';
 
 type AiMode = 'ask' | 'auto';
-const STEPS = LESSONS.length + 2;   // the lessons, the AI, then the check
+const STEPS = LESSONS.length + 3;   // the lessons, the practice trade, the AI, then the check
 
 export default function Onboarding() {
   const column = useColumn('narrow');
@@ -27,6 +28,7 @@ export default function Onboarding() {
   const [aiMode, setAiMode] = useState<AiMode | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [wrong, setWrong] = useState<string[]>([]);
+  const [practised, setPractised] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const first = me?.profile.full_name?.split(' ')[0];
@@ -45,9 +47,10 @@ export default function Onboarding() {
   };
 
   const lesson = step < LESSONS.length ? LESSONS[step] : null;
-  const isAi = step === LESSONS.length;
-  const isQuiz = step === LESSONS.length + 1;
-  const canGo = isAi ? aiMode !== null : isQuiz ? QUIZ.every((q) => answers[q.key]) : true;
+  const isPractice = step === LESSONS.length;
+  const isAi = step === LESSONS.length + 1;
+  const isQuiz = step === LESSONS.length + 2;
+  const canGo = isPractice ? practised : isAi ? aiMode !== null : isQuiz ? QUIZ.every((q) => answers[q.key]) : true;
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -60,6 +63,12 @@ export default function Onboarding() {
             <GlossIcon icon={lesson.icon} color={lesson.color} size={64} />
             <Txt style={styles.title}>{step === 0 && first ? `Welcome, ${first}` : lesson.title}</Txt>
             {lesson.lines.map((l) => <Txt key={l} style={styles.line}>{l}</Txt>)}
+          </>
+        ) : isPractice ? (
+          <>
+            <Txt style={styles.title}>Try a practice trade</Txt>
+            <Txt style={styles.line}>Follow the highlighted part. Nothing here uses your money.</Txt>
+            <PracticeTrade onDone={() => { setPractised(true); setStep((s) => s + 1); }} />
           </>
         ) : isAi ? (
           <>

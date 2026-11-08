@@ -5,6 +5,7 @@ import { pool } from './db.js';
 import { notify, notifyTradeClosed } from './notify.js';
 
 const LOOP_MS = 100;
+const RESCAN_MS = 3000;          // how often trades opened through other copies are picked up
 const MAX_CLOSE_GAP_MS = 30_000;   // a live price further than this from a trade's end is not its closing price
 const SOURCE_RETRY_MS = 30_000;
 const EARLY_MIN_AGE_MS = 2000;   // Close Early: not in the first 2 s...
@@ -29,11 +30,25 @@ export class Settlement {
     const { rows } = await pool.query("select * from trades where status = 'open'");
     for (const t of rows) this.add(t);
     this.timer = setInterval(() => this.loop(), LOOP_MS);
+    // trades opened through another copy of the server are in the database, not in this map: pick them up every few seconds
+    this.rescan = setInterval(() => { void this.pickUp(); }, RESCAN_MS);
     return rows.length;
+  }
+
+  async pickUp() {
+    if (this.scanning) return;
+    this.scanning = true;
+    try {
+      const { rows } = await pool.query("select * from trades where status = 'open' and open_time >= now() - interval '10 minutes'");
+      for (const t of rows) if (!this.open.has(t.id)) this.add(t);
+    } catch (err) {
+      console.error('settlement pick-up', err.message);
+    } finally { this.scanning = false; }
   }
 
   stop() {
     clearInterval(this.timer);
+    clearInterval(this.rescan);
   }
 
   add(trade) {
@@ -91,6 +106,11 @@ export class Settlement {
 
   // Closes a forex trade at the current price (manual close). Returns the closed trade.
   async closeNow(tradeId) {
+    // opened through another copy, or this copy is not the one settling: the trade is still in the database (settle_trade locks it, so this is safe)
+    if (!this.open.has(tradeId)) {
+      const { rows } = await pool.query("select * from trades where id = $1 and status = 'open'", [tradeId]);
+      if (rows[0]) this.add(rows[0]);
+    }
     const trade = this.open.get(tradeId);
     if (!trade || trade.settling) return null;
     return this.settle(trade, this.engine.getPrice(trade.asset_id));

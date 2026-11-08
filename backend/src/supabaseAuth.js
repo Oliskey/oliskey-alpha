@@ -57,4 +57,5 @@ export async function userFromResetToken(token) {
   return userFromToken(token);
 }
 
-export const googleSignInUrl = (redirectTo) => `${url('/authorize')}?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
+// prompt=select_account: Google always asks which account to use, instead of quietly picking the one already signed in
+export const googleSignInUrl = (redirectTo) => `${url('/authorize')}?provider=google&redirect_to=${encodeURIComponent(redirectTo)}&prompt=select_account`;

@@ -1,10 +1,12 @@
 // Adds what search engines and link previews read to a finished web build: title, description, canonical address, share card,
 // structured data, a readable page for anything that does not run JavaScript, robots.txt and sitemap.xml. Run on every build.
-// The wording stays honest: demo credits, and no promise of profit. Set SITE_URL when the app moves to its own domain.
+// The wording stays honest: demo credits, and no promise of profit. The main address is the owner's domain: the same app at its other addresses
+// tells search engines to list this one instead. GOOGLE_SITE_VERIFICATION, when set, adds Search Console's ownership tag (a public code, not a secret).
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-const SITE = (process.env.SITE_URL || 'https://oliskey-alpha.vercel.app').replace(/\/$/, '');
+const SITE = (process.env.SITE_URL || 'https://alpha.oliskey.com').replace(/\/$/, '');
+const VERIFY = (process.env.GOOGLE_SITE_VERIFICATION || '').replace(/[^A-Za-z0-9_-]/g, '');
 const NAME = 'Oliskey Alpha';
 const TITLE = 'Oliskey Alpha: practice trading with demo credits and live crypto prices';
 const DESCRIPTION = 'Learn to trade with Oliskey Alpha. Practise Fixed Time, InZone and Forex trades with demo credits on live crypto prices, follow an AI that shows its real record, and study free lessons. Trading can lose money.';
@@ -28,7 +30,7 @@ const HEAD = () => `
 <meta name="application-name" content="${NAME}">
 <meta name="apple-mobile-web-app-title" content="${NAME}">
 <meta name="theme-color" content="#000000">
-<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="robots" content="index, follow, max-image-preview:large">${VERIFY ? `\n<meta name="google-site-verification" content="${VERIFY}">` : ''}
 <link rel="canonical" href="${SITE}/">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">

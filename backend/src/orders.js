@@ -8,6 +8,7 @@ import { notify } from './notify.js';
 import { openTrade, orderError } from './openTrade.js';
 
 const LOOP_MS = 250;
+const RELOAD_MS = 5000;
 const MAX_LIFETIME_H = 24 * 7;
 const MAX_PENDING_PER_USER = 20;
 const MIN_LEAD_MS = 10_000;        // a time order must be at least 10 s ahead
@@ -47,6 +48,8 @@ export function startOrders({ engine, settlement, push }) {
           : o.trigger_when === 'above' ? price >= Number(o.trigger_price) : price <= Number(o.trigger_price);
         if (!hit) continue;
         try {
+          const still = await pool.query("select 1 from pending_orders where id = $1 and status = 'pending'", [o.id]);
+          if (!still.rowCount) { pending.delete(o.id); continue; }
           const trade = await openTrade({
             userId: o.user_id, engine, settlement,
             order: { accountId: o.account_id, assetId: o.asset_id, mode: o.mode, direction: o.direction, amount: Number(o.amount),
@@ -65,8 +68,14 @@ export function startOrders({ engine, settlement, push }) {
       busy = false;
     }
   };
-  const ready = load().then(() => setInterval(tick, LOOP_MS)).catch((err) => console.error('orders load', err.message));
-  return { add: (o) => pending.set(o.id, o), remove: (id) => pending.delete(id), ready };
+  // Only the leader watches orders (leader.js). It reloads them every few seconds, so orders placed or cancelled through other copies are seen.
+  let ready = Promise.resolve();
+  const start = () => {
+    ready = load().then(() => { setInterval(tick, LOOP_MS); setInterval(() => { if (!busy) load().catch((err) => console.error('orders reload', err.message)); }, RELOAD_MS); })
+      .catch((err) => console.error('orders load', err.message));
+    return ready;
+  };
+  return { add: (o) => pending.set(o.id, o), remove: (id) => pending.delete(id), start, get ready() { return ready; } };
 }
 
 export function ordersRouter({ engine, orders }) {

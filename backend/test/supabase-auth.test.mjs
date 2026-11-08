@@ -79,4 +79,5 @@ test('the Google address comes back to this site', () => {
   const u = new URL(googleSignInUrl('https://app.example/'));
   assert.equal(u.searchParams.get('provider'), 'google');
   assert.equal(u.searchParams.get('redirect_to'), 'https://app.example/');
+  assert.equal(u.searchParams.get('prompt'), 'select_account', 'Google always asks which account');
 });

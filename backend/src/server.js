@@ -23,6 +23,7 @@ import { paymentsRouter, paystackWebhook } from './routes/payments.js';
 import { adminRouter } from './routes/admin.js';
 import { intelRouter, signalRouter, startIntel, startPaperTrading, startSignalAlerts } from './intel.js';
 import { pushRouter } from './webPush.js';
+import { whenLeader } from './leader.js';
 import { setNotifyPush } from './notify.js';
 
 const PORT = Number(process.env.PORT) || 3311;
@@ -175,7 +176,7 @@ const stream = createStream(server, engine, assets.map((a) => a.id));
 onlineCount = stream.online;
 setNotifyPush(stream.push);
 const settlement = new Settlement(engine, stream.push);
-const reloaded = await settlement.start();
+let reloaded = 0;
 
 app.use(requireAuth);
 app.use(accountRouter);
@@ -191,9 +192,15 @@ app.use('/intel', intelRouter);
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 app.use(errorHandler);
 
-server.listen(PORT, () => console.log(`Oliskey Alpha backend on http://localhost:${PORT} (${reloaded} open trades reloaded)`));
-startSignalAlerts();
-if (process.env.INTEL_DISABLED !== '1') {
-  startIntel();
-  startPaperTrading({ engine, settlement });
-}
+server.listen(PORT, () => console.log(`Oliskey Alpha backend on http://localhost:${PORT}`));
+// Every copy serves the website, the API and live prices. Only the leader settles, fills orders and runs the AI (leader.js).
+whenLeader(async () => {
+  reloaded = await settlement.start();
+  console.log(`Settling: ${reloaded} open trades reloaded`);
+  await orders.start();
+  startSignalAlerts();
+  if (process.env.INTEL_DISABLED !== '1') {
+    startIntel();
+    startPaperTrading({ engine, settlement });
+  }
+});

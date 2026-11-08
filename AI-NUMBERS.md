@@ -1,6 +1,6 @@
 # Oliskey Alpha: the AI's real numbers
 
-Updated by the engine 2026-11-08 00:11 UTC. Demo money on real crypto prices. Test accounts are not counted. It can lose.
+Updated by the engine 2026-11-08 00:52 UTC. Demo money on real crypto prices. Test accounts are not counted. It can lose.
 
 ## Score
 
@@ -20,7 +20,6 @@ It needs at least 100 finished trades before anyone can say it works. Its tests:
 
 | Who | Trade type | Finished | Won | Won % | Profit |
 |---|---|---:|---:|---:|---:|
-| AI, on real accounts | inzone | 3 | 1 | 33.3% | -α90.00 |
 | AI, on real accounts | forex | 2 | 1 | 50.0% | -α0.62 |
 
 ## All time, real accounts

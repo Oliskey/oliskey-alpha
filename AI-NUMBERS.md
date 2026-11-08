@@ -1,12 +1,12 @@
 # Oliskey Alpha: the AI's real numbers
 
-Updated by the engine 2026-11-07 23:31 UTC. Demo money on real crypto prices. Test accounts are not counted. It can lose.
+Updated by the engine 2026-11-08 00:11 UTC. Demo money on real crypto prices. Test accounts are not counted. It can lose.
 
 ## Score
 
-**Last 100 of 100 signals: 60 right, 40 wrong (60.0%), +α1,760.01.**
+**Last 100 of 100 signals: 62 right, 38 wrong (62.0%), +α2,139.81.**
 
-Clean record: 248 trades across 27 separate hours. It needs at least 100 to judge, and even a profit can be luck.
+Clean record: 251 trades across 29 separate hours. It needs at least 100 to judge, and even a profit can be luck.
 
 ## New InZone model, since it went live on 2026-11-07 11:16 UTC
 
@@ -20,7 +20,8 @@ It needs at least 100 finished trades before anyone can say it works. Its tests:
 
 | Who | Trade type | Finished | Won | Won % | Profit |
 |---|---|---:|---:|---:|---:|
-| AI, on real accounts | inzone | 13 | 10 | 76.9% | +α800.00 |
+| AI, on real accounts | inzone | 3 | 1 | 33.3% | -α90.00 |
+| AI, on real accounts | forex | 2 | 1 | 50.0% | -α0.62 |
 
 ## All time, real accounts
 
@@ -28,15 +29,14 @@ It needs at least 100 finished trades before anyone can say it works. Its tests:
 |---|---|---:|---:|---:|---:|
 | AI, on real accounts | fixed_time | 6 | 4 | 66.7% | +α42.89 |
 | AI, on real accounts | inzone | 114 | 60 | 52.6% | +α1,162.94 |
-| AI, on real accounts | forex | 4 | 4 | 100.0% | +α257.51 |
+| AI, on real accounts | forex | 7 | 6 | 85.7% | +α301.86 |
 | People, by hand | fixed_time | 53 | 25 | 47.2% | +α6,590.76 |
 | People, by hand | inzone | 2 | 0 | 0.0% | -α20.00 |
 | People, by hand | forex | 7 | 7 | 100.0% | +α9.21 |
 
 ## Open now, real accounts
 
-- forex, by hand: 2 trades, α1,120 staked
-- forex, AI: 2 trades, α200 staked
+- forex, by hand: 1 trades, α100 staked
 
 ## Tests
 

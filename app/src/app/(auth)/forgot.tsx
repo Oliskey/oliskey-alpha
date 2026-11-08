@@ -18,7 +18,7 @@ export default function Forgot() {
     if (!email.trim()) return setError('Enter the email you signed up with.');
     setBusy(true); setError('');
     try {
-      await api('/auth/forgot', { method: 'POST', body: { email: email.trim() } });
+      await api('/auth/forgot', { method: 'POST', body: { email: email.trim(), from: typeof window !== 'undefined' ? window.location.origin : undefined } });
       setSent(true);
     } catch (e) {
       setError((e as Error).message);

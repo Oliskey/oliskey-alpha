@@ -16,6 +16,8 @@ export function Field({ label, error, secureTextEntry, ...props }: TextInputProp
         <View style={{ flex: 1 }}>
           <Txt style={styles.label}>{label}</Txt>
           <TextInput
+            // this field draws its own focus ring, so the square page outline stays off it
+            {...({ dataSet: { ownFocus: 'true' } } as object)}
             placeholderTextColor={colors.muted}
             {...props}
             secureTextEntry={secureTextEntry && !visible}

@@ -36,8 +36,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOnUnauthorized(() => { void apply(null); });
     // back from Google: the address holds a Supabase token for a moment. It is swapped for a session and wiped from the address at once.
     const back = Platform.OS === 'web' && typeof window !== 'undefined' ? new URLSearchParams(window.location.hash.slice(1)) : null;
-    const fromGoogle = back?.get('access_token');
-    if (back && (fromGoogle || back.get('error'))) window.history.replaceState(null, '', window.location.pathname);
+    const fromGoogle = back?.get('type') === 'recovery' ? null : back?.get('access_token');
+    if (back && (fromGoogle || back.get('error')) && back.get('type') !== 'recovery') window.history.replaceState(null, '', window.location.pathname);
     (fromGoogle
       ? api<{ token?: string }>('/auth/oauth', { method: 'POST', body: { accessToken: fromGoogle } }).then((r) => r.token ?? loadToken()).catch(() => loadToken())
       : loadToken()

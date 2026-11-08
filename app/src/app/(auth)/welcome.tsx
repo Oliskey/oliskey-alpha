@@ -2,6 +2,7 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HeroPanel } from '@/components/AuthShell';
+import { GoogleButton } from '@/components/GoogleButton';
 import { useAuth } from '@/context/AuthContext';
 import { useLayout } from '@/hooks/useLayout';
 import { PREVIEW } from '@/lib/preview';
@@ -23,6 +24,7 @@ export default function Welcome() {
       ) : null}
       <Button label="Create free account" height={54} onPress={() => router.push('/register')} />
       <Button label="Sign in" variant="secondary" height={54} onPress={() => router.push('/login')} />
+      <GoogleButton />
       {PREVIEW ? <Button label="Look around" variant="secondary" height={54} onPress={() => { void setSession('preview').then(() => router.replace('/')); }} /> : null}
       <Txt style={styles.note}>Demo prices are simulated except crypto. Trading involves risk.</Txt>
     </View>

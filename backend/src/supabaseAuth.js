@@ -40,4 +40,21 @@ export async function userFromToken(token) {
   return u?.id && u?.email ? { id: u.id, email: u.email } : null;
 }
 
+/** Asks Supabase to email a reset link that comes back to redirectTo. Says nothing about whether the email has an account. */
+export async function sendReset(email, redirectTo) {
+  const res = await fetch(`${url('/recover')}?redirect_to=${encodeURIComponent(redirectTo)}`, { method: 'POST', headers: headers(), body: JSON.stringify({ email }) });
+  if (res.status === 429) throw Object.assign(new Error('Too many reset emails were asked for. Please wait a few minutes and try again.'), { status: 429 });
+  if (!res.ok && res.status !== 400 && res.status !== 404 && res.status !== 422) throw new Error(`Supabase reset failed: ${res.status}`);
+}
+
+/** The person a reset token belongs to, only if it really is a fresh token from a reset email. */
+export async function userFromResetToken(token) {
+  const [, body] = String(token).split('.');
+  try {
+    const claims = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    if (!(claims.amr ?? []).some((m) => m.method === 'recovery' || m === 'recovery')) return null;
+  } catch { return null; }
+  return userFromToken(token);
+}
+
 export const googleSignInUrl = (redirectTo) => `${url('/authorize')}?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;

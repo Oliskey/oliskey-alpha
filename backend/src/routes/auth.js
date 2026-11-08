@@ -4,7 +4,7 @@ import { rateLimit } from 'express-rate-limit';
 import { pool } from '../db.js';
 import { DUMMY_HASH, hashPassword, requireAuth, signMfaTicket, signToken, verifyMfaTicket, verifyPassword } from '../auth.js';
 import { newSecret, otpauthUrl, verifyCode } from '../totp.js';
-import { createUser, googleSignInUrl, passwordIsRight, setPassword, usingSupabase, userFromToken } from '../supabaseAuth.js';
+import { createUser, googleSignInUrl, passwordIsRight, sendReset, setPassword, usingSupabase, userFromResetToken, userFromToken } from '../supabaseAuth.js';
 
 export const authRouter = Router();
 // Sign-up / login / code attempts per IP per 15 minutes. Tests and CI raise it (they create many users).
@@ -140,7 +140,33 @@ authRouter.post('/change-password', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-// Reset emails need an email provider (Supabase Auth sends them once the hosted project exists).
-authRouter.post('/forgot', (_req, res) => {
-  res.status(501).json({ error: 'Password reset by email is not available yet. Contact support to reset your password.' });
+// The back address for links in emails and Google: the site the person is on, only if it is one of ours.
+function siteOf(req) {
+  const from = String(req.body?.from ?? req.query.from ?? '');
+  const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim());
+  return allowed.includes(from) ? from : `${req.protocol}://${req.get('host')}`;
+}
+
+// Forgot password: Supabase emails a link to /reset. The answer is the same whether or not the email has an account.
+authRouter.post('/forgot', async (req, res) => {
+  if (!usingSupabase()) return res.status(501).json({ error: 'Password reset by email is not available here. Contact support to reset your password.' });
+  const email = String(req.body?.email ?? '').trim().toLowerCase();
+  if (!EMAIL.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
+  try { await sendReset(email, `${siteOf(req)}/reset`); } catch (err) { if (err.status === 429) return res.status(429).json({ error: err.message }); throw err; }
+  res.json({ ok: true });
+});
+
+// The new password from the reset page. Only a fresh reset token from Supabase is accepted, and it signs the person in.
+authRouter.post('/reset', async (req, res) => {
+  if (!usingSupabase()) return res.status(404).json({ error: 'Not available.' });
+  const password = String(req.body?.password ?? '');
+  if (password.length < 8) return res.status(400).json({ error: 'Use at least 8 characters.' });
+  const who = await userFromResetToken(String(req.body?.accessToken ?? ''));
+  if (!who) return res.status(401).json({ error: 'This reset link is not valid or has expired. Ask for a new one.' });
+  await setPassword(who.id, password);
+  const { rows } = await pool.query(
+    `select u.id, u.email, p.is_admin, exists (select 1 from admin_mfa m where m.user_id = u.id and m.enabled_at is not null) as mfa
+     from auth.users u left join profiles p on p.id = u.id where u.id = $1`, [who.id]);
+  if (!rows[0]) return res.status(401).json({ error: 'This reset link is not valid or has expired. Ask for a new one.' });
+  await sendSession(res, rows[0]);
 });

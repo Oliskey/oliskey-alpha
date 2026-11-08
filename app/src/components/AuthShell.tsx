@@ -119,6 +119,8 @@ export function AuthField({ label, error, hint, secureTextEntry, right, ...props
       </View>
       <View style={[styles.box, focused && { borderColor: colors.accent }, error ? { borderColor: colors.down } : null, web2]}>
         <TextInput
+          // this field draws its own rounded focus ring, so the square page outline stays off it
+          {...({ dataSet: { ownFocus: 'true' } } as object)}
           placeholderTextColor={colors.muted}
           accessibilityLabel={label}
           {...props}

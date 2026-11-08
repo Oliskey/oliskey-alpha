@@ -26,7 +26,28 @@ function usePulse() {
   return v;
 }
 
-export function ConnectionOverlay({ state }: { state: Connection }) {
+// With a chart to show (the last candles kept on this device), only a small note sits at the top and the chart stays readable
+// and scrollable underneath (owner 2026-11-08: users see their chart offline). With nothing to show, the full card.
+export function ConnectionOverlay({ state, hasChart = false }: { state: Connection; hasChart?: boolean }) {
+  if (hasChart && state !== 'preview') return <ConnectionNote offline={state === 'offline'} />;
+  return <ConnectionCard state={state} />;
+}
+
+function ConnectionNote({ offline }: { offline: boolean }) {
+  return (
+    <View style={styles.noteWrap} pointerEvents="box-none">
+      <View style={[styles.notePill, glass('regular')]} accessibilityRole="alert" accessibilityLabel={offline ? 'You are offline. Showing the last saved chart.' : 'Reconnecting'}>
+        <CloudOff size={15} color={colors.demo} />
+        <View style={{ flexShrink: 1 }}>
+          <Txt style={{ fontSize: 13, fontFamily: font.semibold }} numberOfLines={1}>{offline ? 'Offline · last saved chart' : 'Reconnecting…'}</Txt>
+          <Txt style={{ fontSize: 12, color: colors.muted }} numberOfLines={2}>Trading resumes when you are back online. Open trades keep running on the server.</Txt>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function ConnectionCard({ state }: { state: Connection }) {
   const pulse = usePulse();
   const ring = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] });
   const ringOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] });
@@ -79,5 +100,7 @@ const styles = createStyles(() => ({
   title: { fontSize: 19, fontFamily: font.bold, marginTop: 6 },
   body: { fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 20 },
   note: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, marginTop: 6 },
+  noteWrap: { position: 'absolute', top: 10, left: 0, right: 0, alignItems: 'center', zIndex: 30, paddingHorizontal: 16 },
+  notePill: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, maxWidth: 440 },
   strip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, overflow: 'hidden', backgroundColor: colors.surface2 },
 }));

@@ -1,6 +1,6 @@
 # Oliskey Alpha: your questions and answers
 
-The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 8 November 2026, version 0.0.20.
+The live numbers update by themselves in [AI-NUMBERS.md](AI-NUMBERS.md). This file records what you asked, the honest answer, and what is still open. Latest update: 8 November 2026, version 0.0.21.
 
 ## Your AI goal
 

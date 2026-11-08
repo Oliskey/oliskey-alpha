@@ -529,7 +529,7 @@ export function Terminal() {
             <Press haptic={false} onPress={() => setPlanOn(false)} accessibilityLabel="Hide the plan"><X size={15} color={colors.muted} /></Press>
           </View>
         ) : null}
-        {locked && mode !== 'stocks' ? <ConnectionOverlay state={conn} /> : null}
+        {locked && mode !== 'stocks' ? <ConnectionOverlay state={conn} hasChart={candles.length > 0} /> : null}
         {desk && mode !== 'stocks' ? (
           <ChartToolbar tf={tf} tfs={chartType === 'area' ? [] : CANDLE_TFS} chartType={chartType} TypeIcon={ChartTypeIcon}
             areaLabel={chartType === 'area' ? AREA_RANGES.find((r) => r.sec === areaRange)?.label ?? null : null}

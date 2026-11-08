@@ -1,8 +1,8 @@
-// Dark / White / Same as device. Saved on this device; with no saved choice the app follows the device. Everything below the provider is redrawn
+// Dark / White / Same as device. Saved on this device and the account; with no saved choice the app follows the device. Everything below the provider is redrawn
 // when the theme changes (see the key in the root layout), so every screen switches together.
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Platform, useColorScheme } from 'react-native';
-import { getPref, setPref } from '@/lib/storage';
+import { getPref, onPrefsPulled, setPref } from '@/lib/storage';
 import { colors, savedThemeMode, setThemeName, type ThemeMode, type ThemeName } from '@/theme';
 
 type ThemeState = { mode: ThemeMode; theme: ThemeName; ready: boolean; setMode: (m: ThemeMode) => void };
@@ -16,6 +16,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (Platform.OS === 'web') return;
     void getPref('theme').then((v) => { if (v === 'light' || v === 'system' || v === 'dark') setModeState(v); setReady(true); });
   }, []);
+  // the account's theme, after signing in on this device
+  useEffect(() => onPrefsPulled(() => {
+    void getPref('theme').then((v) => { if (v === 'light' || v === 'system' || v === 'dark') setModeState(v); });
+  }), []);
   const theme: ThemeName = mode === 'system' ? (device === 'light' ? 'light' : 'dark') : mode;
   setThemeName(theme);   // before children render, so they read the right colours
 

@@ -51,28 +51,36 @@ export function useLiveCandles(assetId: string, tf: number, count = 120) {
     staleTime: Infinity,
     gcTime: 0,
   });
-  const [candles, setCandles] = useState<Candle[]>([]);
-  const [last, setLast] = useState<{ price: number; ts: number } | null>(null);
+  // Each list remembers whose candles it holds. Live updates wait in a queue (up to about a second), so after a switch of market or
+  // timeframe an old market's tick could land on the new market's last candle: one 113 tick on a 5.20 market stretched the scale
+  // until every real candle was a flat line. An update for another market or timeframe is dropped, and old candles are never shown.
+  const key = `${assetId}|${tf}`;
+  const [held, setHeld] = useState<{ key: string; list: Candle[] }>({ key, list: [] });
+  const [last, setLast] = useState<{ price: number; ts: number; key: string } | null>(null);
 
-  useEffect(() => { if (q.data) setCandles(q.data); }, [q.data]);
+  useEffect(() => { if (q.data) setHeld({ key, list: q.data }); }, [q.data, key]);
 
   useEffect(() => subscribeTicks(assetId, (t) => {
-    liveUpdate(() => setLast({ price: t.price, ts: t.ts }), setLast);
-    liveUpdate(() => setCandles((cs) => {
-      if (!cs.length) return cs;
+    liveUpdate(() => setLast({ price: t.price, ts: t.ts, key }), setLast);
+    liveUpdate(() => setHeld((h) => {
+      if (h.key !== key) return h;
+      const cs = h.list;
+      if (!cs.length) return h;
       const bucket = Math.floor(t.ts / (tf * 1000)) * tf * 1000;
       const lastC = cs[cs.length - 1];
       if (bucket === lastC.time) {
         const next = cs.slice();
         next[next.length - 1] = { ...lastC, high: Math.max(lastC.high, t.price), low: Math.min(lastC.low, t.price), close: t.price };
-        return next;
+        return { key, list: next };
       }
-      if (bucket < lastC.time) return cs;
+      if (bucket < lastC.time) return h;
       const next = cs.length >= count ? cs.slice(1) : cs.slice();
       next.push({ time: bucket, open: t.price, high: t.price, low: t.price, close: t.price });
-      return next;
+      return { key, list: next };
     }));
-  }), [assetId, tf, count]);
+  }), [assetId, tf, count, key]);
 
-  return { candles, last, loading: q.isLoading };
+  const candles = useMemo(() => (held.key === key ? held.list : []), [held, key]);
+  const live = useMemo(() => (last && last.key === key ? { price: last.price, ts: last.ts } : null), [last, key]);
+  return { candles, last: live, loading: q.isLoading || held.key !== key };
 }

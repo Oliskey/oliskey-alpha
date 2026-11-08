@@ -21,7 +21,9 @@ const DIGIT_W = 7.8;                // approx. width of one 13 px digit
 const TIME_H = 22;
 const TOP = 26;
 export const PANE_H = 96;           // height of one oscillator panel under the chart
-const DEFAULT_STEP = 9;      // px per candle (body 6 + gap 3)
+const DEFAULT_STEP = 9;      // px per candle (body 6 + gap 3): the smallest default, on phones
+const FIT_CANDLES = 50;      // the default view shows about this many candles left of the live one, on any screen (owner 2026-11-08)
+const FIT_MAX_STEP = 24;     // so a very wide screen still shows a useful stretch of history
 const MIN_STEP = 3;          // zoomed all the way out
 const MAX_STEP = 40;         // zoomed all the way in
 const LIVE_AT = 0.7;          // the live candle's position across the chart (0-1)
@@ -96,7 +98,9 @@ function ChartInner(props: Props) {
   const overlays = useMemo(() => indOuts.filter((o) => !indDef(o.s.key).pane), [indOuts]);
   const panes = indOuts.filter((o) => indDef(o.s.key).pane);
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const [step, setStep] = useState(DEFAULT_STEP);
+  // null = the default view, sized to the screen. A wide screen used to draw ~145 thin candles at 9 px each, hard to read;
+  // now every screen starts at about FIT_CANDLES candles. Zooming picks a size; double tap or the arrow returns to the default.
+  const [chosen, setChosen] = useState<number | null>(null);
   const [yScale, setYScale] = useState(1);
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const [offset, setOffset] = useState(0);   // candles scrolled back from the latest
@@ -115,12 +119,15 @@ function ChartInner(props: Props) {
   const refPrice = price ?? (candles.length ? candles[candles.length - 1].close : 0);
   const AXIS_W = Math.max(MIN_AXIS_W, Math.ceil(refPrice.toFixed(decimals).length * DIGIT_W + 16));
   const plotW = Math.max(0, size.w - AXIS_W);
+  const fitStep = Math.max(DEFAULT_STEP, Math.min(FIT_MAX_STEP, (plotW * LIVE_AT) / FIT_CANDLES));
+  const step = chosen ?? fitStep;
+  const setStep = (v: number | ((s: number) => number)) => setChosen((c) => clampStep(typeof v === 'function' ? v(c ?? live.current.fitStep) : v));
   // panels shrink on short charts (phones) so the price keeps most of the room
   const paneH = Math.min(PANE_H, Math.max(48, Math.round(size.h * 0.16)));
   const plotH = Math.max(0, size.h - TIME_H - TOP - panes.length * paneH);
   // The live candle sits at 70% of the chart width (owner decision 2026-10-30); the right 30% shows the trade
   // window (start/end lines or corridor). Area charts fit their whole history into the left 70% (zoom still scales).
-  const zoom = step / DEFAULT_STEP;
+  const zoom = step / fitStep;
   const liveX = plotW * LIVE_AT;
   let unit: number;
   if (chartType === 'area' && candles.length > 1) {
@@ -180,7 +187,7 @@ function ChartInner(props: Props) {
   const priceOfY = (yy: number) => min + (1 - (yy - TOP) / plotH) * (max - min);
 
   // Gestures. Refs keep the latest values for the responder created once.
-  const live = useRef({ step, unit, offset: off, maxOffset, props, timeOfX, priceOfY, plotW, yScale, snap: (_x: number, _y: number) => null as { t: number; p: number } | null });
+  const live = useRef({ step, fitStep, unit, offset: off, maxOffset, props, timeOfX, priceOfY, plotW, yScale, snap: (_x: number, _y: number) => null as { t: number; p: number } | null });
   // Magnet: the visible candle nearest the tap, then its open/high/low/close nearest the tap if within 24 px.
   const snap = (lx: number, ly: number): { t: number; p: number } | null => {
     let best: Candle | null = null;
@@ -189,7 +196,7 @@ function ChartInner(props: Props) {
     const p = [best.open, best.high, best.low, best.close].reduce((a, b) => (Math.abs(y(b) - ly) < Math.abs(y(a) - ly) ? b : a));
     return Math.abs(y(p) - ly) <= 24 ? { t: best.time, p } : null;
   };
-  live.current = { step, unit, offset: off, maxOffset, props, timeOfX, priceOfY, plotW, yScale, snap };
+  live.current = { step, fitStep, unit, offset: off, maxOffset, props, timeOfX, priceOfY, plotW, yScale, snap };
   const g = useRef({ startOffset: 0, startStep: DEFAULT_STEP, startDist: 0, moved: false, lastTap: 0, onAxis: false, startYScale: 1 });
   const tradeHits = useRef<{ x: number; y: number; ids: string[] }[]>([]);   // marker centres from the last render
   const drawingHits = useRef<{ x1: number; y1: number; x2: number; y2: number }[][]>([]);   // each drawing's segments, last render
@@ -250,7 +257,7 @@ function ChartInner(props: Props) {
         const snapped = p.magnet ? live.current.snap(lx, ly) : null;
         p.onChartTap?.(snapped?.t ?? tx(lx), snapped?.p ?? py(ly));
       } else if (tapAt - g.current.lastTap < 300) {
-        setStep(DEFAULT_STEP); setOffset(0); setYScale(1);
+        setChosen(null); setOffset(0); setYScale(1);
       }
       g.current.lastTap = tapAt;
     },
@@ -303,10 +310,10 @@ function ChartInner(props: Props) {
   const live0 = off === 0;
   // The arrow has two jobs. In the past: back to now. Already at now: the clear view, with readable candles and prices fitted to
   // them (and a signal's own chart, where its stop and target fit the candles).
-  const settled = live0 && !props.plan && step === DEFAULT_STEP && yScale === 1;
+  const settled = live0 && !props.plan && chosen === null && yScale === 1;
   const onArrow = () => {
     if (!live0) { setOffset(0); return; }
-    setStep(DEFAULT_STEP);
+    setChosen(null);
     setYScale(1);
     props.onShowTrade?.();
   };

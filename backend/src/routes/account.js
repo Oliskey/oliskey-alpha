@@ -23,6 +23,28 @@ accountRouter.get('/me', async (req, res) => {
   res.json({ profile: profile.rows[0], accounts: accounts.rows, unreadNotifications: unread.rows[0].n });
 });
 
+// The user's app settings, so they follow them to every device (017_user_settings.sql). Display settings only, a fixed list of
+// names, each a string the app wrote itself. Sizes are capped so one account cannot fill the database.
+export const SETTING_NAMES = ['theme', 'chart', 'indicators', 'drawPrefs', 'drawings', 'assetTabs', 'favorites', 'tradePanelOpen', 'tip-ai', 'signalsSeen'];
+const MAX_SETTING = 90_000, MAX_ALL = 400_000;
+
+accountRouter.get('/me/settings', async (req, res) => {
+  const { rows } = await pool.query('select prefs from user_settings where user_id = $1', [req.user.id]);
+  res.json({ prefs: rows[0]?.prefs ?? {} });
+});
+
+accountRouter.put('/me/settings', async (req, res) => {
+  const name = String(req.body?.name ?? ''), value = req.body?.value;
+  if (!SETTING_NAMES.includes(name)) return res.status(400).json({ error: 'Unknown setting.' });
+  if (typeof value !== 'string' || value.length > MAX_SETTING) return res.status(400).json({ error: 'This setting is too large to save.' });
+  const { rowCount } = await pool.query(
+    `insert into user_settings (user_id, prefs) values ($1, jsonb_build_object($2::text, $3::text))
+     on conflict (user_id) do update set prefs = user_settings.prefs || excluded.prefs, updated_at = now()
+     where length((user_settings.prefs || excluded.prefs)::text) <= $4`, [req.user.id, name, value, MAX_ALL]);
+  if (!rowCount) return res.status(400).json({ error: 'Your saved settings are too large. Remove some drawings and try again.' });
+  res.json({ ok: true });
+});
+
 // Delete account: password required; refused until real-money wallets are empty and no trade is open.
 // Trades and ledger are kept; the person is anonymised (close_account in 007_close_account.sql).
 accountRouter.delete('/me', async (req, res) => {
@@ -31,6 +53,7 @@ accountRouter.delete('/me', async (req, res) => {
   const right = rows[0] && (usingSupabase() ? await passwordIsRight(rows[0].email, password) : await verifyPassword(password, rows[0].encrypted_password));
   if (!right) return res.status(400).json({ error: 'Password is incorrect.' });
   await pool.query('select close_account($1)', [req.user.id]);
+  await pool.query('delete from user_settings where user_id = $1', [req.user.id]);
   res.json({ ok: true });
 });
 

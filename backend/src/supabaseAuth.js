@@ -57,5 +57,16 @@ export async function userFromResetToken(token) {
   return userFromToken(token);
 }
 
+/** The person a 6-digit reset code belongs to, if Supabase accepts it: right email, not used, not expired (5 minutes, set in Supabase).
+ *  `null` for a wrong or old code. Throws with status 429 when Supabase asks to slow down. */
+export async function userFromResetCode(email, code) {
+  const res = await fetch(url('/verify'), { method: 'POST', headers: { apikey: key(), 'content-type': 'application/json' }, body: JSON.stringify({ type: 'recovery', email, token: code }) });
+  if (res.status === 429) throw Object.assign(new Error('Too many tries. Please wait a few minutes and try again.'), { status: 429 });
+  if (!res.ok) return null;
+  const s = await res.json();
+  const u = s?.user;
+  return u?.id && u?.email && u.email.toLowerCase() === email ? { id: u.id, email: u.email } : null;
+}
+
 // prompt=select_account: Google always asks which account to use, instead of quietly picking the one already signed in
 export const googleSignInUrl = (redirectTo) => `${url('/authorize')}?provider=google&redirect_to=${encodeURIComponent(redirectTo)}&prompt=select_account`;

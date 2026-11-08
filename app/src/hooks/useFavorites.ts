@@ -1,4 +1,4 @@
-// Favourite markets, shared through the query cache so every list on screen shows the same stars. Saved on this device.
+// Favourite markets, shared through the query cache so every list on screen shows the same stars. Saved on this device and the account, so they follow the person (lib/storage SYNCED).
 import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPref, setPref } from '@/lib/storage';

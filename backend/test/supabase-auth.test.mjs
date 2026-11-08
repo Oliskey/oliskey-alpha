@@ -2,7 +2,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { createUser, googleSignInUrl, passwordIsRight, sendReset, setPassword, userFromResetToken, userFromToken, usingSupabase } from '../src/supabaseAuth.js';
+import { createUser, googleSignInUrl, passwordIsRight, sendReset, setPassword, userFromResetCode, userFromResetToken, userFromToken, usingSupabase } from '../src/supabaseAuth.js';
 
 const seen = [];
 const jwt = (claims) => `x.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.y`;
@@ -19,6 +19,7 @@ before(async () => {
     if (req.url.startsWith('/auth/v1/token')) return body.password === 'right-password' ? send(200, { access_token: 't' }) : send(400, { msg: 'invalid' });
     if (req.url === '/auth/v1/admin/users/u1') return send(200, {});
     if (req.url === '/auth/v1/user') return ['Bearer good-token', `Bearer ${RESET}`, `Bearer ${LOGIN}`].includes(req.headers.authorization) ? send(200, { id: 'u1', email: 'a@x.test' }) : send(401, {});
+    if (req.url === '/auth/v1/verify') return body.type === 'recovery' && body.email === 'a@x.test' && body.token === '123456' ? send(200, { access_token: RESET, user: { id: 'u1', email: 'a@x.test' } }) : body.email === 'busy@x.test' ? send(429, {}) : send(403, { msg: 'Token has expired or is invalid' });
     if (req.url.startsWith('/auth/v1/recover')) return body.email === 'busy@x.test' ? send(429, {}) : send(200, {});
     return send(404, {});
   });
@@ -73,6 +74,14 @@ test('only a real reset token can change a password', async () => {
   assert.deepEqual(await userFromResetToken(RESET), { id: 'u1', email: 'a@x.test' });
   assert.equal(await userFromResetToken(LOGIN), null, 'an ordinary sign-in token is not enough');
   assert.equal(await userFromResetToken('nonsense'), null);
+});
+
+test('a 6-digit reset code works only when Supabase accepts it for that email', async () => {
+  assert.deepEqual(await userFromResetCode('a@x.test', '123456'), { id: 'u1', email: 'a@x.test' });
+  assert.equal(seen.at(-1).body.type, 'recovery');
+  assert.equal(await userFromResetCode('a@x.test', '000000'), null, 'a wrong code');
+  assert.equal(await userFromResetCode('b@x.test', '123456'), null, 'the right code for someone else');
+  await assert.rejects(userFromResetCode('busy@x.test', '123456'), (e) => e.status === 429);
 });
 
 test('the Google address comes back to this site', () => {

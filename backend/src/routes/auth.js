@@ -4,7 +4,7 @@ import { rateLimit } from 'express-rate-limit';
 import { pool } from '../db.js';
 import { DUMMY_HASH, hashPassword, requireAuth, signMfaTicket, signToken, verifyMfaTicket, verifyPassword } from '../auth.js';
 import { newSecret, otpauthUrl, verifyCode } from '../totp.js';
-import { createUser, googleSignInUrl, passwordIsRight, sendReset, setPassword, usingSupabase, userFromResetToken, userFromToken } from '../supabaseAuth.js';
+import { createUser, googleSignInUrl, passwordIsRight, sendReset, setPassword, usingSupabase, userFromResetCode, userFromResetToken, userFromToken } from '../supabaseAuth.js';
 
 export const authRouter = Router();
 // Sign-up / login / code attempts per IP per 15 minutes. Tests and CI raise it (they create many users).
@@ -152,17 +152,37 @@ authRouter.post('/forgot', async (req, res) => {
   if (!usingSupabase()) return res.status(501).json({ error: 'Password reset by email is not available here. Contact support to reset your password.' });
   const email = String(req.body?.email ?? '').trim().toLowerCase();
   if (!EMAIL.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
-  try { await sendReset(email, `${siteOf(req)}/reset`); } catch (err) { if (err.status === 429) return res.status(429).json({ error: err.message }); throw err; }
+  // Supabase limits reset emails per hour, but only for addresses with an account: answering "too many" would tell a stranger
+  // the address is registered. The answer is always the same; the screen says to wait a few minutes if nothing arrives.
+  try { await sendReset(email, `${siteOf(req)}/reset`); } catch (err) { if (err.status !== 429) throw err; console.warn('reset email held back: too many asked for'); }
   res.json({ ok: true });
 });
 
 // The new password from the reset page. Only a fresh reset token from Supabase is accepted, and it signs the person in.
+// Wrong reset codes per email: after 5 in 15 minutes that email waits, so a 6-digit code cannot be guessed (Supabase also limits tries).
+const wrongCodes = new Map();
+const CODE_TRIES = 5, CODE_WINDOW_MS = 15 * 60_000;
+const recent = (email) => (wrongCodes.get(email) ?? []).filter((t) => Date.now() - t < CODE_WINDOW_MS);
+const codeLocked = (email) => recent(email).length >= CODE_TRIES;
+const codeMissed = (email) => { wrongCodes.set(email, [...recent(email), Date.now()]); if (wrongCodes.size > 10_000) wrongCodes.clear(); };
+
 authRouter.post('/reset', async (req, res) => {
   if (!usingSupabase()) return res.status(404).json({ error: 'Not available.' });
   const password = String(req.body?.password ?? '');
   if (password.length < 8) return res.status(400).json({ error: 'Use at least 8 characters.' });
-  const who = await userFromResetToken(String(req.body?.accessToken ?? ''));
-  if (!who) return res.status(401).json({ error: 'This reset link is not valid or has expired. Ask for a new one.' });
+  // Either the 6-digit code from the email (with the email) or, from older emails, the token the reset link carried.
+  let who;
+  if (req.body?.code !== undefined) {
+    const email = String(req.body?.email ?? '').trim().toLowerCase(), code = String(req.body.code);
+    if (!EMAIL.test(email) || !/^\d{6}$/.test(code)) return res.status(400).json({ error: 'Enter your email and the 6-digit code from the email.' });
+    if (codeLocked(email)) return res.status(429).json({ error: 'Too many wrong codes. Wait 15 minutes, then ask for a new code.' });
+    try { who = await userFromResetCode(email, code); } catch (err) { if (err.status === 429) return res.status(429).json({ error: err.message }); throw err; }
+    if (!who) { codeMissed(email); return res.status(401).json({ error: 'This code is wrong or has expired. Check the email, or send a new code.' }); }
+    wrongCodes.delete(email);
+  } else {
+    who = await userFromResetToken(String(req.body?.accessToken ?? ''));
+    if (!who) return res.status(401).json({ error: 'This reset link is not valid or has expired. Ask for a new one.' });
+  }
   await setPassword(who.id, password);
   const { rows } = await pool.query(
     `select u.id, u.email, p.is_admin, exists (select 1 from admin_mfa m where m.user_id = u.id and m.enabled_at is not null) as mfa

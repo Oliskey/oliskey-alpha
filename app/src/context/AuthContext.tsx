@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, setApiToken, setOnUnauthorized } from '@/lib/api';
 import { turnOffPush } from '@/lib/push';
-import { loadToken, saveToken } from '@/lib/storage';
+import { applyPulledPrefs, clearSyncedPrefs, loadToken, saveToken, setPrefPusher } from '@/lib/storage';
 import { setStreamToken } from '@/lib/ws';
 
 type AuthState = {
@@ -19,6 +19,19 @@ type AuthState = {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+// The account's settings arrive before the screens open, so a phone signed in for the first time looks the way this person left it
+// elsewhere. Waits at most `wait` ms: offline, the screens open with this device's own copy, and changes are sent when back online.
+async function pullSettings(wait: number) {
+  try {
+    const r = await Promise.race([
+      api<{ prefs: Record<string, unknown> }>('/me/settings'),
+      new Promise<null>((res) => setTimeout(() => res(null), wait)),
+    ]);
+    if (r) await applyPulledPrefs(r.prefs);
+  } catch { /* offline: this device's copy is used */ }
+  setPrefPusher((name, value) => api('/me/settings', { method: 'PUT', body: { name, value } }));
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [token, setToken] = useState<string | null>(null);
@@ -28,8 +41,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setApiToken(t);
     setStreamToken(t);
     await saveToken(t);
+    if (t) await pullSettings(4000);
+    else { setPrefPusher(null); await clearSyncedPrefs(); }
     setToken(t);
     if (!t) queryClient.clear();
+    else { void queryClient.invalidateQueries({ queryKey: ['favorites'] }); void queryClient.invalidateQueries({ queryKey: ['signals-seen'] }); }
   }, [queryClient]);
 
   useEffect(() => {
@@ -45,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (fromGoogle && t) await saveToken(t);
       setApiToken(t);
       setStreamToken(t);
+      if (t) await pullSettings(2500);
       setToken(t);
       setReady(true);
     });

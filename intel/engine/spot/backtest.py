@@ -185,7 +185,7 @@ def evaluate(f: pd.DataFrame, spec: Spec, n_tests: int) -> dict:
                          if not t1.empty else {})}
     checks = {}
     if m1["trades"] < GATES.min_trades:
-        out.update(verdict="MORE_DATA", checks={"trades": f"{m1['trades']} < {GATES.min_trades}"})
+        out.update(verdict="MORE_DATA", checks={f"at least {GATES.min_trades} trades (has {m1.get('trades', 0)})": False})
         return out
     q = GATES.alpha / n_tests / 2
     means, dds = block_bootstrap(t1["r"].to_numpy())

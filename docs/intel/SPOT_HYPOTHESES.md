@@ -19,7 +19,16 @@ Multiple-testing tally (strategy x symbol tests run so far): **14** after batch 
 Lesson recorded: on 15m, costs are 0.5–0.9R per trade; scalping on spot at taker fees is not viable.
 Batch 2 therefore stays on 4h, where costs are about 0.05–0.1R.
 
-## Batch 2 (2026-11-10) — pre-registered, not yet tested
+## Batch 2 (2026-11-10) — pre-registered in commit bbbdce6, then tested once: 0 of 6 passed
+
+| Strategy | BTC/USDT | ETH/USDT | Verdict |
+| --- | --- | --- | --- |
+| range_reversion 0.1.0 | 11 trades, +0.23R | 8 trades, −0.65R | MORE_DATA (fires too rarely) |
+| squeeze_breakout 0.1.0 | 58 trades, +0.25R | 56 trades, +0.17R | MORE_DATA |
+| trend_breakout 0.1.0 | 70 trades, +0.51R | 68 trades, +0.17R | MORE_DATA |
+
+Positive averages on fewer than 100 trades are not evidence of an edge yet; they can be luck. Settings stay
+frozen. The honest way to get more evidence is forward data (shadow tracking), not re-tuning on the past.
 
 All long-only, 4h signal bars, 1d context, costs 0.12% per side, one position per strategy and symbol.
 

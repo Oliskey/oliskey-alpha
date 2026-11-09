@@ -1,15 +1,15 @@
 # AI Spot: strategy test results
 
-Generated 2026-11-09 22:59 UTC. Real Binance spot candles (BTC/USDT, ETH/USDT). Long-only, no leverage. Costs: 0.12% per side (0.10% taker fee + 0.02% spread/slippage), re-run at 1.5x and 2x. One position per strategy and symbol; 1% risk per trade for the equity curve.
+Generated 2026-11-09 23:45 UTC. Real Binance spot candles (BTC/USDT, ETH/USDT). Long-only, no leverage. Costs: 0.12% per side (0.10% taker fee + 0.02% spread/slippage), re-run at 1.5x and 2x. One position per strategy and symbol; 1% risk per trade for the equity curve.
 
-**0 of 8 strategy/symbol pairs passed every gate** and may run on PAPER only. Nothing here permits real money. A pass is evidence, not a promise: paper trading must confirm it.
+**0 of 14 strategy/symbol pairs passed every gate** and may run on PAPER only. Nothing here permits real money. A pass is evidence, not a promise: paper trading must confirm it.
 
 Run log: the first run (2026-11-09) required swing entries to close above EMA20, which the spec does not say. That was a coding error, fixed once to match the spec (a bullish close above EMA50). Both runs: 0 of 8 passed. No parameter was tuned on results.
 
 ## Gates (fixed before the first run, never loosened)
 
 - At least 100 trades, else MORE_DATA
-- Bootstrap lower bound of expectancy > 0 at 99.38% confidence (Bonferroni over 8 tests)
+- Bootstrap lower bound of expectancy > 0 at 99.64% confidence (Bonferroni over 14 tests)
 - Expectancy still > 0 with costs x1.5
 - At least 70% of 6 walk-forward windows profitable (windows with 10+ trades)
 - The sealed most-recent 20% of history is profitable
@@ -21,12 +21,18 @@ Run log: the first run (2026-11-09) required swing entries to close above EMA20,
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | strict_scalp | BTCUSDT | 15m | 15 | 6.7% | 0.60 | -1.18 | -1.065 | – | 0.04 | 14.9% | -1.499 | -1.933 | -0.925 | **MORE_DATA** |
 | strict_scalp | ETHUSDT | 15m | 15 | 20.0% | 0.56 | -1.05 | -0.727 | – | 0.13 | 11.3% | -0.936 | -1.192 | -0.404 | **MORE_DATA** |
-| balanced_scalp | BTCUSDT | 15m | 654 | 24.6% | 0.60 | -1.25 | -0.794 | -0.927 | 0.16 | 99.5% | -1.180 | -1.568 | -0.924 | **REJECTED** |
-| balanced_scalp | ETHUSDT | 15m | 701 | 30.8% | 0.71 | -1.12 | -0.559 | -0.667 | 0.28 | 98.1% | -0.818 | -1.076 | -0.685 | **REJECTED** |
+| balanced_scalp | BTCUSDT | 15m | 654 | 24.6% | 0.60 | -1.25 | -0.794 | -0.938 | 0.16 | 99.5% | -1.180 | -1.568 | -0.924 | **REJECTED** |
+| balanced_scalp | ETHUSDT | 15m | 701 | 30.8% | 0.71 | -1.12 | -0.559 | -0.674 | 0.28 | 98.1% | -0.818 | -1.076 | -0.685 | **REJECTED** |
 | strict_swing | BTCUSDT | 4h | 32 | 18.8% | 1.47 | -0.63 | -0.233 | – | 0.54 | 9.0% | -0.273 | -0.306 | -0.014 | **MORE_DATA** |
 | strict_swing | ETHUSDT | 4h | 20 | 25.0% | 2.06 | -0.63 | +0.041 | – | 1.09 | 7.2% | +0.015 | -0.011 | -0.648 | **MORE_DATA** |
-| balanced_swing | BTCUSDT | 4h | 191 | 27.2% | 1.92 | -0.67 | +0.039 | -0.205 | 1.08 | 15.2% | +0.001 | -0.030 | +0.082 | **REJECTED** |
-| balanced_swing | ETHUSDT | 4h | 177 | 26.0% | 1.94 | -0.74 | -0.040 | -0.273 | 0.93 | 13.8% | -0.052 | -0.074 | -0.283 | **REJECTED** |
+| balanced_swing | BTCUSDT | 4h | 191 | 27.2% | 1.92 | -0.67 | +0.039 | -0.217 | 1.08 | 15.2% | +0.001 | -0.030 | +0.082 | **REJECTED** |
+| balanced_swing | ETHUSDT | 4h | 177 | 26.0% | 1.94 | -0.74 | -0.040 | -0.279 | 0.93 | 13.8% | -0.052 | -0.074 | -0.283 | **REJECTED** |
+| range_reversion | BTCUSDT | 4h | 11 | 54.5% | 1.16 | -0.88 | +0.232 | – | 1.58 | 3.2% | +0.178 | +0.125 | +0.701 | **MORE_DATA** |
+| range_reversion | ETHUSDT | 4h | 8 | 25.0% | 0.65 | -1.09 | -0.652 | – | 0.20 | 5.1% | -0.693 | -0.735 | -0.193 | **MORE_DATA** |
+| squeeze_breakout | BTCUSDT | 4h | 58 | 37.9% | 1.59 | -0.57 | +0.249 | – | 1.70 | 6.0% | +0.223 | +0.183 | -0.513 | **MORE_DATA** |
+| squeeze_breakout | ETHUSDT | 4h | 56 | 37.5% | 1.58 | -0.68 | +0.168 | – | 1.40 | 6.0% | +0.149 | +0.131 | +0.005 | **MORE_DATA** |
+| trend_breakout | BTCUSDT | 4h | 70 | 38.6% | 2.34 | -0.63 | +0.514 | – | 2.32 | 4.2% | +0.489 | +0.464 | -0.174 | **MORE_DATA** |
+| trend_breakout | ETHUSDT | 4h | 68 | 36.8% | 1.52 | -0.62 | +0.169 | – | 1.43 | 5.9% | +0.152 | +0.135 | -0.216 | **MORE_DATA** |
 
 ## Detail per strategy
 
@@ -36,7 +42,7 @@ Hypothesis: In a strong 15m up-trend inside a 1h up-trend, a reset pullback to E
 
 Sharpe -2.19 · Sortino -0.51 · Calmar -0.61 · net return -14.9% · 0.7 trades/month · avg hold 5.3 bars · costs 0.897R per trade · capture 0.24 · exits {'stop': 7, 'time': 4, 'breakeven': 3, 'target': 1}
 
-- PASS: trades
+- FAIL: at least 100 trades (has 15)
 
 | Window | Trades | Expectancy R |
 | --- | ---: | ---: |
@@ -58,7 +64,7 @@ Hypothesis: In a strong 15m up-trend inside a 1h up-trend, a reset pullback to E
 
 Sharpe -1.85 · Sortino -0.49 · Calmar -0.58 · net return -10.4% · 0.8 trades/month · avg hold 5.0 bars · costs 0.460R per trade · capture 0.26 · exits {'stop': 8, 'time': 4, 'target': 2, 'breakeven': 1}
 
-- PASS: trades
+- FAIL: at least 100 trades (has 15)
 
 | Window | Trades | Expectancy R |
 | --- | ---: | ---: |
@@ -132,7 +138,7 @@ Hypothesis: In a confirmed daily up-trend, 4h pullbacks to EMA50 that close bull
 
 Sharpe -0.40 · Sortino -0.08 · Calmar -0.12 · net return -7.4% · 0.4 trades/month · avg hold 12.7 bars · costs 0.102R per trade · capture 0.60 · exits {'stop': 14, 'breakeven': 11, 'time': 4, 'target': 3}
 
-- PASS: trades
+- FAIL: at least 100 trades (has 32)
 
 | Window | Trades | Expectancy R |
 | --- | ---: | ---: |
@@ -154,7 +160,7 @@ Hypothesis: In a confirmed daily up-trend, 4h pullbacks to EMA50 that close bull
 
 Sharpe 0.11 · Sortino 0.02 · Calmar 0.01 · net return +0.7% · 0.2 trades/month · avg hold 14.8 bars · costs 0.070R per trade · capture 0.77 · exits {'stop': 8, 'breakeven': 5, 'target': 4, 'time': 3}
 
-- PASS: trades
+- FAIL: at least 100 trades (has 20)
 
 | Window | Trades | Expectancy R |
 | --- | ---: | ---: |
@@ -221,6 +227,140 @@ Sharpe -0.12 · Sortino -0.07 · Calmar -0.07 · net return -8.2% · 1.6 trades/
 | --- | ---: | ---: |
 | TRANSITIONAL | 17 | -0.404 |
 | TRENDING_UP | 160 | -0.002 |
+
+### range_reversion v0.1.0 on BTCUSDT (4h, context 1d)
+
+Hypothesis: In a ranging 4h market not in a daily down-trend, a close below the lower Bollinger Band with RSI < 30 reverts to the 20-bar mean often enough to pay after costs.
+
+Sharpe 0.27 · Sortino 0.60 · Calmar 0.13 · net return +2.5% · 0.2 trades/month · avg hold 7.3 bars · costs 0.107R per trade · capture 0.58 · exits {'time': 4, 'stop': 4, 'target': 3}
+
+- FAIL: at least 100 trades (has 11)
+
+| Window | Trades | Expectancy R |
+| --- | ---: | ---: |
+| 2017-08-17 to 2019-03-02 | 0 | – |
+| 2019-03-02 to 2020-09-13 | 3 | +0.734 |
+| 2020-09-13 to 2022-03-29 | 2 | -1.074 |
+| 2022-03-29 to 2023-10-12 | 3 | +0.131 |
+| 2023-10-12 to 2025-04-26 | 2 | +0.157 |
+| 2025-04-26 to 2026-11-09 | 1 | +1.790 |
+
+| Regime at entry | Trades | Expectancy R |
+| --- | ---: | ---: |
+| RANGING | 11 | +0.232 |
+
+### range_reversion v0.1.0 on ETHUSDT (4h, context 1d)
+
+Hypothesis: In a ranging 4h market not in a daily down-trend, a close below the lower Bollinger Band with RSI < 30 reverts to the 20-bar mean often enough to pay after costs.
+
+Sharpe -0.57 · Sortino -0.56 · Calmar -0.13 · net return -5.1% · 0.1 trades/month · avg hold 5.2 bars · costs 0.084R per trade · capture 0.51 · exits {'stop': 6, 'time': 2}
+
+- FAIL: at least 100 trades (has 8)
+
+| Window | Trades | Expectancy R |
+| --- | ---: | ---: |
+| 2017-08-17 to 2019-03-02 | 1 | -1.053 |
+| 2019-03-02 to 2020-09-13 | 2 | -0.246 |
+| 2020-09-13 to 2022-03-29 | 1 | -1.067 |
+| 2022-03-29 to 2023-10-12 | 2 | -1.108 |
+| 2023-10-12 to 2025-04-26 | 1 | +0.752 |
+| 2025-04-26 to 2026-11-09 | 1 | -1.138 |
+
+| Regime at entry | Trades | Expectancy R |
+| --- | ---: | ---: |
+| RANGING | 8 | -0.652 |
+
+### squeeze_breakout v0.1.0 on BTCUSDT (4h, context 1d)
+
+Hypothesis: After a volatility squeeze, a volume-confirmed close above the 20-bar high in a daily up-trend runs to 3R.
+
+Sharpe 0.44 · Sortino 0.18 · Calmar 0.32 · net return +14.9% · 0.7 trades/month · avg hold 22.8 bars · costs 0.062R per trade · capture 0.65 · exits {'time': 25, 'stop': 15, 'target': 9, 'breakeven': 9}
+
+- FAIL: at least 100 trades (has 58)
+
+| Window | Trades | Expectancy R |
+| --- | ---: | ---: |
+| 2017-08-17 to 2019-03-02 | 0 | – |
+| 2019-03-02 to 2020-09-13 | 8 | +0.470 |
+| 2020-09-13 to 2022-03-29 | 14 | +0.709 |
+| 2022-03-29 to 2023-10-12 | 7 | +0.155 |
+| 2023-10-12 to 2025-04-26 | 20 | +0.239 |
+| 2025-04-26 to 2026-11-09 | 9 | -0.570 |
+
+| Regime at entry | Trades | Expectancy R |
+| --- | ---: | ---: |
+| BREAKOUT | 58 | +0.249 |
+
+### squeeze_breakout v0.1.0 on ETHUSDT (4h, context 1d)
+
+Hypothesis: After a volatility squeeze, a volume-confirmed close above the 20-bar high in a daily up-trend runs to 3R.
+
+Sharpe 0.37 · Sortino 0.15 · Calmar 0.20 · net return +9.3% · 0.6 trades/month · avg hold 23.3 bars · costs 0.043R per trade · capture 0.60 · exits {'stop': 21, 'time': 17, 'target': 9, 'breakeven': 9}
+
+- FAIL: at least 100 trades (has 56)
+
+| Window | Trades | Expectancy R |
+| --- | ---: | ---: |
+| 2017-08-17 to 2019-03-02 | 0 | – |
+| 2019-03-02 to 2020-09-13 | 12 | +0.250 |
+| 2020-09-13 to 2022-03-29 | 22 | +0.224 |
+| 2022-03-29 to 2023-10-12 | 4 | +0.684 |
+| 2023-10-12 to 2025-04-26 | 13 | -0.184 |
+| 2025-04-26 to 2026-11-09 | 5 | +0.220 |
+
+| Regime at entry | Trades | Expectancy R |
+| --- | ---: | ---: |
+| BREAKOUT | 56 | +0.168 |
+
+### trend_breakout v0.1.0 on BTCUSDT (4h, context 1d)
+
+Hypothesis: A 4h close above the 55-bar high, above EMA200 in a daily up-trend, starts moves that a 20-bar-low trailing exit captures profitably.
+
+Sharpe 0.66 · Sortino 0.63 · Calmar 0.96 · net return +40.8% · 0.7 trades/month · avg hold 39.3 bars · costs 0.050R per trade · capture 0.51 · exits {'trail': 68, 'stop': 2}
+
+- FAIL: at least 100 trades (has 70)
+
+| Window | Trades | Expectancy R |
+| --- | ---: | ---: |
+| 2017-08-17 to 2019-03-02 | 1 | -1.025 |
+| 2019-03-02 to 2020-09-13 | 11 | +1.006 |
+| 2020-09-13 to 2022-03-29 | 19 | +0.967 |
+| 2022-03-29 to 2023-10-12 | 4 | +0.053 |
+| 2023-10-12 to 2025-04-26 | 24 | +0.400 |
+| 2025-04-26 to 2026-11-09 | 11 | -0.207 |
+
+| Regime at entry | Trades | Expectancy R |
+| --- | ---: | ---: |
+| BREAKOUT | 27 | +0.324 |
+| HIGH_VOLATILITY | 3 | +0.875 |
+| RANGING | 5 | -0.136 |
+| TRANSITIONAL | 9 | +0.757 |
+| TRENDING_UP | 26 | +0.709 |
+
+### trend_breakout v0.1.0 on ETHUSDT (4h, context 1d)
+
+Hypothesis: A 4h close above the 55-bar high, above EMA200 in a daily up-trend, starts moves that a 20-bar-low trailing exit captures profitably.
+
+Sharpe 0.34 · Sortino 0.25 · Calmar 0.25 · net return +11.3% · 0.8 trades/month · avg hold 34.4 bars · costs 0.033R per trade · capture 0.40 · exits {'trail': 64, 'stop': 4}
+
+- FAIL: at least 100 trades (has 68)
+
+| Window | Trades | Expectancy R |
+| --- | ---: | ---: |
+| 2017-08-17 to 2019-03-02 | 0 | – |
+| 2019-03-02 to 2020-09-13 | 11 | +0.476 |
+| 2020-09-13 to 2022-03-29 | 27 | +0.213 |
+| 2022-03-29 to 2023-10-12 | 6 | -0.488 |
+| 2023-10-12 to 2025-04-26 | 16 | +0.268 |
+| 2025-04-26 to 2026-11-09 | 8 | -0.110 |
+
+| Regime at entry | Trades | Expectancy R |
+| --- | ---: | ---: |
+| BREAKOUT | 30 | -0.066 |
+| HIGH_VOLATILITY | 4 | -0.292 |
+| RANGING | 5 | -0.102 |
+| TRANSITIONAL | 8 | +0.525 |
+| TRENDING_UP | 21 | +0.520 |
 
 ## Market state now (4h)
 

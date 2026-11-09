@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-09 22:59 UTC",
+  "generated_at": "2026-11-09 23:45 UTC",
   "mode_allowed": "paper_only",
   "gates": {
     "min_trades": 100,
@@ -85,7 +85,7 @@
       "trades": 15,
       "expectancy_low": null,
       "checks": {
-        "trades": "15 < 100"
+        "at least 100 trades (has 15)": false
       }
     },
     {
@@ -98,7 +98,7 @@
       "trades": 15,
       "expectancy_low": null,
       "checks": {
-        "trades": "15 < 100"
+        "at least 100 trades (has 15)": false
       }
     },
     {
@@ -109,7 +109,7 @@
       "verdict": "REJECTED",
       "expectancy_r": -0.7939419577812112,
       "trades": 654,
-      "expectancy_low": -0.9270046716326827,
+      "expectancy_low": -0.9378871922730817,
       "checks": {
         "expectancy lower bound > 0 (1x costs)": false,
         "expectancy > 0 at 1.5x costs": false,
@@ -126,7 +126,7 @@
       "verdict": "REJECTED",
       "expectancy_r": -0.5587806140120432,
       "trades": 701,
-      "expectancy_low": -0.6673951477848006,
+      "expectancy_low": -0.6736250032572709,
       "checks": {
         "expectancy lower bound > 0 (1x costs)": false,
         "expectancy > 0 at 1.5x costs": false,
@@ -145,7 +145,7 @@
       "trades": 32,
       "expectancy_low": null,
       "checks": {
-        "trades": "32 < 100"
+        "at least 100 trades (has 32)": false
       }
     },
     {
@@ -158,7 +158,7 @@
       "trades": 20,
       "expectancy_low": null,
       "checks": {
-        "trades": "20 < 100"
+        "at least 100 trades (has 20)": false
       }
     },
     {
@@ -169,7 +169,7 @@
       "verdict": "REJECTED",
       "expectancy_r": 0.0388564877896491,
       "trades": 191,
-      "expectancy_low": -0.20468162699114775,
+      "expectancy_low": -0.2172180704398382,
       "checks": {
         "expectancy lower bound > 0 (1x costs)": false,
         "expectancy > 0 at 1.5x costs": true,
@@ -186,13 +186,91 @@
       "verdict": "REJECTED",
       "expectancy_r": -0.04048878637927836,
       "trades": 177,
-      "expectancy_low": -0.2725830728015024,
+      "expectancy_low": -0.27936674325479394,
       "checks": {
         "expectancy lower bound > 0 (1x costs)": false,
         "expectancy > 0 at 1.5x costs": false,
         ">= 70% of folds profitable": false,
         "sealed test (last 20%) expectancy > 0": false,
         "bootstrap 95th pct drawdown <= 25%": false
+      }
+    },
+    {
+      "strategy_id": "range_reversion",
+      "version": "0.1.0",
+      "symbol": "BTCUSDT",
+      "timeframe": "4h",
+      "verdict": "MORE_DATA",
+      "expectancy_r": 0.23202038960623925,
+      "trades": 11,
+      "expectancy_low": null,
+      "checks": {
+        "at least 100 trades (has 11)": false
+      }
+    },
+    {
+      "strategy_id": "range_reversion",
+      "version": "0.1.0",
+      "symbol": "ETHUSDT",
+      "timeframe": "4h",
+      "verdict": "MORE_DATA",
+      "expectancy_r": -0.6515538808577103,
+      "trades": 8,
+      "expectancy_low": null,
+      "checks": {
+        "at least 100 trades (has 8)": false
+      }
+    },
+    {
+      "strategy_id": "squeeze_breakout",
+      "version": "0.1.0",
+      "symbol": "BTCUSDT",
+      "timeframe": "4h",
+      "verdict": "MORE_DATA",
+      "expectancy_r": 0.24854232100866044,
+      "trades": 58,
+      "expectancy_low": null,
+      "checks": {
+        "at least 100 trades (has 58)": false
+      }
+    },
+    {
+      "strategy_id": "squeeze_breakout",
+      "version": "0.1.0",
+      "symbol": "ETHUSDT",
+      "timeframe": "4h",
+      "verdict": "MORE_DATA",
+      "expectancy_r": 0.16750281102171985,
+      "trades": 56,
+      "expectancy_low": null,
+      "checks": {
+        "at least 100 trades (has 56)": false
+      }
+    },
+    {
+      "strategy_id": "trend_breakout",
+      "version": "0.1.0",
+      "symbol": "BTCUSDT",
+      "timeframe": "4h",
+      "verdict": "MORE_DATA",
+      "expectancy_r": 0.5137884171414014,
+      "trades": 70,
+      "expectancy_low": null,
+      "checks": {
+        "at least 100 trades (has 70)": false
+      }
+    },
+    {
+      "strategy_id": "trend_breakout",
+      "version": "0.1.0",
+      "symbol": "ETHUSDT",
+      "timeframe": "4h",
+      "verdict": "MORE_DATA",
+      "expectancy_r": 0.1685201868216694,
+      "trades": 68,
+      "expectancy_low": null,
+      "checks": {
+        "at least 100 trades (has 68)": false
       }
     }
   ]

@@ -37,6 +37,7 @@ def flat(rows: list[tuple]) -> pd.DataFrame:
     idx = pd.date_range("2024-01-01", periods=len(rows), freq="4h", tz="UTC").as_unit("ns")
     df = pd.DataFrame(rows, columns=["open", "high", "low", "close"], index=idx)
     df["swing_low10"], df["atr"], df["regime"] = 95.0, 1.0, "TRENDING_UP"
+    df["low20"], df["bb_mid"] = df["low"].rolling(3, min_periods=1).min(), 103.0
     return df
 
 
@@ -101,6 +102,22 @@ rows_ = [(100, 100, 100, 100)] + [(100, 100.5, 99.5, 100)] * 40
 t = one_trade(rows_)
 check("time stop closes a trade that goes nowhere", t["reason"].iloc[0] == "time" and t["bars"].iloc[0] == spec.time_stop_bars)
 check("every strategy is long-only (no short rule exists)", all(entries(prepare(b, bars(260, "1D"), s), s).dtype == bool for s in SPECS[2:]))
+
+tb = BY_ID["trend_breakout"]
+t = one_trade([(100, 100, 100, 100), (100, 101, 99.5, 101), (101, 110, 100.5, 109), (109, 120, 108, 119),
+               (119, 121, 118, 120), (120, 120, 112, 113), (113, 113, 105, 106)], tb)
+check("trailing stop only moves up and exits as 'trail' above the first stop",
+      t["reason"].iloc[0] == "trail" and t["exit"].iloc[0] >= 108 and t["r"].iloc[0] > 0)
+rr = BY_ID["range_reversion"]
+t = one_trade([(100, 100, 100, 100), (100, 101, 99.5, 100.5), (100.5, 104, 100, 103.5)], rr)
+check("mean reversion exits at the band middle fixed at the signal bar", t["reason"].iloc[0] == "target" and t["exit"].iloc[0] == 103.0)
+df_skip = flat([(100, 100, 100, 100), (104, 104.5, 103.5, 104), (104, 105, 103, 104)])
+orig = bt.entries
+bt.entries = lambda f, s: pd.Series([True] + [False] * (len(f) - 1), index=f.index)
+check("mean reversion skips a trade whose target is not above the entry", bt.run(df_skip, rr, 1.0).empty)
+bt.entries = orig
+check("batch-2 strategies are registered with their own family and version",
+      {s.strategy_id for s in SPECS if s.batch == 2} == {"range_reversion", "squeeze_breakout", "trend_breakout"})
 
 # --- metrics and gates -----------------------------------------------------------------------------------------
 tr = pd.DataFrame({"r": [1.0, -1.0] * 60, "entry_at": pd.date_range("2024-01-01", periods=120, freq="D", tz="UTC"),

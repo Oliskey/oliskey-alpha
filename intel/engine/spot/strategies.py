@@ -40,6 +40,10 @@ class Spec:
     max_spread_pct: float
     cost_per_side: float       # fee + half spread + slippage, fraction of price, per side (stressed in tests)
     hypothesis: str
+    family: str = "trend_pullback"
+    target_mode: str = "r"        # r = target_r x risk | bb_mid = band middle at the signal bar | none = no target
+    trail: str = "none"           # none | low20 = stop trails up to the 20-bar low (never down)
+    batch: int = 1
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -56,6 +60,16 @@ SPECS = (
          "often than the 29% a 2.5R target needs to break even after costs."),
     Spec("balanced_swing", "0.1.0", "swing", "4h", "1d", "not_down", 20, 38, 65, 0.0, 2.0, 2.0, 42, 0.0, 0.001,
          0.0012, "Pullbacks to the EMA20-EMA50 band in a 4h up-trend that is not against the daily trend."),
+    # Batch 2, pre-registered in docs/intel/SPOT_HYPOTHESES.md on 2026-11-10 before any test.
+    Spec("range_reversion", "0.1.0", "swing", "4h", "1d", "not_down", 0, 0, 30, 0.0, 1.5, 1.0, 12, 99.0, 0.001,
+         0.0012, "In a ranging 4h market not in a daily down-trend, a close below the lower Bollinger Band with RSI < 30 "
+         "reverts to the 20-bar mean often enough to pay after costs.", "mean_reversion", "bb_mid", "none", 2),
+    Spec("squeeze_breakout", "0.1.0", "swing", "4h", "1d", "up", 0, 0, 100, 1.5, 2.0, 3.0, 30, 1.0, 0.001, 0.0012,
+         "After a volatility squeeze, a volume-confirmed close above the 20-bar high in a daily up-trend runs to 3R.",
+         "breakout", "r", "none", 2),
+    Spec("trend_breakout", "0.1.0", "swing", "4h", "1d", "up", 0, 0, 100, 0.0, 2.0, 0.0, 10**9, -1e9, 0.001, 0.0012,
+         "A 4h close above the 55-bar high, above EMA200 in a daily up-trend, starts moves that a 20-bar-low trailing "
+         "exit captures profitably.", "trend_breakout", "none", "low20", 2),
 )
 BY_ID = {s.strategy_id: s for s in SPECS}
 
@@ -90,6 +104,18 @@ def entries(f: pd.DataFrame, spec: Spec) -> pd.Series:
     """True where the strategy wants to OPEN_LONG at the next bar's open. Never a short."""
     c = f["close"]
     ctx_ok = f["ctx_up"] if spec.context_rule == "up" else ~f["ctx_down"]
+    calm = f["vol_rank"] <= 0.90
+    known = f["regime"] != "UNKNOWN"
+    if spec.strategy_id == "range_reversion":
+        sig = (f["regime"] == "RANGING") & (c < f["bb_low"]) & (f["rsi"] < spec.rsi_high) & (f["bb_mid"] > c)
+        return (ctx_ok & sig & calm & known).fillna(False)
+    if spec.strategy_id == "squeeze_breakout":
+        squeeze = f["bb_width_rank"].rolling(5, min_periods=5).min() < 0.25
+        sig = squeeze & (c > f["range_high20"]) & (f["vol_ratio"] >= spec.vol_confirm)
+        return (ctx_ok & sig & calm & known).fillna(False)
+    if spec.strategy_id == "trend_breakout":
+        sig = (c > f["high55_prev"]) & (c > f["ema200"])
+        return (ctx_ok & sig & known).fillna(False)
     trend = (f["ema20"] > f["ema50"]) & (f["adx"] >= spec.adx_min) & (f["ema50_slope"] > 0)
     if spec.strategy_id == "strict_scalp":
         trend &= f["ema20_slope"] > 0
@@ -106,8 +132,6 @@ def entries(f: pd.DataFrame, spec: Spec) -> pd.Series:
     reclaimed = (c > level) & (c > f["open"])
     rsi_ok = f["rsi"].between(spec.rsi_low, spec.rsi_high)
     vol_ok = f["vol_ratio"] >= spec.vol_confirm if spec.vol_confirm else pd.Series(True, index=f.index)
-    calm = f["vol_rank"] <= 0.90                                # no entries in the top 10% volatility
-    known = f["regime"] != "UNKNOWN"
     return (ctx_ok & trend & touched & reclaimed & rsi_ok & vol_ok & calm & known).fillna(False)
 
 

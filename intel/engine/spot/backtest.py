@@ -26,6 +26,7 @@ def run(f: pd.DataFrame, spec: Spec, cost_mult: float = 1.0) -> pd.DataFrame:
     o, h, l, c = (f[k].to_numpy() for k in ("open", "high", "low", "close"))
     cost = spec.cost_per_side * cost_mult
     idx, regimes = f.index, f["regime"].to_numpy()
+    low20 = f["low20"].to_numpy() if spec.trail == "low20" else None
     trades, i, n = [], 0, len(f)
     while i < n - 1:
         if not sig[i]:
@@ -38,14 +39,22 @@ def run(f: pd.DataFrame, spec: Spec, cost_mult: float = 1.0) -> pd.DataFrame:
         if not np.isfinite(stop) or risk <= 0:
             i += 1
             continue
-        target = entry + spec.target_r * risk
+        if spec.target_mode == "bb_mid":
+            target = float(f["bb_mid"].iloc[i])
+            if not target > entry * (1 + 2 * cost):     # nothing to gain after costs: skip, as pre-registered
+                i += 1
+                continue
+        elif spec.target_mode == "none":
+            target = np.inf
+        else:
+            target = entry + spec.target_r * risk
         protected = False
         mfe = mae = 0.0
         exit_px, reason, j = None, None, e_i
         while j < n:
             # 1) stop first (gap-aware)
             if l[j] <= stop:
-                exit_px, reason = (o[j] if o[j] < stop else stop), ("breakeven" if protected else "stop")
+                exit_px, reason = (o[j] if o[j] < stop else stop), ("breakeven" if protected else ("trail" if stop > entry - risk else "stop"))
                 mae = min(mae, (min(l[j], exit_px) - entry) / risk)
                 break
             # 2) target (a gap above the target fills at the open, which is better: still capped at open)
@@ -60,8 +69,11 @@ def run(f: pd.DataFrame, spec: Spec, cost_mult: float = 1.0) -> pd.DataFrame:
             if held >= spec.time_stop_bars and (c[j] - entry) / risk < spec.time_stop_min_r:
                 exit_px, reason = c[j], "time"
                 break
-            # 4) PROTECT: once +1R was reached, the stop moves to break-even (incl. costs) from the next bar
-            if not protected and spec.target_r > 1.0 and h[j] >= entry + risk:
+            # 4) TRAIL: the stop moves up to the 20-bar low (known at this bar's close), used from the next bar
+            if low20 is not None and np.isfinite(low20[j]) and low20[j] > stop:
+                stop = low20[j]
+            # 5) PROTECT: once +1R was reached, the stop moves to break-even (incl. costs) from the next bar
+            if not protected and spec.target_mode == "r" and spec.target_r > 1.0 and h[j] >= entry + risk:
                 stop = entry * (1 + 2 * cost)
                 protected = True
             j += 1

@@ -39,6 +39,9 @@ def features(df: pd.DataFrame) -> pd.DataFrame:
     out["range_high20"] = out["high"].rolling(20, min_periods=20).max().shift(1)   # previous 20 bars only
     bb_mid = c.rolling(20, min_periods=20).mean()
     bb_sd = c.rolling(20, min_periods=20).std()
+    out["bb_mid"], out["bb_low"] = bb_mid, bb_mid - 2 * bb_sd
+    out["low20"] = out["low"].rolling(20, min_periods=20).min()
+    out["high55_prev"] = out["high"].rolling(55, min_periods=55).max().shift(1)
     out["bb_width"] = 4 * bb_sd / bb_mid
     out["bb_width_rank"] = trailing_rank(out["bb_width"], VOL_WINDOW)
     out["bar_no"] = np.arange(len(out))

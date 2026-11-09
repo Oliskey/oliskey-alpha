@@ -47,3 +47,12 @@ AI TRADING FOR USERS (owner decisions 2026-11-06, backend/src/intel.js):
 - Each user chooses Always ask or Auto trade, per kind of money. Demo starts on Auto trade, real money on Always ask. Minimum 100 per trade, user may raise it.
 - A user's money only goes to groups whose tests earn and that are not paused. Hard limits: 15% of the money per trade, 50% open at once.
 - Real-money auto trade only stores the user's choice. It must not run until the REAL-MONEY GATE above is met, and the lawyer's sign-off must cover it.
+
+AI SPOT (added 2026-11-09, docs/spot/SPEC.md): long-only BTC/USDT and ETH/USDT spot research. PAPER ONLY.
+- Engine: intel/engine/spot (data checks, Market Intelligence, strategies, cost-aware stop-first backtest, walk-forward,
+  bootstrap, gates). Hypotheses are written in docs/intel/SPOT_HYPOTHESES.md and committed BEFORE any test; settings
+  are never changed after seeing results. Results: docs/intel/SPOT_RESULTS.md and docs/intel/spot_registry.json.
+- Commands: npm run spot:test (no network), npm run spot:fetch (Binance history), npm run spot:lab (tests all strategies).
+- Backend: backend/src/spot (contracts, deterministic Risk Manager, kill switch in %LOCALAPPDATA%/oliskey-alpha or /data,
+  paper exchange, pipeline). Only strategies the lab marks APPROVED_FOR_PAPER may trade, only on paper.
+  GET /spot/status is read-only. There is NO real-money path for AI Spot; it falls under the REAL-MONEY GATE above.

@@ -17,7 +17,10 @@
     "start": "node scripts/run-server.mjs",
     "start:all": "npm run db:up && npm start",
     "test": "npm test -w backend",
-    "app:dev": "npm run web -w app"
+    "app:dev": "npm run web -w app",
+    "spot:test": "node scripts/spot.mjs test",
+    "spot:fetch": "node scripts/spot.mjs fetch",
+    "spot:lab": "node scripts/spot.mjs lab"
   },
   "engines": {
     "node": ">=22.13"

@@ -188,7 +188,11 @@ const orders = startOrders({ engine, settlement, push: stream.push });
 app.use(ordersRouter({ engine, orders }));
 app.use(paymentsRouter);
 app.use(pushRouter);
-app.use(spotRouter({ killSwitch: new KillSwitch(fileURLToPath(new URL('../.data/spot-kill-switch.json', import.meta.url))) }));
+// AI Spot kill switch lives on the permanent disk (Railway /data, Windows %LOCALAPPDATA%), so a restart or deploy never clears it.
+const SPOT_KILL_SWITCH = process.env.LOCALAPPDATA
+  ? path.join(process.env.LOCALAPPDATA, 'oliskey-alpha', 'spot-kill-switch.json')
+  : fileURLToPath(new URL('../.data/spot-kill-switch.json', import.meta.url));
+app.use(spotRouter({ killSwitch: new KillSwitch(SPOT_KILL_SWITCH) }));
 app.use('/admin', requireAdmin, adminRouter);
 app.use('/intel', signalRouter({ engine, settlement, orders }));
 app.use('/intel', intelRouter);

@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import zlib from 'node:zlib';
@@ -23,6 +24,8 @@ import { paymentsRouter, paystackWebhook } from './routes/payments.js';
 import { adminRouter } from './routes/admin.js';
 import { intelRouter, signalRouter, startIntel, startPaperTrading, startSignalAlerts } from './intel.js';
 import { pushRouter } from './webPush.js';
+import { spotRouter } from './routes/spot.js';
+import { KillSwitch } from './spot/risk.js';
 import { whenLeader } from './leader.js';
 import { setNotifyPush } from './notify.js';
 
@@ -185,6 +188,7 @@ const orders = startOrders({ engine, settlement, push: stream.push });
 app.use(ordersRouter({ engine, orders }));
 app.use(paymentsRouter);
 app.use(pushRouter);
+app.use(spotRouter({ killSwitch: new KillSwitch(fileURLToPath(new URL('../.data/spot-kill-switch.json', import.meta.url))) }));
 app.use('/admin', requireAdmin, adminRouter);
 app.use('/intel', signalRouter({ engine, settlement, orders }));
 app.use('/intel', intelRouter);

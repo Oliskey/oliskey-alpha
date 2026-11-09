@@ -32,3 +32,6 @@ intel/models/
 
 # Supabase CLI temp files
 supabase/.temp/
+
+# AI Spot candle store, rebuilt by intel/fetch_spot_history.py
+intel/data/

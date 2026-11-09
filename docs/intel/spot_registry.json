@@ -1,0 +1,199 @@
+{
+  "generated_at": "2026-11-09 22:59 UTC",
+  "mode_allowed": "paper_only",
+  "gates": {
+    "min_trades": 100,
+    "alpha": 0.05,
+    "min_fold_share": 0.7,
+    "max_dd_p95_pct": 25.0,
+    "sealed_share": 0.2
+  },
+  "market_state": {
+    "BTCUSDT": {
+      "schemaVersion": "1.0",
+      "symbol": "BTC/USDT",
+      "timeframe": "4h",
+      "asOf": "2026-11-09 04:00:00+00:00",
+      "regime": "TRENDING_DOWN",
+      "trendDirection": "DOWN",
+      "trendStrength": 38.9,
+      "volatilityPercentile": 66.0,
+      "uncertainty": 0.0,
+      "recommended": [],
+      "avoid": [
+        "trend_following_long",
+        "pullback_long"
+      ],
+      "evidence": [
+        "close 73870.02 vs EMA50 76951.58 vs EMA200 79496.57",
+        "ADX 38.9 (strength only)",
+        "volatility percentile 66"
+      ],
+      "levels": [
+        {
+          "kind": "SUPPORT",
+          "price": 73510.0
+        },
+        {
+          "kind": "RESISTANCE",
+          "price": 76416.24
+        }
+      ],
+      "dataQuality": "OK"
+    },
+    "ETHUSDT": {
+      "schemaVersion": "1.0",
+      "symbol": "ETH/USDT",
+      "timeframe": "4h",
+      "asOf": "2026-11-09 04:00:00+00:00",
+      "regime": "TRENDING_DOWN",
+      "trendDirection": "DOWN",
+      "trendStrength": 36.4,
+      "volatilityPercentile": 85.8,
+      "uncertainty": 0.0,
+      "recommended": [],
+      "avoid": [
+        "trend_following_long",
+        "pullback_long"
+      ],
+      "evidence": [
+        "close 2094.01 vs EMA50 2258.60 vs EMA200 2363.67",
+        "ADX 36.4 (strength only)",
+        "volatility percentile 86"
+      ],
+      "levels": [
+        {
+          "kind": "SUPPORT",
+          "price": 2060.0
+        },
+        {
+          "kind": "RESISTANCE",
+          "price": 2262.04
+        }
+      ],
+      "dataQuality": "OK"
+    }
+  },
+  "strategies": [
+    {
+      "strategy_id": "strict_scalp",
+      "version": "0.1.0",
+      "symbol": "BTCUSDT",
+      "timeframe": "15m",
+      "verdict": "MORE_DATA",
+      "expectancy_r": -1.064808137810473,
+      "trades": 15,
+      "expectancy_low": null,
+      "checks": {
+        "trades": "15 < 100"
+      }
+    },
+    {
+      "strategy_id": "strict_scalp",
+      "version": "0.1.0",
+      "symbol": "ETHUSDT",
+      "timeframe": "15m",
+      "verdict": "MORE_DATA",
+      "expectancy_r": -0.727269863643262,
+      "trades": 15,
+      "expectancy_low": null,
+      "checks": {
+        "trades": "15 < 100"
+      }
+    },
+    {
+      "strategy_id": "balanced_scalp",
+      "version": "0.1.0",
+      "symbol": "BTCUSDT",
+      "timeframe": "15m",
+      "verdict": "REJECTED",
+      "expectancy_r": -0.7939419577812112,
+      "trades": 654,
+      "expectancy_low": -0.9270046716326827,
+      "checks": {
+        "expectancy lower bound > 0 (1x costs)": false,
+        "expectancy > 0 at 1.5x costs": false,
+        ">= 70% of folds profitable": false,
+        "sealed test (last 20%) expectancy > 0": false,
+        "bootstrap 95th pct drawdown <= 25%": false
+      }
+    },
+    {
+      "strategy_id": "balanced_scalp",
+      "version": "0.1.0",
+      "symbol": "ETHUSDT",
+      "timeframe": "15m",
+      "verdict": "REJECTED",
+      "expectancy_r": -0.5587806140120432,
+      "trades": 701,
+      "expectancy_low": -0.6673951477848006,
+      "checks": {
+        "expectancy lower bound > 0 (1x costs)": false,
+        "expectancy > 0 at 1.5x costs": false,
+        ">= 70% of folds profitable": false,
+        "sealed test (last 20%) expectancy > 0": false,
+        "bootstrap 95th pct drawdown <= 25%": false
+      }
+    },
+    {
+      "strategy_id": "strict_swing",
+      "version": "0.1.0",
+      "symbol": "BTCUSDT",
+      "timeframe": "4h",
+      "verdict": "MORE_DATA",
+      "expectancy_r": -0.23303045357373736,
+      "trades": 32,
+      "expectancy_low": null,
+      "checks": {
+        "trades": "32 < 100"
+      }
+    },
+    {
+      "strategy_id": "strict_swing",
+      "version": "0.1.0",
+      "symbol": "ETHUSDT",
+      "timeframe": "4h",
+      "verdict": "MORE_DATA",
+      "expectancy_r": 0.04099200083029086,
+      "trades": 20,
+      "expectancy_low": null,
+      "checks": {
+        "trades": "20 < 100"
+      }
+    },
+    {
+      "strategy_id": "balanced_swing",
+      "version": "0.1.0",
+      "symbol": "BTCUSDT",
+      "timeframe": "4h",
+      "verdict": "REJECTED",
+      "expectancy_r": 0.0388564877896491,
+      "trades": 191,
+      "expectancy_low": -0.20468162699114775,
+      "checks": {
+        "expectancy lower bound > 0 (1x costs)": false,
+        "expectancy > 0 at 1.5x costs": true,
+        ">= 70% of folds profitable": false,
+        "sealed test (last 20%) expectancy > 0": true,
+        "bootstrap 95th pct drawdown <= 25%": false
+      }
+    },
+    {
+      "strategy_id": "balanced_swing",
+      "version": "0.1.0",
+      "symbol": "ETHUSDT",
+      "timeframe": "4h",
+      "verdict": "REJECTED",
+      "expectancy_r": -0.04048878637927836,
+      "trades": 177,
+      "expectancy_low": -0.2725830728015024,
+      "checks": {
+        "expectancy lower bound > 0 (1x costs)": false,
+        "expectancy > 0 at 1.5x costs": false,
+        ">= 70% of folds profitable": false,
+        "sealed test (last 20%) expectancy > 0": false,
+        "bootstrap 95th pct drawdown <= 25%": false
+      }
+    }
+  ]
+}

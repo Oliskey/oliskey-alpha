@@ -64,3 +64,4 @@ jobs:
           python-version: '3.14'
       - run: pip install -r intel/requirements.txt
       - run: python intel/selftest.py
+      - run: python intel/selftest_spot.py   # AI Spot engine: no look-ahead, stop-first, costs, gates

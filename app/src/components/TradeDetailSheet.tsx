@@ -51,7 +51,7 @@ export function TradeDetailSheet({ trade, accountType = 'DEMO', onClose }: { tra
   const closedText = t?.closed_early ? 'early, by you' : { win: 'with a profit', loss: 'with a loss', refund: 'refunded' }[t?.result ?? 'refund'];
 
   return (
-    <Sheet open={!!trade} onClose={onClose} fullHeight>
+    <Sheet half open={!!trade} onClose={onClose}>
       {trade ? (
         <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 20, gap: 12 }}>
           <TradeCard trade={trade} accountType={accountType} />

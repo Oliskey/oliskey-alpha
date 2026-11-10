@@ -672,20 +672,20 @@ export function Terminal() {
       {/* sheets */}
       <OrderFlowSheet assetId={assetId} tf={chartTf} open={flowOpen} onClose={() => setFlowOpen(false)} />
       <ActiveTradeSheet trade={activeTrade} accountType={accType} onClose={() => setActiveId(null)} />
-      <Sheet open={!!groupIds} onClose={() => setGroupIds(null)}>
-        <View style={{ paddingHorizontal: SIDE, paddingBottom: 20, gap: 8 }}>
+      <Sheet half open={!!groupIds} onClose={() => setGroupIds(null)}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: SIDE, paddingBottom: 20, gap: 8 }}>
           <Txt style={{ fontSize: 17, fontFamily: font.bold, textAlign: 'center', marginBottom: 4 }}>{groupIds?.length} trades here</Txt>
           {(openTrades.data ?? []).filter((t) => groupIds?.includes(t.id)).map((t) => (
             <TradeCard key={t.id} trade={t} accountType={accType} livePrice={price ?? undefined} now={now}
               onPress={() => { setGroupIds(null); setActiveId(t.id); }} />
           ))}
-        </View>
+        </ScrollView>
       </Sheet>
       <AccountsSheet open={sheet === 'accounts'} onClose={() => setSheet(null)} />
       <DepositSheet open={sheet === 'deposit'} onClose={() => setSheet(null)} />
 
-      <Sheet open={sheet === 'asset'} onClose={() => setSheet(null)}>
-        <View style={{ paddingHorizontal: SIDE, gap: 8 }}>
+      <Sheet half open={sheet === 'asset'} onClose={() => setSheet(null)}>
+        <View style={{ paddingHorizontal: SIDE, gap: 8, flex: 1, minHeight: 0 }}>
           <View style={styles.search}>
             <Search size={18} color={colors.muted} />
             <TextInput value={assetQuery} onChangeText={setAssetQuery} placeholder="Search assets" placeholderTextColor={colors.muted}
@@ -699,7 +699,7 @@ export function Terminal() {
               </Press>
             ))}
           </SideScroll>
-          <ScrollView style={{ maxHeight: 440 }}>
+          <ScrollView style={{ flex: 1 }}>
             {filteredAssets.map((a) => (
               <Press key={a.id} style={styles.pickRow} haptic={false} onPress={() => { setAssetId(a.id); setSheet(null); }}>
                 <AssetIcon id={a.id} size={28} />
@@ -711,11 +711,11 @@ export function Terminal() {
         </View>
       </Sheet>
 
-      <Sheet open={sheet === 'draw'} onClose={() => { setSheet(null); setEditInd(null); }}>
-        <View style={{ paddingHorizontal: SIDE, flexShrink: 1 }}>{analysisPanel(true)}</View>
+      <Sheet half open={sheet === 'draw'} onClose={() => { setSheet(null); setEditInd(null); }}>
+        <View style={{ paddingHorizontal: SIDE, flex: 1, minHeight: 0 }}>{analysisPanel(true)}</View>
       </Sheet>
-      <Sheet open={sheet === 'signals'} onClose={() => setSheet(null)}>
-        <View style={{ paddingHorizontal: SIDE, flexShrink: 1, gap: 8 }}>
+      <Sheet half open={sheet === 'signals'} onClose={() => setSheet(null)}>
+        <View style={{ paddingHorizontal: SIDE, flex: 1, minHeight: 0, gap: 8 }}>
           <Txt style={styles.sheetTitle}>Signals</Txt>
           <SignalsPanel assetId={assetId} selectedId={signalId} onOpen={openSignal} onBack={() => { setSignalId(null); setPlanOn(false); }} onSeeChart={() => { setPlanOn(true); setSheet(null); }} />
         </View>

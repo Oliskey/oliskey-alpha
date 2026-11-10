@@ -43,8 +43,8 @@ Apple's Liquid Glass, not Apple's renderer.
 - Reduced motion: tint and dim only. Keyboard focus: a violet ring.
 - Switches (`Toggle` in `ui/kit.tsx`, owner 2026-11-05): vivid green track (`upVivid`, at least 3:1 against the page), white pill knob wider than tall. While pressed or sliding, the knob becomes a clear glass drop that grows past the track, then settles back to white. Never the stock browser or system switch. Reduced motion: no glass or stretch.
 - Motion system (2026-11-10): every duration and curve comes from `app/src/ui/motion.ts` (respond / glide / exit / standard).
-  Sheets glide in 380 ms and leave in 240 ms with no overshoot; dialogs grow from 96%; banners fade and drop in, fade out;
-  pages: main tabs 140 ms fade, other pages fade in rising 10 px (`ScreenEnter` in the tabs layout, not the navigator's fade,
+  Sheets glide in 340 ms and leave in 240 ms with no overshoot; long sheets (assets, signals, chart tools, trades here, trade details) stop at the middle first and go to 90% on drag or scroll (300 ms); dialogs grow from 96%; banners fade and drop in, fade out;
+  pages: main tabs switch at once, other pages rise 12 px fully opaque (no fades: they blinked) (`ScreenEnter` in the tabs layout, not the navigator's fade,
   which flashed the previous tab); the five most used pages are prepared after Home. Late content uses `ui/FadeIn.tsx`.
   Full reasoning: `docs/design/PRINCIPLES.md`.
 

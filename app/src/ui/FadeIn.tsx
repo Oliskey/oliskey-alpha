@@ -5,8 +5,9 @@ import { Animated, Platform, type StyleProp, type ViewStyle } from 'react-native
 import { EASE, MOTION } from './motion';
 import { prefersReducedMotion } from './Press';
 
-export function FadeIn({ children, rise = 6, duration = MOTION.enterMs, style, replay }: {
+export function FadeIn({ children, rise = 6, duration = MOTION.enterMs, style, replay, fade = true }: {
   children: ReactNode; rise?: number; duration?: number; style?: StyleProp<ViewStyle>;
+  fade?: boolean;   // false: only the rise, fully opaque (pages: fading in from nothing shows the background, a blink)
   replay?: unknown;   // changing it plays the entrance again (e.g. each time a page comes into view)
 }) {
   const [v] = useState(() => new Animated.Value(0));
@@ -16,7 +17,7 @@ export function FadeIn({ children, rise = 6, duration = MOTION.enterMs, style, r
   }, [replay, v, duration]);
   const lift = prefersReducedMotion() ? 0 : rise;
   return (
-    <Animated.View style={[{ flex: 1, opacity: v, transform: lift ? [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [lift, 0] }) }] : [] }, style]}>
+    <Animated.View style={[{ flex: 1, opacity: fade ? v : 1, transform: lift ? [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [lift, 0] }) }] : [] }, style]}>
       {children}
     </Animated.View>
   );

@@ -32,9 +32,9 @@ export default function TabsLayout() {
       tabBar={(props) => <TabBar {...props} />}
       backBehavior="history"
       screenLayout={({ children, route, navigation }) => {
-        // Every page arrives the same way (ui/motion.ts): main tabs switch almost at once with a short fade that hides the
-        // first paint; other pages fade in while rising 10 px. Done here, not with the navigator's own fade, which showed
-        // the previously visited tab for a moment and then a blank frame before the new page.
+        // Every page arrives the same way (ui/motion.ts): main tabs switch at once; other pages rise 12 px, fully opaque.
+        // No fades: the navigator's own fade showed the previously visited tab and a blank frame, and our first fade
+        // from nothing showed the page background for a moment. Both read as the app blinking.
         const main = MAIN_TABS.includes(route.name);
         const page = <ScreenEnter navigation={navigation} main={main || isDesktop} warm={route.name === 'index' && !isDesktop}>{children}</ScreenEnter>;
         return isDesktop ? (
@@ -108,5 +108,6 @@ function ScreenEnter({ navigation, main, warm, children }: { navigation: Nav; ma
   const [visit, setVisit] = useState(0);
   const first = useRef(true);   // the first visit already plays on mount; replaying it would flicker
   useEffect(() => navigation.addListener('focus', () => { if (first.current) { first.current = false; return; } setVisit((v) => v + 1); }), [navigation]);
-  return <FadeIn replay={visit} rise={main ? 0 : MOTION.enterRise} duration={main ? MOTION.tabFadeMs : MOTION.enterMs}>{children}</FadeIn>;
+  if (main) return <>{children}</>;
+  return <FadeIn replay={visit} fade={false} rise={MOTION.enterRise} duration={MOTION.enterMs}>{children}</FadeIn>;
 }

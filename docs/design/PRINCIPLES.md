@@ -109,9 +109,10 @@ Glass is the navigation layer floating over content: liquid that bends light, no
 | --- | --- | --- |
 | Press | 120 ms | scale 0.96, dim to 90% |
 | Hover (mouse) | 160 ms | small controls grow 2%; large rows only tint |
-| Main tab switch | 140 ms | fade only |
-| Other page opens | 260 ms | fades in rising 10 px |
-| Sheet in / out | 380 / 240 ms | no overshoot; backdrop fades |
+| Main tab switch | instant | nothing moves (a fade from nothing reads as a blink) |
+| Other page opens | 260 ms | rises 12 px, fully opaque (no fade) |
+| Sheet in / out | 340 / 240 ms | no overshoot; backdrop fades |
+| Sheet middle stop ↔ 90% | 300 ms | long lists and details open with their top at the middle of the screen; drag up or scroll to reach 90%, drag down to go back, then close |
 | Dialog in / out | 220 / 160 ms | grows from 96% while fading |
 | Banner in / out | 280 / 200 ms | drops 24 px while fading; stays 3.2 s + reading time |
 | Selection lens | 420 ms | glides; label darkens as it arrives |
@@ -137,7 +138,8 @@ popped → fades in.
 | Tablet | 768–1023 px | floating glass rail, left | same drop, vertical |
 | Desktop | ≥ 1024 px | slim rail; main tool stays, pages open in a side panel | panel slides in 280 ms |
 
-- Main tabs switch almost at once (140 ms fade); other pages fade in rising 10 px.
+- Main tabs switch at once; other pages rise 12 px, fully opaque. Never fade a page in from nothing: it shows the background for a moment, which reads as the app blinking.
+- Long sheets (asset list, signals, chart tools, trade details, a list of trades) stop at the middle first, then 90% on drag or scroll; short sheets open to their own height; sheets whose action button sits at the bottom (deposit, a running trade) open at full height.
 - Prepare likely next pages after the first screen is up, one every 0.6 s.
 - Tab bar follows the finger: parts on scroll (~170 px end to end), settles after ~140 ms still, pours back on scroll up or tap.
 - A tap on navigation shakes nothing; the selection glides 420 ms. No hover effects on navigation.

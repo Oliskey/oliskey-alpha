@@ -4,7 +4,7 @@
 //  opening price) or By time (at a chosen time, up to 7 days ahead). The server opens it at its own price then.
 import { useState } from 'react';
 import { TextInput, View } from 'react-native';
-import { CircleHelp, Minus, Plus, X } from 'lucide-react-native';
+import { CircleHelp, Clock3, Minus, Plus, ShieldCheck, X, type LucideIcon } from 'lucide-react-native';
 import { clock12, price as fmtPrice } from '@/lib/format';
 import { colors, createStyles, font, veil } from '@/theme';
 import { glass } from '@/ui/glass';
@@ -55,16 +55,17 @@ export function TradeOptions({ state, onChange, riskLeft, riskAllowed, decimals,
   };
   const riskDisabled = !riskAllowed || riskLeft === 0;
   const h = compact ? 44 : 56;
-  const row = (label: string, value: boolean, onToggle: (v: boolean) => void, disabled: boolean, sub: string | null, topic: 'riskFree' | 'order') => (
-    <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, minHeight: h }, disabled && { opacity: 0.55 }]}>
+  const row = (label: string, value: boolean, onToggle: (v: boolean) => void, disabled: boolean, sub: string | null, topic: 'riskFree' | 'order', Icon: LucideIcon) => (
+    <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, minHeight: h }, disabled && { opacity: 0.55 }]}>
+      <Icon size={18} color={value ? colors.accent : colors.muted} />
       <View style={{ flex: 1, paddingVertical: 4 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Txt style={{ fontSize: 15, fontFamily: font.semibold }}>{label}</Txt>
+          {sub ? <Txt style={{ fontSize: 12, color: colors.muted }}>{sub}</Txt> : null}
           <Press hitSlop={8} haptic={false} onPress={() => onHelp(topic)} accessibilityLabel={`What is ${label}?`}>
             <CircleHelp size={15} color={colors.muted} />
           </Press>
         </View>
-        {sub ? <Txt style={{ fontSize: 12, color: colors.muted }}>{sub}</Txt> : null}
       </View>
       <Toggle accessibilityLabel={label} value={value} disabled={disabled} onValueChange={onToggle} />
     </View>
@@ -78,12 +79,12 @@ export function TradeOptions({ state, onChange, riskLeft, riskAllowed, decimals,
       {hideRisk ? null : (
         <View style={[styles.card, glass('regular', { shadow: false })]}>
           {row('Risk-free', state.riskFree && !riskDisabled, (v) => onChange({ ...state, riskFree: v }), riskDisabled,
-            !riskAllowed ? 'Fixed Time and InZone on demo' : riskLeft == null ? null : `${riskLeft} of 3 left today`, 'riskFree')}
+            !riskAllowed ? 'demo only' : riskLeft == null ? null : `${riskLeft}/3`, 'riskFree', ShieldCheck)}
         </View>
       )}
       <View style={[styles.card, glass('regular', { shadow: false })]}>
         {row(orderLabel, state.orderOn, (v) => onChange({ ...state, orderOn: v, trigger: v ? (price ?? null) : null, triggerAt: v ? (state.triggerAt ?? defaultTriggerAt()) : null }), false,
-          null, 'order')}
+          null, 'order', Clock3)}
         <Reveal show={state.orderOn}>
           <View style={{ gap: 8, paddingHorizontal: 10, paddingBottom: 10 }}>
             <Segmented stretch tabs={ORDER_TABS} value={by} onChange={(k) => onChange({ ...state, orderBy: k, triggerAt: state.triggerAt ?? defaultTriggerAt() })} />

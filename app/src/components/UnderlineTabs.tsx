@@ -14,7 +14,7 @@ export function Segmented<K extends string>({ tabs, value, onChange, dot, stretc
   stretch?: boolean;   // fill the width, equal parts
 }) {
   const { width: winW } = useWindowDimensions();
-  const small = winW < 380 || (winW < 480 && (tabs.length > 4 || tabs.some((t) => t.count)));   // all four modes still fit on the smallest phones
+  const small = winW < 400 || (winW < 480 && (tabs.length > 4 || tabs.some((t) => t.count)));   // all four modes still fit on the smallest phones
   const [widths, setWidths] = useState<Partial<Record<K, number>>>({});
   const [x] = useState(() => new Animated.Value(0));
   const [w] = useState(() => new Animated.Value(0));

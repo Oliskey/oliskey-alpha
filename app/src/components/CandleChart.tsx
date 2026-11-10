@@ -794,8 +794,8 @@ function ChartInner(props: Props) {
             <Rect x={0} y={TOP} width={3} height={plotH * (1 - momentumUp / 100)} fill={colors.down} />
             <Rect x={0} y={TOP + plotH * (1 - momentumUp / 100)} width={3} height={plotH * (momentumUp / 100)} fill={colors.up} />
             {/* Share of down/up price ticks over the last 40 ticks: price momentum, not people. */}
-            <SvgText x={6} y={TOP + 12} fill={colors.down} fontSize={12}>{100 - momentumUp}% down ticks</SvgText>
-            <SvgText x={6} y={TOP + plotH - 4} fill={colors.up} fontSize={12}>{momentumUp}% up ticks</SvgText>
+            <SvgText x={6} y={TOP + 12} fill={colors.down} fontSize={12}>{`↓ ${100 - momentumUp}%`}</SvgText>
+            <SvgText x={6} y={TOP + plotH - 4} fill={colors.up} fontSize={12}>{`↑ ${momentumUp}%`}</SvgText>
           </G>
         </G>
       </Svg>

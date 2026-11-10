@@ -74,8 +74,11 @@ export function SideScroll({ children, style, fade = true, reveal, ...rest }: Sc
   const [laidOut, setLaidOut] = useState(0);
   useEffect(() => {
     if (!reveal || !size.current.w) return;
+    // only when the item is really cut off, and only as far as needed (4 = the track's inner padding)
     const { x, w } = size.current;
-    if (reveal.x < x || reveal.x + reveal.w > x + w) ref.current?.scrollTo({ x: Math.max(0, reveal.x + reveal.w / 2 - w / 2), animated: true });
+    const left = reveal.x + 4, right = reveal.x + 4 + reveal.w;
+    if (left < x) ref.current?.scrollTo({ x: Math.max(0, left - 8), animated: true });
+    else if (right > x + w + 1) ref.current?.scrollTo({ x: right - w + 8, animated: true });
   }, [reveal?.x, reveal?.w, laidOut]); // eslint-disable-line react-hooks/exhaustive-deps
   const mask = webOnly && fade && (more.left || more.right)
     ? { maskImage: `linear-gradient(to right, ${more.left ? 'transparent, #000 28px' : '#000'}, ${more.right ? '#000 calc(100% - 28px), transparent' : '#000'})` }
@@ -182,18 +185,20 @@ export function Toggle({ value, onValueChange, disabled, accessibilityLabel }: {
   );
 }
 
-export function Stepper({ value, onMinus, onPlus, onPressValue, style, label }: {
+export function Stepper({ value, onMinus, onPlus, onPressValue, style, label, compact }: {
   value: string; onMinus: () => void; onPlus: () => void; onPressValue?: () => void; style?: StyleProp<ViewStyle>;
   label?: string;   // small caption above the value, inside the box
+  compact?: boolean;   // narrower buttons, so two fit side by side on a phone
 }) {
+  const btn = compact ? [styles.stepBtn, { width: 34 }] : styles.stepBtn;
   return (
     <LiquidBox radius={24} style={[styles.stepper, style]}>
-      <Press onPress={onMinus} style={styles.stepBtn} accessibilityLabel="Decrease"><Minus size={20} color={colors.text} /></Press>
+      <Press onPress={onMinus} style={btn} accessibilityLabel={`Less ${label ?? ''}`.trim()}><Minus size={compact ? 18 : 20} color={colors.text} /></Press>
       <Press onPress={onPressValue} style={{ flex: 1 }} haptic={false} hoverable={false}>
         {label ? <Txt style={styles.stepLabel} numberOfLines={1}>{label}</Txt> : null}
         <Txt style={[styles.stepValue, label ? { fontSize: 17 } : null]} numberOfLines={1}>{value}</Txt>
       </Press>
-      <Press onPress={onPlus} style={styles.stepBtn} accessibilityLabel="Increase"><Plus size={20} color={colors.text} /></Press>
+      <Press onPress={onPlus} style={btn} accessibilityLabel={`More ${label ?? ''}`.trim()}><Plus size={compact ? 18 : 20} color={colors.text} /></Press>
     </LiquidBox>
   );
 }

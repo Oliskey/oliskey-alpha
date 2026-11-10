@@ -8,7 +8,8 @@ import * as Clipboard from 'expo-clipboard';
 import { router, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, ChevronRight, Copy, Download, Gift, Settings as SettingsIcon, CircleHelp, Trophy, Sparkles, UserPlus, X } from 'lucide-react-native';
+import { Bell, BellOff, ChevronRight, Copy, Download, Gift, Settings as SettingsIcon, CircleHelp, Trophy, Sparkles, UserPlus, X } from 'lucide-react-native';
+import { Toggle } from '@/ui/kit';
 import { useAccount } from '@/context/AccountContext';
 import { AiIcon } from '@/ui/AiIcon';
 import { useInDock } from '@/hooks/useLayout';
@@ -30,7 +31,7 @@ const TIER_PROGRESS = { starter: 0.04, smart: 0.5, alpha: 1 } as const;
 const PUSH_TEXT: Record<PushState, string> = {
   unsupported: '',
   install: 'Add the app to your home screen first',
-  blocked: 'Blocked in your browser settings',
+  blocked: 'Allow alerts in your browser settings',
   off: 'Off. Get an alert for new signals and your signal trades',
   on: 'On for this device. Tap to turn off',
 };
@@ -102,7 +103,6 @@ export default function Profile() {
             <ChevronRight size={18} color={colors.faint} />
           </View>
           <View style={styles.track}><View style={[styles.fill, { width: `${TIER_PROGRESS[tier] * 100}%` }]} /></View>
-          <Txt style={{ fontSize: 13, color: colors.muted }}>Higher statuses open with real-money deposits, once Oliskey Alpha is licensed.</Txt>
         </Press>
 
         <View style={{ gap: 8 }}>
@@ -124,23 +124,24 @@ export default function Profile() {
         </View>
 
         <Section title="Earn more">
-          <Row icon={Gift} title="Tasks & Rewards" subtitle="Finish tasks to earn demo credit" onPress={() => router.navigate('/rewards')}
+          <Row icon={Gift} title="Tasks & Rewards" onPress={() => router.navigate('/rewards')}
             right={openTasks ? <View style={styles.count}><Txt style={{ fontSize: 11, fontFamily: font.bold, color: colors.dark }}>{openTasks}</Txt></View> : undefined} />
-          <Row icon={Trophy} title="Funded" subtitle="Trade with our capital, when it opens" onPress={() => router.navigate('/funded')} />
-          <Row icon={UserPlus} title="Invite friends" subtitle="Earn boosts now, a trading bonus later" onPress={() => router.navigate('/invite')} last />
+          <Row icon={Trophy} title="Funded" onPress={() => router.navigate('/funded')} />
+          <Row icon={UserPlus} title="Invite friends" onPress={() => router.navigate('/invite')} last />
         </Section>
 
         <Section title="General">
-          <Row icon={SettingsIcon} title="Settings" subtitle="Details, appearance, security, account" onPress={() => router.navigate('/settings')} />
+          <Row icon={SettingsIcon} title="Settings" onPress={() => router.navigate('/settings')} />
           {Platform.OS === 'web' && !isInstalled() ? (
-            <Row icon={Download} title="Download the app" subtitle="Install it here. It opens without internet; live prices and trades need a connection"
+            <Row icon={Download} title="Download the app"
               onPress={() => { void askToInstall().then((shown) => { if (!shown) toast({ title: 'Download the app', message: installSteps() }); }); }} />
           ) : null}
           {Platform.OS === 'web' && push !== 'unsupported' ? (
-            <Row icon={Bell} title="Signal alerts when the app is closed" subtitle={PUSH_TEXT[push]} onPress={togglePush} />
+            <Row icon={push === 'on' ? Bell : BellOff} title="Alerts" subtitle={push === 'install' || push === 'blocked' ? PUSH_TEXT[push] : undefined}
+              right={<Toggle accessibilityLabel="Alerts for new signals" value={push === 'on'} onValueChange={togglePush} />} />
           ) : null}
-          <Row icon={AiIcon} title="AI trading" subtitle="Always ask, or auto trade" onPress={() => router.push({ pathname: '/scanner', params: { tab: 'ai' } })} />
-          <Row icon={CircleHelp} title="Help" subtitle="Support and common questions" onPress={() => router.navigate('/help')} last />
+          <Row icon={AiIcon} title="AI trading" onPress={() => router.push({ pathname: '/scanner', params: { tab: 'ai' } })} />
+          <Row icon={CircleHelp} title="Help" onPress={() => router.navigate('/help')} last />
         </Section>
       </Page>
     </SafeAreaView>

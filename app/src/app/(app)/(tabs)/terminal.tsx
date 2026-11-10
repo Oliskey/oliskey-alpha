@@ -500,7 +500,7 @@ export function Terminal() {
         </LiquidBox>
       </View>
       <Txt style={styles.simulated}>
-        {`${asset?.price_source === 'binance' ? '● Live price · Binance' : 'Simulated price'} · drag to see the past`}
+        {asset?.price_source === 'binance' ? '● Live' : 'Simulated prices'}
       </Txt>
       </>) : null}
       </>

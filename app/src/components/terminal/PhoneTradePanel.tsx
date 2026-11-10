@@ -7,7 +7,7 @@
 //   Stocks      not available yet (needs a licensed data provider and a live account)
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Animated, Easing, PanResponder, ScrollView, TextInput, View } from 'react-native';
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, CircleHelp, Lock } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, CircleHelp, Clock3, Lock, ShieldCheck } from 'lucide-react-native';
 import type { TradeMode } from '@/lib/api';
 import { duration, money, moneyShort, price as fmtPrice, type AccountType } from '@/lib/format';
 import { PREVIEW } from '@/lib/preview';
@@ -96,22 +96,22 @@ export function PhoneTradePanel(p: {
   }
 
   const forex = p.mode === 'forex';
-  // what is set while the options are hidden, so nothing is a surprise
-  const summary = [
-    forex ? `${p.leverage}x` : duration(p.durationSec),
-    p.opts.riskFree && p.riskAllowed && !forex ? 'Risk-free' : null,
-    p.opts.orderOn ? `${forex ? 'Pending' : 'Order'} at ${p.opts.orderBy === 'time' ? fmtTriggerTime(p.opts.triggerAt ?? defaultTriggerAt()) : fmtPrice(p.opts.trigger ?? p.price ?? 0, p.decimals)}` : null,
-    forex && (p.takeProfit || p.stopLoss) ? 'Auto close' : null,
-  ].filter(Boolean).join(' · ');
+  // extras that are ON while the options are hidden show as small icons, so nothing is a surprise and nothing is noise
+  const riskOn = p.opts.riskFree && p.riskAllowed && !forex;
+  const orderOn = p.opts.orderOn;
+  const orderAt = orderOn ? (p.opts.orderBy === 'time' ? fmtTriggerTime(p.opts.triggerAt ?? defaultTriggerAt()) : fmtPrice(p.opts.trigger ?? p.price ?? 0, p.decimals)) : null;
+  const summary = forex ? [`${p.leverage}x`, p.takeProfit || p.stopLoss ? 'Auto close' : null].filter(Boolean).join(' · ') : '';
 
   const handle = (
     <View {...pan.panHandlers}>
       <Press haptic={false} hoverable={false} cursor="grab" onPress={toggle} style={styles.handleArea}
         accessibilityLabel={open ? 'Hide trade options' : 'Show trade options'} accessibilityState={{ expanded: open }}>
         <View style={styles.handle} />
-        <Reveal show={!open}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <Txt style={styles.summary} numberOfLines={1}>{summary}</Txt>
+        <Reveal show={!open && (!!summary || riskOn || orderOn)}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            {summary ? <Txt style={styles.summary} numberOfLines={1}>{summary}</Txt> : null}
+            {riskOn ? <View style={styles.extra} accessibilityLabel="Risk-free is on"><ShieldCheck size={14} color={colors.up} /><Txt style={[styles.summary, { color: colors.up }]}>Risk-free</Txt></View> : null}
+            {orderOn ? <View style={styles.extra} accessibilityLabel={`Order at ${orderAt}`}><Clock3 size={14} color={colors.accent} /><Txt style={[styles.summary, { color: colors.accent }]}>{orderAt}</Txt></View> : null}
             <ChevronUp size={16} color={colors.muted} />
           </View>
         </Reveal>
@@ -121,27 +121,41 @@ export function PhoneTradePanel(p: {
 
   const share = p.balance > 0 ? (p.amount / p.balance) * 100 : null;
   const shareText = share == null ? '' : share < 1 ? '< 1%' : `${Math.round(share)}%`;
+  const amountStepper = (
+    <Stepper compact style={{ flex: 1 }} label="Amount" value={money(p.amount, p.accType, { decimals: 0 })} onPressValue={() => p.onSheet('amount')}
+      onMinus={() => p.setAmount((v) => Math.max(1, v - p.amountStep(v - 1)))} onPlus={() => p.setAmount((v) => v + p.amountStep(v))} />
+  );
+  // the two choices every trade needs, side by side; the second is the time (Fixed Time, InZone) or the multiplier (Forex)
   const amountBar = (
     <View style={{ gap: 4 }}>
-      <Stepper label={`Amount, ${cur}${share != null ? ` · ${shareText} of your balance` : ''}`} value={money(p.amount, p.accType, { decimals: 0 })} onPressValue={() => p.onSheet('amount')}
-        onMinus={() => p.setAmount((v) => Math.max(1, v - p.amountStep(v - 1)))} onPlus={() => p.setAmount((v) => v + p.amountStep(v))} />
-      {share != null && share > 100 ? <Txt style={[styles.note, { color: colors.down }]}>This is more than your balance. Lower the amount to trade.</Txt>
-        : share != null && share >= 20 ? <Txt style={[styles.note, { color: colors.demo }]}>Large trade: one loss could cost {shareText} of your balance.</Txt> : null}
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {forex ? (
+          <Press haptic={false} onPress={() => p.onSheet('leverage')} accessibilityLabel={`Multiplier ${p.leverage}x`} style={{ flex: 1 }}>
+            <LiquidBox radius={24} style={styles.pick}>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Txt style={styles.pickLabel}>Multiplier</Txt>
+                <Txt style={styles.pickValue}>{p.leverage}x</Txt>
+              </View>
+              <ChevronDown size={18} color={colors.muted} />
+            </LiquidBox>
+          </Press>
+        ) : (
+          <Stepper compact style={{ flex: 1 }} label="Time" value={duration(p.durationSec)} onPressValue={() => p.onSheet('duration')}
+            onMinus={() => p.stepDuration(-1)} onPlus={() => p.stepDuration(1)} />
+        )}
+        {amountStepper}
+      </View>
+      {share != null && share > 100 ? <Txt style={[styles.note, { color: colors.down }]}>More than your balance. Lower the amount.</Txt>
+        : share != null && share >= 20 ? <Txt style={[styles.note, { color: colors.demo }]}>Big trade: {shareText} of your balance.</Txt> : null}
     </View>
   );
-  const steppers = (
-    <Stepper label="Duration" value={duration(p.durationSec)} onPressValue={() => p.onSheet('duration')}
-      onMinus={() => p.stepDuration(-1)} onPlus={() => p.stepDuration(1)} />
-  );
   const how = (
-    <Press haptic={false} onPress={() => p.onSheet('how')} accessibilityLabel="How it works" style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-      <Txt style={{ fontSize: 13, color: colors.accent }}>How it works</Txt>
-      <CircleHelp size={14} color={colors.accent} />
+    <Press haptic={false} hitSlop={10} onPress={() => p.onSheet('how')} accessibilityLabel="How it works">
+      <CircleHelp size={18} color={colors.muted} />
     </Press>
   );
   const fixedOptions = (
     <>
-      {steppers}
       <TradeOptions state={p.opts} onChange={p.setOpts} riskLeft={p.riskLeft} riskAllowed={p.riskAllowed} decimals={p.decimals} price={p.price} onHelp={p.onHelp} compact />
     </>
   );
@@ -155,12 +169,6 @@ export function PhoneTradePanel(p: {
           </Press>
         ))}
       </View>
-      <Press haptic={false} onPress={() => p.onSheet('leverage')} style={styles.line} accessibilityLabel="Multiplier">
-        <Txt style={styles.lineLabel}>Multiplier</Txt>
-        <View style={styles.dots} />
-        <Txt style={styles.lineValue}>{p.leverage}x</Txt>
-        <ChevronDown size={14} color={colors.muted} />
-      </Press>
       <View style={styles.line}>
         <Txt style={styles.lineLabel}>Volume</Txt>
         <View style={styles.dots} />
@@ -204,18 +212,18 @@ export function PhoneTradePanel(p: {
         label={forex ? (order ? 'Buy order' : 'Buy') : order ? 'Up order' : 'Up'} icon={<ArrowUp size={22} color={colors.dark} />} />
     </View>
   );
-  const footer = p.mode === 'inzone' ? (
-    <View style={styles.footer}>
-      <Txt style={styles.note}>
-        You earn <Txt style={{ fontSize: 12, fontFamily: font.semibold, color: colors.text }}>{moneyShort(p.amount * p.payout / 100, p.accType)}</Txt> if the price is within ±{p.zonePct.toFixed(3)}% when the trade closes.
-      </Txt>
-      {how}
-    </View>
-  ) : (
+  // one short line: what you can win (InZone: if the price stays inside the band), and a ? for the full explanation
+  const win = p.payout > 0 ? `+${moneyShort(p.amount * p.payout / 100, p.accType)}` : null;
+  const footer = (
     <View style={[styles.footer, { justifyContent: 'center' }]}>
-      <Txt style={styles.note}>
-        {forex ? `Volume ${moneyShort(p.amount * p.leverage, p.accType)}${p.price != null ? ` · price ${fmtPrice(p.price, p.decimals)}` : ''}` : p.payout > 0 ? `Potential profit: +${moneyShort(p.amount * p.payout / 100, p.accType)}` : 'Payout loads with the prices'}
-      </Txt>
+      {forex ? (
+        <Txt style={styles.note}>Volume {moneyShort(p.amount * p.leverage, p.accType)}</Txt>
+      ) : win ? (
+        <Txt style={styles.winLine}>
+          Win <Txt style={styles.winValue}>{win}</Txt>
+          {p.mode === 'inzone' ? <Txt style={styles.winLine}>{`  ·  stays within ±${p.zonePct.toFixed(2)}%`}</Txt> : null}
+        </Txt>
+      ) : <Txt style={styles.note}>Loading…</Txt>}
       {how}
     </View>
   );
@@ -256,6 +264,12 @@ const styles = createStyles(() => ({
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.muted },
   summary: { fontSize: 13, color: colors.muted, fontVariant: ['tabular-nums'], flexShrink: 1 },
   note: { fontSize: 12, color: colors.muted, flexShrink: 1 },
+  winLine: { fontSize: 14, color: colors.muted },
+  winValue: { fontSize: 15, fontFamily: font.bold, color: colors.up, fontVariant: ['tabular-nums'] },
+  extra: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  pick: { height: 48, borderRadius: 24, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 },
+  pickLabel: { fontSize: 11, color: colors.muted, marginBottom: -2 },
+  pickValue: { fontSize: 17, fontFamily: font.medium, fontVariant: ['tabular-nums'] },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'space-between' },
   amountBox: { flex: 1, height: 48, borderRadius: 14, paddingHorizontal: 12, justifyContent: 'center' },
   amountInput: { color: colors.text, fontSize: 17, fontFamily: font.semibold, padding: 0 },

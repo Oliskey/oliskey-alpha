@@ -8,7 +8,7 @@ import { PanResponder, Platform, StyleSheet, View, type GestureResponderEvent, t
 import Svg, { Circle, ClipPath, Defs, G, Line, LinearGradient as SvgGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import { ChevronRight, Minus, Plus } from 'lucide-react-native';
 import type { Candle, Trade, TradeMode } from '@/lib/api';
-import { countdown } from '@/lib/format';
+import { clock12, countdown } from '@/lib/format';
 import { colors, font, createStyles, veil } from '@/theme';
 import { FAN_LEVELS, fibPrice, FIB_LEVELS, type Drawing, type DrawTool, type Pt } from './drawings';
 import { computeIndicator, indDef, indTitle, type IndOut, type IndSetting, type VolumeBar } from './indicators';
@@ -305,7 +305,7 @@ function ChartInner(props: Props) {
     const d = new Date(t);
     // 4 h and 1 day candles, and the first candle of each day on 15 min-1 h charts, show the date instead.
     if (tf >= 14400 || (tf >= 900 && d.getHours() === 0 && d.getMinutes() * 60 < tf)) return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}${tf < 60 ? ':' + String(d.getSeconds()).padStart(2, '0') : ''}`;
+    return clock12(d, tf < 60);
   };
   const live0 = off === 0;
   // The arrow has two jobs. In the past: back to now. Already at now: the clear view, with readable candles and prices fitted to

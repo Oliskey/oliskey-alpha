@@ -23,7 +23,7 @@ adminRouter.post('/withdrawals/:id/approve', async (req, res) => {
   if (!paystackConfigured()) return res.status(503).json({ error: 'Payments are not set up yet.' });
   if (!isUuid(req.params.id)) return res.status(404).json({ error: 'Withdrawal not found.' });
   const { rows } = await pool.query(
-    `select t.id, t.amount, t.status, pm.id as pm_id, pm.recipient_code, pm.bank_code, pm.account_number, pm.account_name
+    `select t.id, t.amount, t.status, t.metadata ->> 'payout' as payout, pm.id as pm_id, pm.recipient_code, pm.bank_code, pm.account_number, pm.account_name
      from transactions t join payout_methods pm on pm.id = t.payout_method_id
      where t.id = $1 and t.type = 'withdrawal'`, [req.params.id]);
   const w = rows[0];
@@ -39,7 +39,8 @@ adminRouter.post('/withdrawals/:id/approve', async (req, res) => {
     await pool.query('update payout_methods set recipient_code = $2 where id = $1', [w.pm_id, recipient]);
   }
   await paystack('POST', '/transfer', {
-    source: 'balance', amount: toKobo(-Number(w.amount)), recipient, reference: `OAW-${w.id}`, reason: 'Oliskey Alpha withdrawal',
+    // the bank gets the amount minus the withdrawal fee (fixed when the user asked; older requests have no fee)
+    source: 'balance', amount: toKobo(w.payout != null ? Number(w.payout) : -Number(w.amount)), recipient, reference: `OAW-${w.id}`, reason: 'Oliskey Alpha withdrawal',
   });
   const done = await pool.query('select id, status from resolve_withdrawal($1, true, $2)', [w.id, req.user.id]);
   void notifyWithdrawal(w.id, true);

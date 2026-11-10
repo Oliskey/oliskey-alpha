@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowUpDown, BellOff, ChevronRight, GraduationCap, Gift, Info, Receipt, type LucideIcon } from 'lucide-react-native';
 import { Segmented } from '@/components/UnderlineTabs';
 import { api, type Notification } from '@/lib/api';
-import { dayLabel } from '@/lib/format';
+import { clock12, dayLabel } from '@/lib/format';
 import { colors, font, radius, type, createStyles, tint } from '@/theme';
 import { AppBar } from '@/ui/AppBar';
 import { EmptyState, Spinner } from '@/ui/kit';
@@ -33,7 +33,7 @@ const EMPTY: Record<Filter, string> = {
   rewards: 'Finished tasks and bonuses will appear here.',
   news: 'Lessons and account news will appear here.',
 };
-const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const clock = (iso: string) => clock12(iso);
 const day = (iso: string) => { const d = dayLabel(iso); return d.charAt(0) + d.slice(1).toLowerCase(); };
 
 export default function Notifications() {

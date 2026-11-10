@@ -116,6 +116,11 @@ export function DepositSheet({ open, onClose }: { open: boolean; onClose: () => 
               </Txt>
               <Diamond size={16} color={colors.accent} />
             </View>
+            {Number(settings.data?.withdrawal_fee_pct ?? 0) > 0 ? (
+              <Txt style={{ color: colors.muted, fontSize: 13 }}>
+                Withdrawals carry a {Number(settings.data?.withdrawal_fee_pct)}% fee, shown before you confirm.
+              </Txt>
+            ) : null}
           </View>
 
           <Press style={styles.methodRow} onPress={() => setPickPromo(true)}>

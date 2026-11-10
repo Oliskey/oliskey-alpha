@@ -46,6 +46,13 @@ export function countdown(ms: number) {
   return h ? `${h}:${pad(m)}:${pad(ss)}` : `${pad(m)}:${pad(ss)}`;
 }
 
+// 12-hour clock for everyone: "9:48 AM", or "9:48:05 AM" with seconds.
+export function clock12(t: number | string | Date, seconds = false) {
+  const d = new Date(t);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getHours() % 12 || 12}:${pad(d.getMinutes())}${seconds ? ':' + pad(d.getSeconds()) : ''} ${d.getHours() < 12 ? 'AM' : 'PM'}`;
+}
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // "Oct 29 7:57:32.855 PM"

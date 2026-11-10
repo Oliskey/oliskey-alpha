@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { TextInput, View } from 'react-native';
 import { CircleHelp, Minus, Plus, X } from 'lucide-react-native';
-import { price as fmtPrice } from '@/lib/format';
+import { clock12, price as fmtPrice } from '@/lib/format';
 import { colors, createStyles, font, veil } from '@/theme';
 import { glass } from '@/ui/glass';
 import { Press } from '@/ui/Press';
@@ -26,8 +26,7 @@ export const defaultTriggerAt = (now = Date.now()) => {
   const step = STEP_MIN * 60_000;
   return Math.ceil((now + 10 * 60_000) / step) * step;
 };
-const two = (n: number) => String(n).padStart(2, '0');
-export const fmtTriggerTime = (ms: number) => { const d = new Date(ms); return `${two(d.getHours())}:${two(d.getMinutes())}`; };
+export const fmtTriggerTime = (ms: number) => clock12(ms);
 export const fmtTriggerDate = (ms: number) => {
   const d = new Date(ms), today = new Date();
   const days = Math.round((new Date(d).setHours(0, 0, 0, 0) - new Date(today).setHours(0, 0, 0, 0)) / 86400_000);

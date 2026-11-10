@@ -153,6 +153,26 @@ export function paystackWebhook(req, res) {
   if (req.body?.event === 'charge.success' && req.body.data?.reference) {
     settleDeposit(req.body.data.reference).catch((err) => console.error('webhook', err.message));
   }
+  if ((req.body?.event === 'transfer.failed' || req.body?.event === 'transfer.reversed') && req.body.data?.reference) {
+    returnFailedTransfer(req.body.data.reference).catch((err) => console.error('webhook', err.message));
+  }
+}
+
+const transferStatus = async (reference) => (await paystack('GET', `/transfer/verify/${encodeURIComponent(reference)}`)).status;
+
+// A withdrawal's bank transfer failed or was reversed after approval: Paystack is asked directly (a webhook alone is not
+// trusted), then the whole amount goes back to the user and the fee revenue is cancelled. Safe to repeat.
+export async function returnFailedTransfer(reference, { status = transferStatus } = {}) {
+  const id = /^OAW-([0-9a-f-]{36})$/i.exec(String(reference))?.[1];
+  if (!id) return null;
+  const now = await status(reference);
+  if (now !== 'failed' && now !== 'reversed') return null;
+  const { rows } = await pool.query('select id, user_id, status, amount from reverse_withdrawal($1, $2)', [id, `transfer.${now}`]);
+  const tx = rows[0];
+  if (tx?.status === 'failed') {
+    void notify(tx.user_id, 'transactions', 'Withdrawal returned', `The bank transfer did not go through, so ${amountText('NGN', tx.amount)} is back in your account.`, '/withdraw');
+  }
+  return tx ?? null;
 }
 
 paymentsRouter.get('/payments/verify/:reference', async (req, res) => {
@@ -195,15 +215,17 @@ paymentsRouter.post('/payments/withdraw', async (req, res) => {
   const { accountId, amount, payoutMethodId } = req.body ?? {};
   if (!isUuid(accountId) || !isUuid(payoutMethodId)) return res.status(400).json({ error: 'Choose an account and a bank account.' });
   if (typeof amount !== 'number') return res.status(400).json({ error: 'Enter an amount.' });
-  const { rows } = await pool.query('select id, status, amount, created_at from request_withdrawal($1, $2, $3, $4)',
+  const { rows } = await pool.query(
+    `select id, status, amount, created_at, metadata ->> 'fee' as fee, metadata ->> 'payout' as payout from request_withdrawal($1, $2, $3, $4)`,
     [req.user.id, accountId, amount, payoutMethodId]);
-  void notify(req.user.id, 'transactions', 'Withdrawal requested', `${amountText('NGN', amount)} is under review. We will tell you when it is done.`, '/withdraw');
+  const sent = rows[0].payout ?? amount;
+  void notify(req.user.id, 'transactions', 'Withdrawal requested', `${amountText('NGN', sent)} to your bank is under review. We will tell you when it is done.`, '/withdraw');
   res.status(201).json(rows[0]);
 });
 
 paymentsRouter.get('/payments/withdrawals', async (req, res) => {
   const { rows } = await pool.query(
-    `select id, status, amount, created_at, completed_at from transactions
+    `select id, status, amount, created_at, completed_at, metadata ->> 'fee' as fee, metadata ->> 'payout' as payout from transactions
      where user_id = $1 and type = 'withdrawal' order by created_at desc limit 50`, [req.user.id]);
   res.json(rows);
 });

@@ -124,9 +124,14 @@ accountRouter.post('/notifications/read', async (req, res) => {
 });
 
 accountRouter.get('/settings', async (_req, res) => {
-  const { rows } = await pool.query(
-    'select live_trading_enabled, demo_start_balance, min_deposit_ngn, min_withdrawal_ngn from platform_settings where id');
-  res.json(rows[0]);
+  // to_jsonb keeps this working on a database where migration 018 (the withdrawal fee) is not applied yet
+  const { rows } = await pool.query('select to_jsonb(s) as s from platform_settings s where id');
+  const s = rows[0]?.s ?? {};
+  res.json({
+    live_trading_enabled: s.live_trading_enabled, demo_start_balance: String(s.demo_start_balance),
+    min_deposit_ngn: String(s.min_deposit_ngn), min_withdrawal_ngn: String(s.min_withdrawal_ngn),
+    withdrawal_fee_pct: s.withdrawal_fee_pct == null ? null : String(s.withdrawal_fee_pct),
+  });
 });
 
 // Profitability Boosts: how many are waiting, and the running one.

@@ -20,7 +20,7 @@ import { useToast } from '@/ui/Toast';
 import { Txt } from '@/ui/Txt';
 import { Page } from '@/ui/Page';
 
-type Withdrawal = { id: string; status: string; amount: string; created_at: string };
+type Withdrawal = { id: string; status: string; amount: string; created_at: string; fee: string | null; payout: string | null };
 
 export default function Withdraw() {
   const { me } = useAccount();
@@ -33,6 +33,7 @@ export default function Withdraw() {
   const ngn = me?.accounts.find((a) => a.type === 'NGN');
   const available = Number(ngn?.balance ?? 0);
   const live = settings.data?.live_trading_enabled;
+  const feePct = Number(settings.data?.withdrawal_fee_pct ?? 0);
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -56,7 +57,7 @@ export default function Withdraw() {
                   ? 'Real-money trading is coming soon. Withdrawals open once Oliskey Alpha is licensed.'
                   : available <= 0
                     ? 'You have insufficient funds to make a withdrawal from this account'
-                    : 'Withdrawals need a verified identity and are approved by our team.'}
+                    : `Withdrawals need a verified identity and are approved by our team.${feePct > 0 ? ` A ${feePct}% withdrawal fee applies.` : ''}`}
               </Txt>
               {live && available <= 0 ? (
                 <Press onPress={() => setDeposit(true)} haptic={false}>
@@ -66,14 +67,19 @@ export default function Withdraw() {
             </View>
           </View>
 
-          {live && available > 0 && ngn ? <WithdrawForm accountId={ngn.id} max={available} onDone={() => void history.refetch()} /> : null}
+          {live && available > 0 && ngn ? <WithdrawForm accountId={ngn.id} max={available} feePct={feePct} onDone={() => void history.refetch()} /> : null}
 
           {history.data?.length ? (
             <View style={{ gap: 8, marginTop: 8 }}>
               <Txt style={{ fontSize: 17, fontFamily: font.bold }}>Past withdrawals</Txt>
               {history.data.map((w) => (
                 <View key={w.id} style={styles.row}>
-                  <Txt>{money(-Number(w.amount), 'NGN')}</Txt>
+                  <View>
+                    <Txt>{money(-Number(w.amount), 'NGN')}</Txt>
+                    {w.fee != null && Number(w.fee) > 0 ? (
+                      <Txt style={{ color: colors.muted, fontSize: 13 }}>Fee {money(Number(w.fee), 'NGN')} · to bank {money(Number(w.payout), 'NGN')}</Txt>
+                    ) : null}
+                  </View>
                   <Txt style={{ color: w.status === 'completed' ? colors.up : w.status === 'rejected' ? colors.down : colors.muted }}>{w.status}</Txt>
                 </View>
               ))}
@@ -89,7 +95,7 @@ export default function Withdraw() {
 type PayoutMethod = { id: string; bank_name: string; account_number: string; account_name: string };
 type Bank = { name: string; code: string };
 
-function WithdrawForm({ accountId, max, onDone }: { accountId: string; max: number; onDone: () => void }) {
+function WithdrawForm({ accountId, max, feePct, onDone }: { accountId: string; max: number; feePct: number; onDone: () => void }) {
   const qc = useQueryClient();
   const toast = useToast();
   const methods = useQuery({ queryKey: ['payout-methods'], queryFn: () => api<PayoutMethod[]>('/payments/payout-methods') });
@@ -101,6 +107,10 @@ function WithdrawForm({ accountId, max, onDone }: { accountId: string; max: numb
   const [accountNumber, setAccountNumber] = useState('');
   const [pickBank, setPickBank] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Shown before the user confirms; the server fixes the same rate on the request (round to kobo, as the database does).
+  const asked = Number(amount) || 0;
+  const fee = Math.round(asked * feePct) / 100;
+  const toBank = Math.max(0, Math.round((asked - fee) * 100) / 100);
 
   const addBank = async () => {
     setBusy(true);
@@ -140,7 +150,16 @@ function WithdrawForm({ accountId, max, onDone }: { accountId: string; max: numb
       ) : (
         <Button variant="secondary" label="Add bank account" onPress={() => setAdding(true)} />
       )}
-      <Button label="Withdraw" height={52} loading={busy} disabled={!methodId || !(Number(amount) > 0) || Number(amount) > max} onPress={submit} />
+      {asked > 0 && feePct > 0 ? (
+        <View style={styles.breakdown}>
+          <View style={styles.line}><Txt style={{ color: colors.muted }}>You withdraw</Txt><Txt>{money(asked, 'NGN')}</Txt></View>
+          <View style={styles.line}><Txt style={{ color: colors.muted }}>Withdrawal fee ({feePct}%)</Txt><Txt style={{ color: colors.down }}>-{money(fee, 'NGN')}</Txt></View>
+          <View style={[styles.line, { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 }]}>
+            <Txt style={{ fontFamily: font.bold }}>Sent to your bank</Txt><Txt style={{ fontFamily: font.bold, color: colors.up }}>{money(toBank, 'NGN')}</Txt>
+          </View>
+        </View>
+      ) : null}
+      <Button label={asked > 0 && feePct > 0 ? `Withdraw · receive ${money(toBank, 'NGN')}` : 'Withdraw'} height={52} loading={busy} disabled={!methodId || !(Number(amount) > 0) || Number(amount) > max} onPress={submit} />
       <Sheet open={pickBank} onClose={() => setPickBank(false)}>
         <ScrollView style={{ maxHeight: 460 }}>
           {(banks.data ?? []).map((b) => (
@@ -158,4 +177,6 @@ const styles = createStyles(() => ({
   from: { ...card, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72, padding: 14 },
   notice: { flexDirection: 'row', gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 14 },
   row: { ...card, flexDirection: 'row', justifyContent: 'space-between', padding: 14 },
+  breakdown: { ...card, gap: 8, padding: 14 },
+  line: { flexDirection: 'row', justifyContent: 'space-between' },
 }));

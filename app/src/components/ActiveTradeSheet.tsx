@@ -8,7 +8,7 @@ import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { ChartCandlestick, CircleX, Copy } from 'lucide-react-native';
 import { api, type Trade } from '@/lib/api';
-import { countdown, durationLong, money, price, timeWithMs, type AccountType } from '@/lib/format';
+import { clock12, countdown, durationLong, money, price, timeWithMs, type AccountType } from '@/lib/format';
 import { useAssets, useLivePrices } from '@/hooks/useMarket';
 import { colors, font } from '@/theme';
 import { Button } from '@/ui/Button';
@@ -26,7 +26,7 @@ function TimeProgress({ open, expires, now }: { open: string; expires: string; n
   const start = new Date(open).getTime();
   const end = new Date(expires).getTime();
   const share = Math.min(1, Math.max(0, (now - start) / (end - start)));
-  const clock = (t: number) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const clock = (t: number) => clock12(t, true);
   return (
     <View style={{ gap: 8 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

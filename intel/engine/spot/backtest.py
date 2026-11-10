@@ -21,11 +21,13 @@ RISK_PER_TRADE = 0.01      # 1% of equity per trade for the equity curve (illust
 
 
 def run(f: pd.DataFrame, spec: Spec, cost_mult: float = 1.0, start_at: pd.Timestamp | None = None,
-        include_open: bool = False, bar: pd.Timedelta | None = None) -> pd.DataFrame:
+        include_open: bool = False, bar: pd.Timedelta | None = None, exit_on: str | None = None) -> pd.DataFrame:
     """One row per closed trade: times, prices, net R, MFE/MAE in R, bars held, exit reason, regime at entry.
 
     start_at (forward paper trading): ignore every signal whose bar closed before start_at, so the strategy starts flat.
-    include_open: also return the trade still open at the last bar (status 'open', current stop, no exit)."""
+    include_open: also return the trade still open at the last bar (status 'open', current stop, no exit).
+    exit_on: an extra exit being cross-tested by the improvement registry (never used by a frozen strategy's record).
+      "regime_down" = leave at the bar's close once that bar's regime is TRENDING_DOWN."""
     sig = entries(f, spec).to_numpy()
     if start_at is not None:
         closes = f.index + (bar if bar is not None else (f.index[1] - f.index[0]))
@@ -72,6 +74,10 @@ def run(f: pd.DataFrame, spec: Spec, cost_mult: float = 1.0, start_at: pd.Timest
             mfe = max(mfe, (h[j] - entry) / risk)
             mae = min(mae, (l[j] - entry) / risk)
             held = j - e_i + 1
+            # 2b) cross-tested extra exit, at the bar's close (known then)
+            if exit_on == "regime_down" and regimes[j] == "TRENDING_DOWN":
+                exit_px, reason = c[j], "regime"
+                break
             # 3) time stop at the bar's close
             if held >= spec.time_stop_bars and (c[j] - entry) / risk < spec.time_stop_min_r:
                 exit_px, reason = c[j], "time"

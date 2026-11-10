@@ -1,10 +1,12 @@
 """AI Spot forward paper trading (protocol in docs/intel/SPOT_HYPOTHESES.md).
 
-Every 4 hours, after a bar closes: refresh Binance 4h/1d candles for the live coins, run the SAME engine that was
-tested (bt.run) from each strategy's tracking start, store the trades, and recompute the summary.
+Two groups, each run after its bar closes: swing strategies on 4h bars (1d context) every 4 hours, scalps on 15m bars
+(1h context) every 15 minutes. Each run refreshes Binance candles for the live coins, runs the SAME engine that was tested
+(bt.run) from each strategy's tracking start, and stores the trades.
+  * every strategy has its own record (all seven, approved or not: the evidence decides, not the label)
   * starts flat: only bars that close after tracking starts can open a trade
   * closed trades are frozen in the database; a later recalculation can never rewrite them
-  * money figure: virtual 10,000 USDT, 1% of equity per trade, at most 3 open at once (Risk Manager's 3% cap)
+  * the paper ACCOUNT follows only what the agents decided to trade (engine/spot/agents.py)
 No order is ever sent anywhere. Real money stays off (REAL-MONEY GATE).
 """
 from __future__ import annotations
@@ -20,10 +22,18 @@ from engine.spot import backtest as bt
 from engine.spot.data import STORE, TF_MS, frame_from_klines, live_coins, validate
 from engine.spot.strategies import BY_ID, prepare
 
-TRACKED = ("trend_breakout", "squeeze_breakout")     # frozen 0.1.0 candidates, pre-registered
-PAPER_START = {"4h": "2023-01-01", "1d": "2021-01-01"}  # enough history for every indicator's warm-up
+# Frozen 0.1.0 strategies by signal timeframe. trend_breakout / squeeze_breakout: forward protocol of batch 3. The others
+# (batch 1 and 2) were added on 2026-11-10 under the batch-4 forward protocol in docs/intel/SPOT_HYPOTHESES.md.
+GROUPS = {"4h": ("trend_breakout", "squeeze_breakout", "strict_swing", "balanced_swing", "range_reversion"),
+          "15m": ("strict_scalp", "balanced_scalp")}
+CONTEXT = {"4h": "1d", "15m": "1h"}
+TRACKED = GROUPS["4h"] + GROUPS["15m"]
+BATCH3 = ("trend_breakout", "squeeze_breakout")
+# enough history for every indicator's warm-up (EMA200, 500-bar volatility rank)
+PAPER_START = {"4h": "2023-01-01", "1d": "2021-01-01", "15m": "2026-09-01", "1h": "2026-06-01"}
 START_EQUITY, RISK, MAX_OPEN = 10_000.0, 0.01, 3
-BAR = pd.Timedelta(hours=4)
+BARS = {"4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15)}
+BAR = BARS["4h"]
 MIN_FORWARD_TRADES = bt.GATES.min_trades
 
 
@@ -67,7 +77,7 @@ def update_candles(symbol: str, tf: str, client) -> pd.DataFrame:
 def forward_trades(sig: pd.DataFrame, ctx: pd.DataFrame, sid: str, started_at: pd.Timestamp) -> pd.DataFrame:
     """The strategy's trades from started_at on (closed, plus the one still open)."""
     spec = BY_ID[sid]
-    return bt.run(prepare(sig, ctx, spec), spec, 1.0, start_at=started_at, include_open=True, bar=BAR)
+    return bt.run(prepare(sig, ctx, spec), spec, 1.0, start_at=started_at, include_open=True, bar=BARS[spec.timeframe])
 
 
 def at_costs(closed: pd.DataFrame, cost_per_side: float, mult: float) -> pd.DataFrame:
@@ -115,23 +125,26 @@ def portfolio(trades: pd.DataFrame) -> dict:
             "unrealised": round(unrealised, 2), "taken": len(taken), "skipped": skipped, "open": still_open}
 
 
-def verdict(by_symbol: dict[str, tuple]) -> dict:
-    """Forward gate on the stored record: NOT_YET_PROVEN below 100 closed trades, then the batch-3 gates."""
+def verdict(by_symbol: dict[str, tuple], sid: str = "trend_breakout") -> dict:
+    """Forward gate on the stored record: NOT_YET_PROVEN below 100 closed trades, then the batch-3 gates.
+    Bonferroni count as pre-registered: 2 for the batch-3 pair, 5 for the batch-4 group."""
     n = sum(len(v[0]) for v in by_symbol.values())
     if n < MIN_FORWARD_TRADES:
         return {"verdict": "NOT_YET_PROVEN", "needed": MIN_FORWARD_TRADES}
-    r = bt.pooled({s: v for s, v in by_symbol.items() if len(v[0])}, n_tests=len(TRACKED))
+    r = bt.pooled({s: v for s, v in by_symbol.items() if len(v[0])}, n_tests=len(BATCH3) if sid in BATCH3 else len(TRACKED) - len(BATCH3))
     return {"verdict": "PASSED_FORWARD" if r["verdict"] == "APPROVED_FOR_PAPER" else "FAILED_FORWARD",
             "needed": MIN_FORWARD_TRADES, "gate_checks": r.get("checks", {}),
             "expectancy_low": r.get("confidence", {}).get("expectancy_low")}
 
 
-def summarise(trades: pd.DataFrame, started: pd.Timestamp | None, coins: list[str], errors: list[str]) -> dict:
-    """Everything shown to the user comes from the stored (frozen) trades, never from one cycle's downloads."""
+def summarise(trades: pd.DataFrame, started: pd.Timestamp | None, coins: list[str], errors: list[str],
+              account: dict | None = None) -> dict:
+    """Everything shown to the user comes from the stored (frozen) trades, never from one cycle's downloads.
+    account: the agents' paper account (agents.account); without it, every strategy trade counts (lab view)."""
     out = {"updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
            "started_at": None if started is None else started.isoformat(), "coins": coins, "errors": errors,
            "rules": "same engine as the lab; next-bar-open fills; stop first; 0.12% costs per side",
-           "real_money": False, "strategies": {}, "account": portfolio(trades)}
+           "real_money": False, "strategies": {}, "account": account if account is not None else portfolio(trades)}
     for sid in TRACKED:
         t = trades[trades["strategy_id"] == sid] if not trades.empty else trades
         closed = t[t["status"] == "closed"] if not t.empty else t
@@ -140,10 +153,11 @@ def summarise(trades: pd.DataFrame, started: pd.Timestamp | None, coins: list[st
         by_symbol = {sym: (g, at_costs(g, cost, 1.5), at_costs(g, cost, 2.0))
                      for sym, g in closed.groupby("symbol")} if not closed.empty else {}
         out["strategies"][sid] = {
-            "version": BY_ID[sid].version, "closed": int(len(closed)), "open": int(len(t) - len(closed)),
+            "version": BY_ID[sid].version, "style": BY_ID[sid].style, "timeframe": BY_ID[sid].timeframe,
+            "closed": int(len(closed)), "open": int(len(t) - len(closed)),
             "wins": int((r > 0).sum()), "win_rate": float((r > 0).mean()) if len(r) else None,
             "expectancy_r": float(r.mean()) if len(r) else None, "total_r": float(r.sum()) if len(r) else 0.0,
-            **verdict(by_symbol)}
+            **verdict(by_symbol, sid)}
     return out
 
 
@@ -151,7 +165,7 @@ def summarise(trades: pd.DataFrame, started: pd.Timestamp | None, coins: list[st
 UPSERT = """
 insert into intel.spot_paper_trades (id, strategy_id, version, symbol, timeframe, status, signal_at, entry_at, entry,
   stop0, stop_now, target, last_price, exit_at, exit, reason, r, mfe_r, mae_r, bars, regime, updated_at)
-values (%(id)s, %(strategy_id)s, %(version)s, %(symbol)s, '4h', %(status)s, %(signal_at)s, %(entry_at)s, %(entry)s,
+values (%(id)s, %(strategy_id)s, %(version)s, %(symbol)s, %(timeframe)s, %(status)s, %(signal_at)s, %(entry_at)s, %(entry)s,
   %(stop0)s, %(stop_now)s, %(target)s, %(last_price)s, %(exit_at)s, %(exit)s, %(reason)s, %(r)s, %(mfe_r)s, %(mae_r)s,
   %(bars)s, %(regime)s, now())
 on conflict (id) do update set status = excluded.status, stop_now = excluded.stop_now, last_price = excluded.last_price,
@@ -174,20 +188,23 @@ def _clean(v):
     return v
 
 
-def cycle(conn, client, coins: list[str] | None = None) -> dict:
+def cycle(conn, client, coins: list[str] | None = None, tf: str = "4h", decide=None) -> dict:
+    """One run for one group. decide(conn, client, frames, tf) is the agents' step (agents.decide), given the fresh candles."""
     coins = coins or live_coins()
     errors: list[str] = []
     rows: list[dict] = []
+    frames: dict[str, tuple[pd.DataFrame, pd.DataFrame]] = {}
     for sym in coins:
         try:
-            sig, ctx = update_candles(sym, "4h", client), update_candles(sym, "1d", client)
-            q4, q1 = validate(sig, sym, "4h"), validate(ctx, sym, "1d")
+            sig, ctx = update_candles(sym, tf, client), update_candles(sym, CONTEXT[tf], client)
+            q4, q1 = validate(sig, sym, tf), validate(ctx, sym, CONTEXT[tf])
             if not (q4.ok and q1.ok):
                 raise ValueError(f"data quality: {q4.problems + q1.problems}")
         except Exception as err:          # noqa: BLE001 - one coin's failure must not stop the others
             errors.append(f"{sym}: {type(err).__name__}: {str(err)[:120]}")
             continue
-        for sid in TRACKED:
+        frames[sym] = (sig, ctx)
+        for sid in GROUPS[tf]:
             spec = BY_ID[sid]
             conn.execute("insert into intel.spot_paper_tracking (strategy_id, version, symbol) values (%s, %s, %s) "
                          "on conflict do nothing", (sid, spec.version, sym))
@@ -197,10 +214,19 @@ def cycle(conn, client, coins: list[str] | None = None) -> dict:
             for _, t in ft.iterrows():
                 rows.append({"last_price": None, "stop_now": None,
                              **{k: _clean(v) for k, v in t.to_dict().items()}, "strategy_id": sid,
-                             "version": spec.version, "symbol": sym,
+                             "version": spec.version, "symbol": sym, "timeframe": spec.timeframe,
                              "id": f"{sid}|{spec.version}|{sym}|{t['signal_at'].isoformat()}"})
     for row in rows:
         conn.execute(UPSERT, row)
+    if decide is not None:
+        try:
+            decide(conn, client, frames, tf)
+        except Exception as err:          # noqa: BLE001 - the strategy records above are kept even if the agents fail
+            errors.append(f"agents: {type(err).__name__}: {str(err)[:160]}")
+    return write_summary(conn, coins, errors)
+
+
+def write_summary(conn, coins: list[str], errors: list[str]) -> dict:
     cols = ["strategy_id", "symbol", "status", "entry_at", "exit_at", "entry", "exit", "stop_now", "last_price", "r",
             "mfe_r", "mae_r", "bars", "reason", "regime", "risk_pct"]
     stored = pd.DataFrame(conn.execute(
@@ -209,14 +235,15 @@ def cycle(conn, client, coins: list[str] | None = None) -> dict:
     if not stored.empty:
         stored["net_ret"] = stored["r"] * stored["risk_pct"]
     started = conn.execute("select min(started_at) from intel.spot_paper_tracking").fetchone()[0]
-    s = summarise(stored, None if started is None else pd.Timestamp(started), coins, errors)
+    from engine.spot import agents                     # late import: agents imports this module
+    s = summarise(stored, None if started is None else pd.Timestamp(started), coins, errors, agents.account(conn, stored))
+    s.update(agents.overview(conn, stored))
     conn.execute("insert into intel.spot_paper_summary (id, summary) values ('latest', %s) on conflict (id) do update "
                  "set summary = excluded.summary, updated_at = now()", (json.dumps(s, default=str),))
     return s
 
 
-def seconds_to_next_run(now: float | None = None, delay: int = 120) -> float:
-    """4h bars close at 00:00, 04:00, ... UTC; run `delay` seconds after each close."""
+def seconds_to_next_run(now: float | None = None, delay: int = 120, period: int = 4 * 3600) -> float:
+    """Bars close on the period grid (4h: 00:00, 04:00, ... UTC; 15m: :00, :15, ...); run `delay` seconds after each close."""
     now = time.time() if now is None else now
-    period = 4 * 3600
     return (period - (now % period)) + delay

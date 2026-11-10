@@ -190,27 +190,37 @@ def lab_results() -> dict:
 SPOT_PAPER = os.environ.get("INTEL_SPOT_PAPER", "on") != "off"
 
 
-def spot_paper() -> None:
-    """AI Spot forward paper trading: records only, no orders, no money (docs/intel/SPOT_HYPOTHESES.md)."""
+def spot_paper(tf: str = "4h") -> None:
+    """AI Spot forward paper trading for one group, then the agents decide on the fresh bar: records only, no orders, no money
+    (docs/intel/SPOT_HYPOTHESES.md). After a 4h run: forward reviews of deployed rules and the weekly cross-tests."""
     import httpx
+    from engine.spot import agents as spot_agents, improvements as spot_improvements
     with db.connect() as conn, httpx.Client(timeout=20) as client:
-        s = spot_paper_engine.cycle(conn, client)
+        s = spot_paper_engine.cycle(conn, client, tf=tf, decide=spot_agents.decide)
+        if tf == "4h":
+            spot_improvements.review_forward(conn)
+            pair = lambda sym: (lambda a, b: (a, b) if a is not None and b is not None else None)(
+                spot_paper_engine._read(sym, "4h"), spot_paper_engine._read(sym, "1d"))
+            tested = spot_improvements.cross_test(conn, pair)
+            spot_agents.prune(conn)
+            if tested:
+                s = spot_paper_engine.write_summary(conn, s["coins"], s["errors"])
     tb = s["strategies"]["trend_breakout"]
-    print(f"spot paper: equity {s['account']['equity']} | trend_breakout {tb['closed']} closed, {tb['open']} open | "
-          f"errors {len(s['errors'])}", flush=True)
+    print(f"spot paper {tf}: equity {s['account']['equity']} | trend_breakout {tb['closed']} closed, {tb['open']} open | "
+          f"decisions {s.get('agents', {}).get('counts')} | errors {len(s['errors'])}", flush=True)
 
 
-async def spot_loop() -> None:
-    """Every 4 h, two minutes after the bar closes. A failure is logged and retried at the next bar."""
+async def spot_loop(tf: str = "4h", period: int = 4 * 3600) -> None:
+    """Two minutes after each bar closes (4h swings, 15m scalps). A failure is logged and retried at the next bar."""
     if not SPOT_PAPER:
         return
-    await asyncio.sleep(60)
+    await asyncio.sleep(60 if tf == "4h" else 150)
     while True:
         try:
-            await asyncio.to_thread(spot_paper)
+            await asyncio.to_thread(spot_paper, tf)
         except Exception as err:
-            print("spot paper failed:", err, flush=True)
-        await asyncio.sleep(spot_paper_engine.seconds_to_next_run())
+            print(f"spot paper {tf} failed:", err, flush=True)
+        await asyncio.sleep(spot_paper_engine.seconds_to_next_run(period=period, delay=120 if tf == "4h" else 45))
 
 
 @asynccontextmanager
@@ -218,7 +228,8 @@ async def lifespan(_app: FastAPI):
     db.ensure_schema()
     learning.ensure()
     news.ensure()
-    tasks = [asyncio.create_task(c) for c in (loop(), research_loop(), quick_loop(), daily_loop(), spot_loop())]
+    tasks = [asyncio.create_task(c) for c in (loop(), research_loop(), quick_loop(), daily_loop(), spot_loop("4h", 4 * 3600),
+                                              spot_loop("15m", 15 * 60))]
     yield
     for t in tasks:
         t.cancel()

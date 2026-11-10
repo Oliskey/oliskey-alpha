@@ -108,6 +108,39 @@ create table if not exists intel.spot_paper_summary (
   summary jsonb not null,
   updated_at timestamptz not null default now()
 );
+
+-- AI Spot agents (intel/engine/spot/agents.py): one frozen record per coin per closed bar, with every agent's view and the
+-- final TRADE / NO_TRADE. The paper account follows only TRADE decisions.
+create table if not exists intel.spot_agent_decisions (
+  id text primary key,                         -- timeframe|symbol|bar
+  symbol text not null,
+  timeframe text not null,
+  bar_at timestamptz not null,
+  decided_at timestamptz not null default now(),
+  decision text not null check (decision in ('TRADE', 'NO_TRADE', 'WAIT')),
+  strategy_id text,
+  order_id text,                               -- = the strategy trade id it follows (one order per signal, never two)
+  risk_pct double precision,
+  vetoed jsonb not null default '[]',          -- strategy trade ids a signal had but an agent blocked (scored later)
+  agents jsonb not null
+);
+create index if not exists spot_agent_decisions_bar_idx on intel.spot_agent_decisions (bar_at desc);
+
+-- Shared improvement registry: every change an agent proposes, its evidence, every agent's review, and every status change.
+create table if not exists intel.spot_improvements (
+  id text primary key,
+  title text not null,
+  origin_agent text not null,
+  affects jsonb not null,
+  why text not null,
+  status text not null,
+  version int not null default 1,
+  evidence jsonb not null default '{}',
+  reviews jsonb not null default '[]',
+  history jsonb not null default '[]',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 """
 
 

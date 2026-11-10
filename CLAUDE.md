@@ -63,3 +63,11 @@ AI SPOT (added 2026-11-09, docs/spot/SPEC.md): long-only BTC/USDT and ETH/USDT s
   spot_paper_summary (created by intel's ensure_schema). Closed trades are frozen; the verdict comes from the stored
   record. Proven only at 100+ closed live trades passing the batch-3 gates. App: Market Scanner -> AI Spot tab.
   Switch off with INTEL_SPOT_PAPER=off.
+- Agents (2026-11-10, intel/engine/spot/agents.py): 14 deterministic agents (13 responsibilities + News & Event Risk) give a
+  view on every closed bar of every live coin (4h swings; 15m scalps) and the decision is stored frozen in
+  intel.spot_agent_decisions with every view. The paper account follows only TRADE decisions. All 7 strategies keep their own
+  forward record; only lab-approved ones can reach the account. Risk limits mirror backend/src/spot/risk.js and trip the same
+  kill switch file. Behaviour changes only through the improvement registry (intel/engine/spot/improvements.py,
+  intel.spot_improvements): a rule acts only while "deployed"; cross-tests on each strategy's history; conflicts never promote;
+  harmful vetoes roll back. Pre-registered in docs/intel/SPOT_HYPOTHESES.md (batch 4). App: Market Scanner -> AI Agents
+  (GET /spot/agents, read-only). GET /health returns the running commit.

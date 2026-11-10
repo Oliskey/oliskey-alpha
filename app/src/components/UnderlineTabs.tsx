@@ -31,7 +31,7 @@ export function Segmented<K extends string>({ tabs, value, onChange, dot, stretc
   }, [box?.x, box?.w]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <SideScroll fade={false} style={[styles.track, stretch && { alignSelf: 'stretch' }, glass('regular', { shadow: false })]} contentContainerStyle={{ padding: 4, flexGrow: stretch ? 1 : 0 }}>
+    <SideScroll fade={false} reveal={box} style={[styles.track, stretch && { alignSelf: 'stretch' }, glass('regular', { shadow: false })]} contentContainerStyle={{ padding: 4, flexGrow: stretch ? 1 : 0 }}>
       <View style={{ flexDirection: 'row', flex: stretch ? 1 : undefined }}>
         {box ? <Animated.View pointerEvents="none" style={[styles.lens, glassLens(), { left: x, width: w }]} /> : null}
         {tabs.map((t) => {

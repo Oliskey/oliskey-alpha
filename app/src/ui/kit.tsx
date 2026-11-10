@@ -60,7 +60,7 @@ export function HoverReveal({ children, always, style }: { children: ReactNode; 
 
 // A sideways row. A mouse cannot swipe, so on hover round arrows appear on sides that have more to see, and the edges
 // fade softly. Touch screens swipe as usual. Items stay reachable by keyboard, so the arrows are mouse-only.
-export function SideScroll({ children, style, fade = true, ...rest }: ScrollViewProps & { fade?: boolean }) {
+export function SideScroll({ children, style, fade = true, reveal, ...rest }: ScrollViewProps & { fade?: boolean; reveal?: { x: number; w: number } }) {
   const ref = useRef<{ scrollTo: (to: { x: number; animated: boolean }) => void } | null>(null);
   const size = useRef({ x: 0, w: 0, content: 0 });
   const [more, setMore] = useState({ left: false, right: false });
@@ -70,6 +70,13 @@ export function SideScroll({ children, style, fade = true, ...rest }: ScrollView
     setMore((m) => (m.left === next.left && m.right === next.right ? m : next));
   };
   const move = (dir: 1 | -1) => ref.current?.scrollTo({ x: Math.max(0, size.current.x + dir * size.current.w * 0.8), animated: true });
+  // keep a chosen item (a selected tab) in view, e.g. when a screen opens on its last tab
+  const [laidOut, setLaidOut] = useState(0);
+  useEffect(() => {
+    if (!reveal || !size.current.w) return;
+    const { x, w } = size.current;
+    if (reveal.x < x || reveal.x + reveal.w > x + w) ref.current?.scrollTo({ x: Math.max(0, reveal.x + reveal.w / 2 - w / 2), animated: true });
+  }, [reveal?.x, reveal?.w, laidOut]); // eslint-disable-line react-hooks/exhaustive-deps
   const mask = webOnly && fade && (more.left || more.right)
     ? { maskImage: `linear-gradient(to right, ${more.left ? 'transparent, #000 28px' : '#000'}, ${more.right ? '#000 calc(100% - 28px), transparent' : '#000'})` }
     : null;
@@ -84,7 +91,7 @@ export function SideScroll({ children, style, fade = true, ...rest }: ScrollView
     <View style={{ flexShrink: 1, minWidth: 0 }} {...revealHost}>
       <ScrollView {...rest} ref={ref as never} horizontal showsHorizontalScrollIndicator={false} scrollEventThrottle={32}
         style={[style, mask as object]}
-        onLayout={(e) => { size.current.w = e.nativeEvent.layout.width; update(); rest.onLayout?.(e); }}
+        onLayout={(e) => { size.current.w = e.nativeEvent.layout.width; setLaidOut(size.current.w); update(); rest.onLayout?.(e); }}
         onContentSizeChange={(w, h) => { size.current.content = w; update(); rest.onContentSizeChange?.(w, h); }}
         onScroll={(e) => { size.current.x = e.nativeEvent.contentOffset.x; update(); rest.onScroll?.(e); }}>
         {children}

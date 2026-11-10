@@ -106,3 +106,33 @@ The only data that can never have been seen is data from the future. From its fi
   (3% open risk, as the Risk Manager allows). Trades skipped by that cap still count as evidence for the strategy.
 - **Forward pass:** the same gates as batch 3, applied to forward trades only (2 tests). Until a strategy passes,
   its paper results are labelled "not yet proven". Real money stays off whatever the result (REAL-MONEY GATE).
+
+## Batch 4 — forward protocol for every strategy, and the agents (registered 2026-11-10, before any forward data)
+
+Written before the first 15-minute or batch-4 forward bar existed. Nothing below may be changed after seeing results.
+
+**Strategies tracked forward (each its own record, frozen version 0.1.0):** trend_breakout, squeeze_breakout (batch-3 protocol,
+Bonferroni 2), and strict_swing, balanced_swing, range_reversion (4h bars, 1d context), strict_scalp, balanced_scalp (15m bars,
+1h context): batch-4 protocol, Bonferroni 5, same gates (100 closed trades, lower bound > 0, folds, sealed share, drawdown, breadth).
+Tracking starts flat at the first run; closed trades are frozen. A strategy not approved by the lab is tracked as evidence only:
+its signals can never reach the paper account.
+
+**Agents (intel/engine/spot/agents.py):** 14 deterministic services give a view on every closed bar of every live coin. The paper
+account follows only TRADE decisions: approved strategy with a signal, fresh closed bar (≤ 1 bar old), live quote available,
+price ≤ 0.5 ATR above the planned entry, spread ≤ the strategy's limit, valid stop, every risk limit clear, and no agent asking to
+wait. Risk limits: 1% per trade, 3% open, 3% daily loss and 10% drawdown (both trip the persistent kill switch), 3 positions,
+one per coin, 2% open risk across positions whose 30-bar return correlation is ≥ 0.80 (unknown counts as correlated).
+
+**Strategy health (Recovery):** PAUSED after a 10R drawdown or the last 20 trades averaging below −0.25R; WATCH after 6R or the
+last 20 below 0R (half risk); a paused strategy returns to WATCH only when its drawdown is under 5R and its last 10 trades average
+above 0R. Judged on the strategy's own continuing paper record.
+
+**Improvement registry (intel/engine/spot/improvements.py):** a rule acts only while its status is `deployed`.
+Owner rules deployed from the start and measured forward: news veto (WAIT when ≥ 2 bad headlines and net score ≤ −2 in the last
+6 h, published and seen before the decision), correlated-risk cap, pause rule, half risk on watch. A deployed veto is rolled back
+automatically once ≥ 30 of the trades it blocked have closed with an average above +0.10R.
+Proposals cross-tested on each strategy's own history (BTC, ETH and the 8 unseen coins): `regime-fit` (skip signals in regimes on
+the strategy's avoid list) and `exit-regime-down` (leave when the 4h regime turns TRENDING_DOWN). A reviewer accepts on ≥ 30
+trades with a better total and ≥ 70% of 6 time folds no worse; rejects on a worse total; strategies the change does not touch
+abstain; accept + reject together is a conflict and is never promoted. A change to entries or exits can never enter a frozen
+strategy's record: at most it becomes a new version that must earn its own forward record. Nothing here can reach real money.

@@ -164,7 +164,10 @@ bad = paper.summarise(record([0.8, -1.0] * 120), None, [], [])["strategies"]["tr
 check("a strong live record of 240 trades is marked PASSED_FORWARD", good["verdict"] == "PASSED_FORWARD")
 check("a losing live record is marked FAILED_FORWARD, never proven", bad["verdict"] == "FAILED_FORWARD")
 check("paper runs 2 minutes after each 4h close", paper.seconds_to_next_run(4 * 3600 * 10 + 60) == 4 * 3600 - 60 + 120)
-check("only the two pre-registered candidates are paper traded", paper.TRACKED == ("trend_breakout", "squeeze_breakout"))
+check("all seven pre-registered strategies keep their own paper record, scalps on 15m and swings on 4h",
+      set(paper.TRACKED) == {s.strategy_id for s in SPECS} and all(BY_ID[x].timeframe == tf for tf, g in paper.GROUPS.items() for x in g))
+check("the batch-3 pair keeps its pre-registered forward test count", paper.BATCH3 == ("trend_breakout", "squeeze_breakout"))
+check("15-minute scalps run 45 s after each 15m close", paper.seconds_to_next_run(900 * 7 + 10, delay=45, period=900) == 900 - 10 + 45)
 
 # --- metrics and gates -----------------------------------------------------------------------------------------
 tr = pd.DataFrame({"r": [1.0, -1.0] * 60, "entry_at": pd.date_range("2024-01-01", periods=120, freq="D", tz="UTC"),
@@ -180,6 +183,129 @@ check("gates are fixed before any run", bt.GATES == bt.Gates())
 ms = market_state("BTC/USDT", "4h", full)
 check("MarketState carries the contract fields",
       {"regime", "trendDirection", "uncertainty", "recommended", "avoid", "evidence", "dataQuality"} <= ms.keys())
+
+
+# --- agents: every view, every block, fail-closed (engine/spot/agents.py) -----------------------------------------
+import json as _json
+import tempfile
+from datetime import timedelta as _td
+from engine.spot import agents, improvements as imp
+
+
+def breakout_market(seed: int = 3):
+    """An uptrend whose last closed 4h bar breaks the 55-bar high: trend_breakout signals on it."""
+    sig = bars(700, "4h", seed=seed, drift=0.0015)
+    top = sig["high"].iloc[-56:-1].max()
+    sig.iloc[-1, sig.columns.get_loc("close")] = top * 1.02
+    sig.iloc[-1, sig.columns.get_loc("high")] = top * 1.025
+    ctx = bars(420, "1D", seed=seed + 1, drift=0.004)
+    ctx.index = pd.date_range(sig.index[-1] - pd.Timedelta(days=419), periods=420, freq="1D", tz="UTC").as_unit("ns") - pd.Timedelta(days=1)
+    return sig, ctx
+
+
+SIG, CTX = breakout_market()
+check("test market: trend_breakout signals on the last closed bar",
+      bool(entries(prepare(SIG, CTX, BY_ID["trend_breakout"]), BY_ID["trend_breakout"]).iloc[-1]))
+REG = {"strategies": [{"strategy_id": "trend_breakout", "symbol": "BASKET", "coins": ["ADAUSDT"], "verdict": "APPROVED_FOR_PAPER",
+                       "expectancy_low": 0.19}]}
+NOW = (SIG.index[-1] + pd.Timedelta(hours=4, minutes=2)).to_pydatetime()
+EMPTY = {"equity": 10_000.0, "peak": 10_000.0, "unrealised": 0.0, "realised": 0.0, "day_pnl": 0.0, "open": [], "open_risk": 0.0}
+ALL_ON = {k: True for k in imp.DEPLOYABLE}
+HL = {s: agents.health_of([]) for s in paper.TRACKED}
+LAST = float(SIG["close"].iloc[-1])
+GOOD_QUOTE = {"bid": LAST * 0.99995, "ask": LAST * 1.00005, "mid": LAST, "spread": 0.0001}
+agents.KILL_FILE = Path(tempfile.mkdtemp()) / "kill.json"
+
+
+def run_coin(sym="ADAUSDT", **kw):
+    args = dict(now=NOW, live=GOOD_QUOTE, news=None, reg=REG, hl=HL, rules=ALL_ON, acct=EMPTY, ctx_frames={}, expected={})
+    args.update(kw)
+    return agents.decide_coin(sym, SIG, CTX, "4h", **args)
+
+
+def verdict_of(d, key):
+    return next(v["verdict"] for v in d["agents"] if v["agent"] == key)
+
+
+d = run_coin()
+check("agents: approved signal, fresh bar, fair price, limits clear -> TRADE", d["decision"] == "TRADE" and d["strategy_id"] == "trend_breakout")
+check("agents: every one of the 14 agents gives a view, in a fixed order",
+      [v["agent"] for v in d["agents"]] == ["market", "news", "discovery", "testing", "selection", "allocation", "entry", "duration",
+                                           "exit", "risk", "execution", "learning", "recovery", "collaboration"])
+check("agents: the record is plain JSON (stored and shown as is)", bool(_json.dumps(d["agents"])))
+check("agents: one signal = one order id, identical to the strategy trade it follows (no duplicates)",
+      d["order_id"] == f"trend_breakout|0.1.0|ADAUSDT|{SIG.index[-1].isoformat()}" and run_coin()["order_id"] == d["order_id"])
+check("agents: the Risk Manager sizes the paper order from 1% risk and the stop",
+      next(v for v in d["agents"] if v["agent"] == "risk")["data"]["size_usdt"] > 0 and d["risk_pct"] == 0.01)
+
+d = run_coin("BTCUSDT")
+check("agents: a coin outside the approved basket never trades (signal kept as evidence only)",
+      d["decision"] == "NO_TRADE" and verdict_of(d, "selection") == "BLOCK" and d["vetoed"] == [])
+bad_news = {"count": 5, "own": 3, "good": 0, "bad": 4, "score": -4, "feeds_fresh": True}
+d = run_coin(news=bad_news)
+check("agents: chart says buy but the news is clearly bad -> WAIT, and the blocked signal is kept to score the veto later",
+      d["decision"] == "WAIT" and verdict_of(d, "news") == "WAIT" and d["vetoed"] and "news" in d["vetoed"][0]["by"])
+d = run_coin(news=bad_news, rules={**ALL_ON, "news-veto": False})
+check("agents: with the news rule rolled back in the registry, the same case trades (registry decides behaviour)", d["decision"] == "TRADE")
+d = run_coin(live=None)
+check("agents: no live price -> entry refused (fail closed)", d["decision"] == "NO_TRADE" and verdict_of(d, "entry") == "BLOCK")
+atr = float(prepare(SIG, CTX, BY_ID["trend_breakout"])["atr"].iloc[-1])
+d = run_coin(live={**GOOD_QUOTE, "mid": LAST + 2 * atr})
+check("agents: price already ran 2 ATR above the plan -> no chasing", d["decision"] == "NO_TRADE" and verdict_of(d, "entry") == "BLOCK")
+d = run_coin(live={**GOOD_QUOTE, "spread": 0.01})
+check("agents: a 1% spread is refused", verdict_of(d, "entry") == "BLOCK")
+d = run_coin(now=NOW + _td(hours=12))
+check("agents: stale data (bar three periods old) -> Market Intelligence blocks", d["decision"] == "NO_TRADE" and verdict_of(d, "market") == "BLOCK")
+agents.KILL_FILE.write_text(_json.dumps({"on": True, "reason": "test"}))
+d = run_coin()
+check("agents: kill switch on -> the Risk Manager refuses, whatever the other agents say", d["decision"] == "NO_TRADE" and verdict_of(d, "risk") == "BLOCK")
+agents.KILL_FILE.unlink()
+pos = lambda sym, amt=100.0: {"id": sym, "strategy": "trend_breakout", "symbol": sym, "entry": 1, "stop": 0.9, "price": 1, "r_now": 0, "risk_amount": amt, "since": ""}
+d = run_coin(acct={**EMPTY, "open": [pos("A"), pos("B"), pos("C")], "open_risk": 300.0})
+check("agents: three positions already open -> refused", verdict_of(d, "risk") == "BLOCK")
+d = run_coin(acct={**EMPTY, "open": [pos("ADAUSDT")], "open_risk": 100.0})
+check("agents: already holding this coin -> refused", verdict_of(d, "risk") == "BLOCK")
+d = run_coin(acct={**EMPTY, "open": [pos("XRPUSDT", 150.0)], "open_risk": 150.0}, ctx_frames={"XRPUSDT": CTX})
+check("agents: a correlated position already uses 1.5% -> a new 1% would pass the 2% cluster limit -> refused",
+      verdict_of(d, "risk") == "BLOCK")
+d = run_coin(acct={**EMPTY, "open": [pos("XRPUSDT", 150.0)], "open_risk": 150.0}, ctx_frames={"XRPUSDT": CTX}, rules={**ALL_ON, "corr-limit": False})
+check("agents: the same case passes when the correlation rule is not deployed", d["decision"] == "TRADE")
+d = run_coin(acct={**EMPTY, "peak": 12_000.0, "equity": 10_500.0})
+check("agents: drawdown past 10% -> refused and the kill switch is tripped for a person to clear",
+      verdict_of(d, "risk") == "BLOCK" and agents.kill_switch().get("on") and agents.kill_switch().get("setBy") == "risk")
+agents.KILL_FILE.unlink()
+check("health: a fresh strategy is ACTIVE", agents.health_of([])["state"] == "ACTIVE")
+check("health: a 6R losing spell puts it on WATCH", agents.health_of([-1.0] * 6)["state"] == "WATCH")
+check("health: a 10R losing spell PAUSES it", agents.health_of([-1.0] * 10)["state"] == "PAUSED")
+check("health: a paused strategy comes back only after its record recovers", agents.health_of([-1.0] * 10 + [1.5] * 10)["state"] != "PAUSED"
+      and agents.health_of([-1.0] * 10 + [0.1, -0.1] * 3)["state"] == "PAUSED")
+d = run_coin(hl={**HL, "trend_breakout": {**HL["trend_breakout"], "state": "WATCH"}})
+check("agents: a strategy on watch trades at half risk", d["decision"] == "TRADE" and d["risk_pct"] == 0.005)
+d = run_coin(hl={**HL, "trend_breakout": {**HL["trend_breakout"], "state": "PAUSED"}})
+check("agents: a paused strategy cannot be selected", d["decision"] == "NO_TRADE" and verdict_of(d, "selection") == "BLOCK")
+t = pd.DataFrame([{"id": "a", "strategy_id": "trend_breakout", "symbol": "X", "status": "closed", "entry_at": pd.Timestamp("2026-01-01", tz="UTC"),
+                   "exit_at": pd.Timestamp("2026-01-02", tz="UTC"), "entry": 100.0, "exit": 110.0, "stop0": 95.0, "stop_now": 95.0,
+                   "last_price": None, "r": 2.0, "risk_pct": 0.01, "decided_at": None},
+                  {"id": "b", "strategy_id": "trend_breakout", "symbol": "Y", "status": "closed", "entry_at": pd.Timestamp("2026-01-03", tz="UTC"),
+                   "exit_at": pd.Timestamp("2026-01-04", tz="UTC"), "entry": 100.0, "exit": 95.0, "stop0": 95.0, "stop_now": 95.0,
+                   "last_price": None, "r": -1.0, "risk_pct": 0.01, "decided_at": None}])
+st = agents.account_state(t)
+check("account: +2R on 100 then -1R on 102 = 10,098 (risk follows equity)", abs(st["equity"] - 10_098.0) < 1e-6 and st["peak"] == 10_200.0)
+
+# --- improvement registry ---------------------------------------------------------------------------------------
+check("registry: too few trades -> defer", imp.review_verdict(10, 0.5) == "defer")
+check("registry: better on enough trades and folds -> accept; worse -> reject",
+      imp.review_verdict(100, 0.05, 0.8) == "accept" and imp.review_verdict(100, -0.05, 0.8) == "reject" and imp.review_verdict(100, 0.05, 0.5) == "defer")
+check("registry: one strategy better and another worse is a conflict, never a promotion",
+      imp.combine([{"verdict": "accept"}, {"verdict": "reject"}])[0] == "conflict")
+check("registry: strategies a change does not touch abstain; one affected strategy getting worse rejects it",
+      imp.combine([{"verdict": "reject"}, {"verdict": "not_affected"}, {"verdict": "not_affected"}])[0] == "reject"
+      and imp.combine([{"verdict": "not_affected"}])[0] == "defer")
+check("registry: a change to how a frozen strategy exits can never be deployed into its record", "exit-regime-down" not in imp.DEPLOYABLE)
+f_tb = prepare(SIG, CTX, BY_ID["trend_breakout"])
+base, var = bt.run(f_tb, BY_ID["trend_breakout"]), bt.run(f_tb, BY_ID["trend_breakout"], exit_on="regime_down")
+check("cross-test: the extra exit is used only when asked; the lab record is unchanged without it",
+      base.equals(bt.run(f_tb, BY_ID["trend_breakout"])) and (var.empty or set(var["reason"]) <= {"stop", "trail", "target", "time", "breakeven", "regime"}))
 
 print(f"\n{'ALL PASSED' if not FAILED else f'{len(FAILED)} FAILED'}")
 sys.exit(1 if FAILED else 0)

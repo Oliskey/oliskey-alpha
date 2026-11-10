@@ -2,7 +2,7 @@
 // and the forward paper-trading record. No route here can place an order or change risk limits.
 import { Router } from 'express';
 import { loadRegistry } from '../spot/pipeline.js';
-import { DEFAULT_LIMITS } from '../spot/risk.js';
+import { DEFAULT_LIMITS, KillSwitch } from '../spot/risk.js';
 
 const num = (v) => (v === null || v === undefined ? null : Number(v));
 
@@ -15,8 +15,9 @@ export async function paperRecord(pool) {
                   from intel.spot_paper_trades order by entry_at desc limit 30`),
     ]);
     if (!s.length) return null;
+    const { agents: _agents, ...summary } = s[0].summary;   // the agents' record is served by /spot/agents (kept out of this lighter call)
     return {
-      ...s[0].summary,
+      ...summary,
       recent: t.map((r) => ({ strategy: r.strategy_id, symbol: r.symbol, status: r.status, entryAt: r.entry_at, entry: num(r.entry),
         stop: num(r.stop_now), price: num(r.last_price), exitAt: r.exit_at, exit: num(r.exit), reason: r.reason, r: num(r.r) })),
     };
@@ -26,8 +27,32 @@ export async function paperRecord(pool) {
   }
 }
 
-export function spotRouter({ killSwitch, pool }) {
+/** The agents' record written by intel after each run: every agent, the latest decision per coin, the improvement registry. */
+export async function agentsRecord(pool) {
+  try {
+    const { rows } = await pool.query(`select summary -> 'agents' as agents, summary -> 'strategies' as strategies, updated_at
+                                       from intel.spot_paper_summary where id = 'latest'`);
+    if (!rows.length || !rows[0].agents) return null;
+    return { ...rows[0].agents, strategies: rows[0].strategies, updatedAt: rows[0].updated_at };
+  } catch (err) {
+    if (err.code === '42P01' || err.code === '3F000') return null;
+    throw err;
+  }
+}
+
+export function spotRouter({ killSwitch: switchAtStart, pool }) {
   const r = Router();
+  // The intel agents can trip the same switch file; read it fresh so the app never shows a stale "off".
+  const current = () => (switchAtStart.file ? new KillSwitch(switchAtStart.file) : switchAtStart);
+  // Read-only: how each agent is working and how they decided on every coin. No route here can change a rule or place an order.
+  r.get('/spot/agents', async (_req, res, next) => {
+    try {
+      const a = pool ? await agentsRecord(pool) : null;
+      res.json({ mode: 'paper_only', liveEnabled: false, killSwitch: (({ on, state }) => ({ on, reason: state.reason }))(current()), agents: a });
+    } catch (err) {
+      next(err);
+    }
+  });
   r.get('/spot/status', async (_req, res, next) => {
     try {
       const reg = loadRegistry();
@@ -40,7 +65,7 @@ export function spotRouter({ killSwitch, pool }) {
         reason: approved.length
           ? 'Passed its tests on past data. Paper trading on live prices decides if it is real. No real money.'
           : 'No strategy has passed its tests yet, so the AI does not trade.',
-        killSwitch: { on: killSwitch.on, reason: killSwitch.state.reason },
+        killSwitch: (({ on, state }) => ({ on, reason: state.reason }))(current()),
         limits: { maxRiskPerTrade: DEFAULT_LIMITS.maxRiskPerTrade, maxDailyLoss: DEFAULT_LIMITS.maxDailyLoss, maxDrawdown: DEFAULT_LIMITS.maxDrawdown },
         marketState: reg.market_state ?? {},
         strategies: (reg.strategies ?? []).map((s) => ({ id: s.strategy_id, version: s.version, symbol: s.symbol, coins: s.coins ?? null,

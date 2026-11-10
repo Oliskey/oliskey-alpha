@@ -123,7 +123,9 @@ app.use(rateLimit({ windowMs: 60_000, limit: Number(process.env.RATE_LIMIT) || 3
 app.use(express.json({ limit: '100kb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
 
 // ── Public ──
-app.get('/health', (_req, res) => res.json({ ok: true, assets: assets.length }));
+// commit: which version is running, so production can be checked against the repository (Railway sets the variable)
+const COMMIT = (process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT || '').slice(0, 7) || null;
+app.get('/health', (_req, res) => res.json({ ok: true, assets: assets.length, commit: COMMIT }));
 
 app.get('/assets', (_req, res) => {
   res.json(assets.map((a) => ({ ...a, price: engine.getPrice(a.id)?.price ?? null })));

@@ -16,7 +16,16 @@ test('health and assets', async () => {
   assert.equal(body.length, health.assets);
   assert.ok(body.length >= 75, `full market list, got ${body.length}`);
   for (const c of ['currency', 'crypto', 'index', 'commodity']) assert.ok(body.some((a) => a.category === c), c);
-  for (const a of body) assert.ok(a.price > 0, `${a.id} has a live price`);
+  for (const a of body.filter((x) => x.price_source !== 'binance')) assert.ok(a.price > 0, `${a.id} has a price`);
+});
+
+test('live crypto prices arrive from the market feed', async (t) => {
+  const live = (await get('/assets')).body.filter((a) => a.price_source === 'binance');
+  assert.ok(live.length > 0, 'some assets use the live feed');
+  // Same rule as inzone-zone.test.mjs: a server that cannot reach the exchange at all (a sandbox without internet)
+  // reports it as skipped, never as passed. A feed that works for some coins but not others still fails.
+  if (live.every((a) => !(a.price > 0))) return t.skip('the market feed is unreachable from this server');
+  for (const a of live) assert.ok(a.price > 0, `${a.id} has a live price`);
 });
 
 test('price endpoint', async () => {

@@ -9,6 +9,8 @@ const call = async (method, path, token, body) => {
 };
 const signUp = async () => {
   const { body } = await call('POST', '/auth/register', null, { fullName: 'Zone Test', email: `z${Date.now()}${Math.random().toString(36).slice(2, 7)}@test.local`, password: 'password123' });
+  // trading opens only after the short lessons (added after this test was written; see onboarding.test.mjs)
+  assert.equal((await call('POST', '/me/onboarding', body.token, { answers: { lose: 'stake', demo: 'practice', ai: 'mine' }, aiMode: 'ask' })).status, 200);
   const me = await call('GET', '/me', body.token);
   return { token: body.token, demo: me.body.accounts.find((a) => a.type === 'DEMO').id };
 };

@@ -1,7 +1,10 @@
 // Delete account against a running backend: password required, blocked by open trades, then the person is
 // anonymised: the old session stops working and the email/password no longer log in.
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { pool } from '../src/db.js';
+
+after(() => pool.end());
 
 const API = process.env.API_URL || 'http://localhost:3311';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -34,6 +37,9 @@ test('delete account: password, open trades, then anonymised and logged out', as
   assert.equal(del.status, 200, JSON.stringify(del.body));
   assert.equal((await call('GET', '/me', { token })).status, 401, 'old session no longer opens the profile');
   assert.equal((await call('POST', '/auth/login', { body: { email, password: 'password123' } })).status, 401, 'cannot log in again');
-  assert.equal((await call('POST', '/trades', { token, body: { accountId: demo.id, assetId: 'EURUSD', mode: 'fixed_time', direction: 'up', amount: 10, durationSec: 5 } })).body.code,
-    'INSUFFICIENT_FUNDS', 'demo credits are gone');
+  // the old session is now refused outright (audit fix, see deleted-session.test.mjs), so it cannot even try to trade
+  assert.equal((await call('POST', '/trades', { token, body: { accountId: demo.id, assetId: 'EURUSD', mode: 'fixed_time', direction: 'up', amount: 10, durationSec: 5 } })).status,
+    401, 'the deleted account cannot trade');
+  const left = (await pool.query(`select coalesce(sum(balance), 0)::numeric as b from accounts where id = $1`, [demo.id])).rows[0].b;
+  assert.equal(Number(left), 0, 'demo credits are gone');
 });

@@ -21,6 +21,8 @@ async function signUp() {
   const email = `t${Date.now()}${Math.random().toString(36).slice(2, 7)}@test.local`;
   const r = await call('POST', '/auth/register', { body: { fullName: 'Test User', email, password: 'password123' } });
   assert.equal(r.status, 201, JSON.stringify(r.body));
+  // trading opens only after the short lessons (added after this test was written; see onboarding.test.mjs)
+  assert.equal((await call('POST', '/me/onboarding', { token: r.body.token, body: { answers: { lose: 'stake', demo: 'practice', ai: 'mine' }, aiMode: 'ask' } })).status, 200);
   const me = await call('GET', '/me', { token: r.body.token });
   return { email, token: r.body.token, me: me.body, demo: me.body.accounts.find((a) => a.type === 'DEMO') };
 }

@@ -53,6 +53,8 @@ jobs:
       - name: Backend API tests (against a running server)
         run: |
           export SUPABASE_JWT_SECRET="$(openssl rand -hex 32)"
+          # throw-away alert keys so the push-subscription tests run (production keys live in Railway)
+          eval "$(cd backend && node -e "const k=require('web-push').generateVAPIDKeys();console.log('export VAPID_PUBLIC_KEY='+k.publicKey+' VAPID_PRIVATE_KEY='+k.privateKey)")"
           node backend/src/server.js > server.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://localhost:3311/health && break; sleep 1; done
           cd backend && node --test --test-reporter=spec test/

@@ -5,7 +5,8 @@ import * as Haptics from 'expo-haptics';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Minus, Plus } from 'lucide-react-native';
 import { AiIcon } from './AiIcon';
 import { card, colors, font, radius, type, createStyles, veil } from '@/theme';
-import { glass, glassLens, MOTION } from './glass';
+import { glass, glassLens } from './glass';
+import { EASE, MOTION } from './motion';
 import { LiquidBox, useLiquidBend } from './liquid';
 import { Press, prefersReducedMotion } from './Press';
 import { Txt } from './Txt';
@@ -119,7 +120,7 @@ export function ChipRow({ children, center }: { children: ReactNode; center?: bo
 // sliding the knob turns into a clear glass drop that grows past the track, then settles back to white. No wobble.
 // Reduced motion: the knob moves and the colour changes, with no glass and no stretch.
 const SWITCH = { w: 58, h: 28, knobW: 34, knobH: 22, inset: 3, tap: 44 } as const;
-const SWITCH_EASE = Easing.bezier(0.2, 0.8, 0.2, 1);
+const SWITCH_EASE = EASE.respond;
 
 export function Toggle({ value, onValueChange, disabled, accessibilityLabel }: {
   value: boolean; onValueChange?: (next: boolean) => void; disabled?: boolean; accessibilityLabel?: string;

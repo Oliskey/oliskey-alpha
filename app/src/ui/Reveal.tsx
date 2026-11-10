@@ -1,8 +1,9 @@
 // Shows or hides content with a smooth height + fade (the app's glide curve). The content is measured off-screen,
 // so it works with any height. Reduced motion: no slide, it just appears.
 import { useEffect, useState, type ReactNode } from 'react';
-import { Animated, Easing, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, View, type StyleProp, type ViewStyle } from 'react-native';
 import { prefersReducedMotion } from './Press';
+import { EASE, MOTION } from './motion';
 
 export function Reveal({ show, children, style }: { show: boolean; children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const [p] = useState(() => new Animated.Value(show ? 1 : 0));
@@ -11,8 +12,8 @@ export function Reveal({ show, children, style }: { show: boolean; children: Rea
   useEffect(() => {
     if (show) setMounted(true);
     const anim = Animated.timing(p, {
-      toValue: show ? 1 : 0, duration: prefersReducedMotion() ? 0 : show ? 300 : 200,
-      easing: Easing.bezier(0.32, 0.72, 0, 1), useNativeDriver: false,
+      toValue: show ? 1 : 0, duration: prefersReducedMotion() ? 0 : show ? 300 : MOTION.sheetOutMs - 40,
+      easing: show ? EASE.glide : EASE.exit, useNativeDriver: false,
     });
     anim.start(({ finished }) => { if (finished && !show) setMounted(false); });
     return () => anim.stop();

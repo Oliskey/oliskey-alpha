@@ -1,6 +1,6 @@
 # Frontend Skills
 
-Three skills that make an app attractive, Apple-quality and consistent. Read them together before any UI work, and when generating a new app follow the **proven recipe** (vivid "shaped" colour, liquid-glass controls, the navigation look, follow-scroll headers). Updated 2026-11-05.
+Four files that make an app attractive, Apple-quality and consistent. Read them together before any UI work, and when generating a new app follow the **proven recipe** (vivid "shaped" colour, liquid-glass controls, the navigation look, follow-scroll headers). Updated 2026-11-05.
 
 ## The three skills
 
@@ -18,6 +18,11 @@ Three skills that make an app attractive, Apple-quality and consistent. Read the
 2. **oliskey-apple-quality-frontend.skill.v2.md** — the always-on master skill (spacing, hierarchy, buttons, forms, dashboards, accessibility, auditing). Its **§29 Proven attractive recipe** mirrors the above in short.
 
 3. **apple-hig-research-and-frontend-reasoning.skill.md** — Apple HIG reasoning; keeps Apple-documented rules separate from web adaptations. Includes the **collapsing-header scroll boundary** (web headers follow scroll, never call `window.scrollTo` to snap).
+
+## Design principles (2026-11-10) — read this first for any new app
+**oliskey-design-principles.md**: the short, reusable rulebook (ten rules, layout, buttons, colour in dark and white mode,
+liquid glass, the motion system with exact curves and timings, navigation, and how to record and watch motion before
+shipping). The three skills below are the deep detail behind it. Shared copy: https://claude.ai/artifact/68Tm18bMXq8tgtn1FNfvzL
 
 ## Start here for any new app or redesign
 Read **oliskey-liquid-glass-complete-design-engineering.skill.md §35 Start-from-scratch recipe** first: dark mode, liquid glass, layout, fonts, speed and honest testing, with the owner's verdicts and measured values. §34 holds Apple's rules, and **references/research-2026-11.md** has every source and the owner's reference pictures described.

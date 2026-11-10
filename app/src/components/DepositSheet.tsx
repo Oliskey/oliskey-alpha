@@ -13,6 +13,7 @@ import { Button } from '@/ui/Button';
 import { Dialog } from '@/ui/Dialog';
 import { Press } from '@/ui/Press';
 import { SideScroll } from '@/ui/kit';
+import { FadeIn } from '@/ui/FadeIn';
 import { Sheet } from '@/ui/Sheet';
 import { useToast } from '@/ui/Toast';
 import { Txt } from '@/ui/Txt';
@@ -72,7 +73,7 @@ export function DepositSheet({ open, onClose }: { open: boolean; onClose: () => 
   return (
     <Sheet open={open} onClose={close} fullHeight>
       {loading ? <WalletLoader /> : (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: SIDE, gap: 14 }} keyboardShouldPersistTaps="handled">
+        <FadeIn rise={8}><ScrollView contentContainerStyle={{ paddingHorizontal: SIDE, gap: 14 }} keyboardShouldPersistTaps="handled">
           <View style={styles.titleRow}>
             <Txt style={type.screenTitle}>Deposit</Txt>
             <Press onPress={close} accessibilityLabel="Close"><X size={24} color={colors.text} /></Press>
@@ -137,7 +138,7 @@ export function DepositSheet({ open, onClose }: { open: boolean; onClose: () => 
               Payments are processed by Paystack over an encrypted connection. Oliskey Alpha never sees your card details.
             </Txt>
           </View>
-        </ScrollView>
+        </ScrollView></FadeIn>
       )}
 
       <Sheet open={pickPromo} onClose={() => setPickPromo(false)}>

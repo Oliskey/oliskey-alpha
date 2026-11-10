@@ -1,8 +1,12 @@
-// Bottom sheet: top radius 20, grab handle, 60% black backdrop, spring open, swipe down or tap backdrop to close.
+// Bottom sheet: top radius 20, grab handle, 60% black backdrop, swipe down or tap backdrop to close.
+// Motion: glides up and stops without overshoot (an overshooting sheet reads as wobbly), leaves faster than it came,
+// and a released drag eases back. Reduced motion: it fades instead of sliding.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Animated, Dimensions, Modal, PanResponder, Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, createStyles, veil, isLight } from '@/theme';
+import { EASE, MOTION } from './motion';
+import { prefersReducedMotion } from './Press';
 
 type Props = {
   open: boolean;
@@ -25,14 +29,17 @@ export function Sheet({ open, onClose, children, fullHeight, maxHeight = '90%', 
   useEffect(() => {
     if (open) {
       setVisible(true);
+      const still = prefersReducedMotion();
+      if (still) y.setValue(0);
       Animated.parallel([
-        Animated.spring(y, { toValue: 0, damping: 20, stiffness: 180, useNativeDriver: native }),
-        Animated.timing(backdrop, { toValue: 1, duration: 300, useNativeDriver: native }),
+        Animated.timing(y, { toValue: 0, duration: still ? 0 : MOTION.sheetInMs, easing: EASE.glide, useNativeDriver: native }),
+        Animated.timing(backdrop, { toValue: 1, duration: still ? MOTION.fadeMs : MOTION.sheetInMs * 0.7, easing: EASE.standard, useNativeDriver: native }),
       ]).start();
     } else if (visible) {
+      const still = prefersReducedMotion();
       Animated.parallel([
-        Animated.timing(y, { toValue: height, duration: 250, useNativeDriver: native }),
-        Animated.timing(backdrop, { toValue: 0, duration: 250, useNativeDriver: native }),
+        Animated.timing(y, { toValue: still ? 0 : height, duration: still ? 0 : MOTION.sheetOutMs, easing: EASE.exit, useNativeDriver: native }),
+        Animated.timing(backdrop, { toValue: 0, duration: MOTION.sheetOutMs, easing: EASE.standard, useNativeDriver: native }),
       ]).start(() => setVisible(false));
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -42,7 +49,7 @@ export function Sheet({ open, onClose, children, fullHeight, maxHeight = '90%', 
     onPanResponderMove: (_e, g) => { if (g.dy > 0) y.setValue(g.dy); },
     onPanResponderRelease: (_e, g) => {
       if (g.dy > 120 || g.vy > 1) onClose();
-      else Animated.spring(y, { toValue: 0, damping: 20, useNativeDriver: native }).start();
+      else Animated.timing(y, { toValue: 0, duration: MOTION.sheetOutMs, easing: EASE.glide, useNativeDriver: native }).start();
     },
   })).current;
 
@@ -56,6 +63,7 @@ export function Sheet({ open, onClose, children, fullHeight, maxHeight = '90%', 
           style={[
             styles.sheet,
             { paddingBottom: insets.bottom + 14, transform: [{ translateY: y }] },
+            prefersReducedMotion() ? { opacity: backdrop } : null,
             fullHeight ? { height: '94%' } : { maxHeight },
             style,
           ]}

@@ -77,5 +77,5 @@ export function glassLens(tone?: Tone): ViewStyle {
   return style as ViewStyle;
 }
 
-// Motion tokens: hover grows 2% over ~160 ms, press 0.96 for ~120 ms (no wobble); selection glides on the iOS deceleration curve.
-export const MOTION = { pressScale: 0.96, pressMs: 120, hoverScale: 1.02, hoverMs: 160, glideMs: 420 } as const;
+// Motion tokens live in motion.ts; kept here for the components that import them with the glass.
+export { MOTION } from './motion';

@@ -42,6 +42,11 @@ Apple's Liquid Glass, not Apple's renderer.
 - Mouse over a control: grows 2% with a soft tint, about 160 ms, ease-out. Large rows and cards only tint. Press: 0.96, about 120 ms. No wobble or bounce. All in `ui/Press.tsx`, so every button gets it.
 - Reduced motion: tint and dim only. Keyboard focus: a violet ring.
 - Switches (`Toggle` in `ui/kit.tsx`, owner 2026-11-05): vivid green track (`upVivid`, at least 3:1 against the page), white pill knob wider than tall. While pressed or sliding, the knob becomes a clear glass drop that grows past the track, then settles back to white. Never the stock browser or system switch. Reduced motion: no glass or stretch.
+- Motion system (2026-11-10): every duration and curve comes from `app/src/ui/motion.ts` (respond / glide / exit / standard).
+  Sheets glide in 380 ms and leave in 240 ms with no overshoot; dialogs grow from 96%; banners fade and drop in, fade out;
+  pages: main tabs 140 ms fade, other pages fade in rising 10 px (`ScreenEnter` in the tabs layout, not the navigator's fade,
+  which flashed the previous tab); the five most used pages are prepared after Home. Late content uses `ui/FadeIn.tsx`.
+  Full reasoning: `docs/design/PRINCIPLES.md`.
 
 ## Mascot and feature tiles (owner 2026-11-04)
 - `Mascot` is our own character in fixed brand colours, with poses: `hello`, `book` (learning), `trophy` (Funded), `face` (the avatar). Never copy another brand's character.

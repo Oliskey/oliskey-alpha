@@ -2,10 +2,10 @@
 // large things growing looks clumsy). Press: a quick 0.96 scale (~120 ms) and a light dim, no wobble; light haptic tap
 // on native. Reduced motion: no scale, only the tint and dim.
 import { useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, Platform, Pressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle, View } from 'react-native';
+import { AccessibilityInfo, Animated, Platform, Pressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { isLight, veil } from '@/theme';
-import { MOTION } from './glass';
+import { EASE, MOTION } from './motion';
 import { applyBend } from './liquid';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -19,7 +19,7 @@ export const prefersReducedMotion = () => reduceMotion;
 const MIN_TAP = 44;
 const LARGE_H = 64;     // rows and cards from here up tint on hover instead of growing
 const LARGE_W = 420;
-const EASE_OUT = Easing.bezier(0.2, 0.8, 0.2, 1);
+const EASE_OUT = EASE.respond;
 
 type Props = Omit<PressableProps, 'style'> & { style?: StyleProp<ViewStyle>; haptic?: boolean; hoverable?: boolean; cursor?: 'pointer' | 'grab'; still?: boolean };   // still: no change in size or dim on press
 

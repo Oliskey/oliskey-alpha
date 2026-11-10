@@ -85,20 +85,22 @@ const setMovingFlag = (on: boolean) => {
   // a moment after it stops, so the full bend does not switch on between frames of a slow scroll
   restTimer = setTimeout(() => { moving = false; movingListeners.forEach((l) => l(false)); }, 180);
 };
-function animateTo(target: number, duration: number) {
+function animateTo(target: number, duration: number, quick = false) {
   setMovingFlag(true);
-  // however little is left, a stretch through the water stage takes its full time
+  // however little is left, a stretch through the water stage takes its full time (not after a tap: then speed wins)
   const a = Math.min(progress, target), b = Math.max(progress, target);
   const water = Math.max(0, Math.min(b, WATER_TO) - Math.max(a, WATER_FROM));
-  duration = Math.max(duration, Math.round((water * WATER_MS) / (WATER_TO - WATER_FROM)) + 120);
+  if (!quick) duration = Math.max(duration, Math.round((water * WATER_MS) / (WATER_TO - WATER_FROM)) + 120);
   Animated.timing(navCollapse, { toValue: target, duration: prefersReducedMotion() ? 0 : duration, easing: PART, useNativeDriver: native })
     .start(({ finished }) => { if (finished) setMovingFlag(false); });
 }
-function setCollapsed(next: boolean) {
+const TAP_JOIN_MS = 300;   // a tap on the split bar: it pours back quickly (it took about 1.2 s before, which felt slow)
+function setCollapsed(next: boolean, quick = false) {
   clearTimeout(settleTimer);
   if (next ? progress === 1 : progress === 0) return;
   if (next && prefersReducedMotion()) return;
-  animateTo(next ? 1 : 0, next ? 420 : JOIN_MS);   // joining takes longer: the bridge has to be seen forming
+  if (quick) { animateTo(next ? 1 : 0, TAP_JOIN_MS, true); return; }
+  animateTo(next ? 1 : 0, next ? 420 : JOIN_MS);   // joining by scrolling up takes longer: the bridge has to be seen forming
 }
 /** Pages pass this to their vertical scroller (see ui/Page.tsx). */
 export function onNavScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
@@ -147,12 +149,29 @@ function useGlide(index: number) {
 }
 
 // The selected item's lens takes its tone from the glass it sits in.
+// Phone bar (`drop` = how far it has split, 0 whole → 1 alone): while the bar is whole the selection is part of the
+// liquid, a soft lighter patch with no ring (owner 2026-11-10: "I don't like the rounded border"). Its drop look (rim,
+// edge, shadow, bend) fades in only as it pulls away on its own, and melts back as it rejoins.
 function Lens({ style, radius, moving, drop }: { style: object; radius: number; moving: boolean; drop?: Animated.AnimatedInterpolation<number> }) {
   const { tone } = useGlassInk();
   const bend = useLiquidBend({ radius, bezel: Math.min(radius, 14), thickness: 15, tone, moving });
+  const light = tone === 'light';
+  if (!drop) {
+    return <Animated.View ref={bend as never} testID="nav-drop" pointerEvents="none" style={[styles.lens, glassLens(tone), style]} />;
+  }
+  const alone = drop.interpolate({ inputRange: [0, 0.35, 1], outputRange: [0, 0.15, 1], extrapolate: 'clamp' });
+  const fill = { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, borderRadius: radius * 2 } as const;
   return (
-    <Animated.View ref={bend as never} testID="nav-drop" pointerEvents="none" style={[styles.lens, glassLens(tone), style]}>
-      {drop ? <Animated.View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, borderRadius: radius * 2, opacity: drop, backgroundColor: tone === 'light' ? 'rgba(255,255,255,0.62)' : 'rgba(24,24,28,0.25)' }} /> : null}
+    <Animated.View testID="nav-drop" pointerEvents="none" style={[styles.lens, style]}>
+      {/* inside the liquid: a soft lighter patch, edges fading into the glass */}
+      <View style={[fill, {
+        backgroundColor: light ? 'rgba(120,120,128,0.12)' : 'rgba(255,255,255,0.15)',
+        ...(Platform.OS === 'web' ? ({ boxShadow: light ? '0 0 10px 2px rgba(120,120,128,0.10)' : '0 0 12px 3px rgba(255,255,255,0.06)' } as object) : null),
+      }]} />
+      {/* alone: the full drop, with its rim, edge, shadow and bend */}
+      <Animated.View ref={bend as never} style={[fill, glassLens(tone), { opacity: alone }]}>
+        <Animated.View style={[fill, { opacity: drop, backgroundColor: light ? 'rgba(255,255,255,0.62)' : 'rgba(24,24,28,0.25)' }]} />
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -160,7 +179,7 @@ function Lens({ style, radius, moving, drop }: { style: object; radius: number; 
 // The pieces pull apart, like a tug of war. Through the strain stretch of the scroll the gap grows only to STRAIN_GAP while they
 // lean toward each other and the bridge thins. Then it is gone and they ease apart. Pouring back, the bridge forms again as they
 // pull together.
-const STRAIN_GAP = 13;  // the most the gap opens while the bridge still holds
+const STRAIN_GAP = 20;  // the most the gap opens while the bridge still holds (wider = a thicker, longer-lived bridge)
 const LEAN = 1.5;       // how far each piece leans toward the other at full strain
 const STRAIN_FROM = 0.62, STRAIN_TO = 0.97;   // the share of the scroll spent straining (about 60 px)
 // The liquid bridge between two round ends, the standard metaball construction: each side leaves its circle along a tangent, so
@@ -168,7 +187,8 @@ const STRAIN_FROM = 0.62, STRAIN_TO = 0.97;   // the share of the scroll spent s
 // points sliding toward the middle line as the strain rises, which is how a water bridge really narrows before it breaks.
 function metaball(x1: number, x2: number, y: number, r1: number, r2: number, strain: number) {
   const d = x2 - x1;
-  const v = 0.86 - 0.76 * Math.pow(strain, 0.8);   // how far from the middle line it attaches
+  // how far from the middle line it attaches: stays fat for most of the strain, then pinches (owner 2026-11-10: thicker water)
+  const v = 0.94 - 0.66 * Math.pow(strain, 1.6);
   const overlap = d < r1 + r2;
   const u1 = overlap ? Math.acos(Math.max(-1, Math.min(1, (r1 * r1 + d * d - r2 * r2) / (2 * r1 * d)))) : 0;
   const u2 = overlap ? Math.acos(Math.max(-1, Math.min(1, (r2 * r2 + d * d - r1 * r1) / (2 * r2 * d)))) : 0;
@@ -239,7 +259,7 @@ function Neck({ width, slot, index, startX, capsuleX, snap, curve, mirrored }: N
       <View testID="nav-neck" pointerEvents="none" style={{ position: 'absolute', left: 0, bottom: 0, width, height: PILL_H, opacity: shape ? 1 : 0, transform: mirrored ? [{ scaleX: -1 }] : undefined }}>
         {shape ? (
           <>
-            {Platform.OS === 'web' ? <View style={{ position: 'absolute', left: 0, top: 0, width, height: PILL_H, clipPath: `path('${shape.body}')`, backdropFilter: 'blur(3px) saturate(170%)', WebkitBackdropFilter: 'blur(3px) saturate(170%)' } as object} /> : null}
+            {Platform.OS === 'web' ? <View style={{ position: 'absolute', left: 0, top: 0, width, height: PILL_H, clipPath: `path('${shape.body}')`, backdropFilter: 'blur(6px) saturate(180%)', WebkitBackdropFilter: 'blur(6px) saturate(180%)' } as object} /> : null}
             <Svg width={width} height={PILL_H} style={{ position: 'absolute', left: 0, top: 0 }}>
               <Defs>
                 <LinearGradient id="navWater" gradientUnits="userSpaceOnUse" x1={shape.from} y1={0} x2={shape.to} y2={0}>
@@ -263,15 +283,15 @@ function TradesCount() {
   return <CountBadge testID="trades-count" count={useTradeCounts().total} />;
 }
 
-function TabItem({ label, Icon, active, layout, onPress, style }: {
-  label: string; Icon: typeof LayoutGrid; active: boolean; layout: 'bar' | 'rail' | 'side'; onPress: () => void; style?: object;
+function TabItem({ label, Icon, active, inDrop = active, layout, onPress, style }: {
+  label: string; Icon: typeof LayoutGrid; active: boolean; inDrop?: boolean; layout: 'bar' | 'rail' | 'side'; onPress: () => void; style?: object;
 }) {
   const ink = useGlassInk();
   const shrinks = layout === 'bar';
   return (
     <Press onPress={onPress} haptic={false} hoverable={false} still accessibilityRole="tab" accessibilityState={{ selected: active }} aria-selected={active} accessibilityLabel={label}
       style={[layout === 'bar' ? styles.barItem : layout === 'rail' ? styles.railItem : styles.sideItem, style]}>
-      <Animated.View style={shrinks ? { opacity: active ? 1 : navCollapse.interpolate({ inputRange: [0, 0.14, 0.82, 1], outputRange: [1, 0.22, 0.22, 1], extrapolate: 'clamp' }), transform: [{ translateY: navCollapse.interpolate({ inputRange: [0, 1], outputRange: [0, 8] }) }] } : undefined}>
+      <Animated.View style={shrinks ? { opacity: active || inDrop ? 1 : navCollapse.interpolate({ inputRange: [0, 0.14, 0.82, 1], outputRange: [1, 0.22, 0.22, 1], extrapolate: 'clamp' }), transform: [{ translateY: navCollapse.interpolate({ inputRange: [0, 1], outputRange: [0, 8] }) }] } : undefined}>
         <Icon size={layout === 'side' ? 20 : 22} color={active ? ink.accent : ink.muted} strokeWidth={active ? 2.25 : 1.9} />
         {label === 'Trades' ? <TradesCount /> : null}
       </Animated.View>
@@ -296,7 +316,19 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   // phone: the five main tabs; tablet: those plus Funded; desktop: no Terminal item, the chart is always there
   const routes = state.routes.filter((r) => TABS[r.name] && !(r.name === 'funded' && !isDesktop && !isTablet) && !(r.name === 'terminal' && isDesktop));
   const activeIdx = routes.findIndex((r) => r.key === state.routes[state.index]?.key);   // -1: nothing selected
-  const { v: glide, stretch, gliding } = useGlide(Math.max(0, activeIdx));
+  // Where things sit follows the page only once the bar is whole. Tapping a tab in the split bar used to move it into the
+  // drop at once, so icons jumped and crossed and two looked active. Now the tapped icon lights up where it is, the bar
+  // pours back (0.3 s), then the drop glides under it. The page itself opens at once.
+  const [shown, setShown] = useState(activeIdx);
+  const want = useRef(activeIdx);
+  want.current = activeIdx;
+  useEffect(() => {
+    if (progress < 0.02) { setShown(activeIdx); return; }
+    const id = navCollapse.addListener(({ value }) => { if (value < 0.02) { navCollapse.removeListener(id); setShown(want.current); } });
+    return () => navCollapse.removeListener(id);
+  }, [activeIdx]);
+  const shownIdx = shown >= 0 && shown < routes.length ? shown : activeIdx;
+  const { v: glide, stretch, gliding } = useGlide(Math.max(0, shownIdx));
   const [barW, setBarW] = useState(0);
   const [railBox, setRailBox] = useState<{ x: number; y: number; w: number } | null>(null);
   const [isMoving, setMoving] = useState(false);
@@ -304,10 +336,10 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   const [snap] = useState(() => new Animated.Value(0));  // the ease when the water bridge gives way or first touches
 
   useEffect(() => { movingListeners.add(setMoving); return () => { movingListeners.delete(setMoving); }; }, []);
-  useEffect(() => { lastY = 0; setCollapsed(false); }, [activeIdx]);   // a new page starts with the full pill
+  useEffect(() => { lastY = 0; setCollapsed(false, true); }, [activeIdx]);   // a new page starts with the full pill
 
   // Which side the drop goes to. It only ever changes while the pill is whole, where the side makes no visible difference, so nothing jumps.
-  const activeName = routes[activeIdx]?.name;
+  const activeName = routes[shownIdx]?.name;
   const [turnRight, setTurnRight] = useState(false);
   const wantRight = activeName === TAKES_TURNS ? turnRight : DROP_RIGHT.includes(activeName ?? '');
   const [dropRight, setDropRight] = useState(wantRight);
@@ -328,7 +360,7 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
 
   const press = (key: string, active: boolean) => {
     const e = emitter.emit({ type: 'tabPress', target: key, canPreventDefault: true });
-    setCollapsed(false);
+    setCollapsed(false, true);
     if (active && isDesktop) { router.navigate('/terminal'); return; }   // the open item again closes its panel
     if (!active && !e.defaultPrevented) navigateToTab(key);
   };
@@ -406,7 +438,8 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
     );
   }
 
-  // phone: floating glass pill over the content, no background behind it (owner decisions 2026-10-30: locked)
+  // phone: floating glass pill over the content, no background behind it (owner decisions 2026-10-30: locked).
+  // Large glass never flips tone (design-system.md): sampling mid-transition turned the white bar grey for a moment.
   if (activeIdx < 0) return null;   // secondary pages (profile, withdraw, ...) are full screen with a back arrow
 
   // Where everything ends up when parted: the drop, the neck, then the capsule of the other items, centred together.
@@ -417,7 +450,7 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   const capsuleX = dropRight ? margin : margin + SMALL_H + NECK_GAP;      // the capsule
   const toward = dropRight ? -1 : 1;                                      // the direction from the drop to the capsule
   // the bridge is worked out as if the drop were on the left: the same page counted from the other end
-  const leftIndex = dropRight ? routes.length - 1 - activeIdx : activeIdx;
+  const leftIndex = dropRight ? routes.length - 1 - shownIdx : shownIdx;
   const leftCapsuleX = margin + SMALL_H + NECK_GAP;
   const curve = partingCurve(slot, leftIndex, margin, leftCapsuleX);
   const raw = navCollapse;
@@ -434,14 +467,14 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   ));
   const stretched = Animated.add(stretch.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }), lift.interpolate({ inputRange: [0, 1], outputRange: [0, 0.08] }));
   const itemLeftAtRest = (i: number) => {
-    const rank = i < activeIdx ? i : i - 1;
-    return i === activeIdx ? startX + (SMALL_H - SMALL_ITEM) / 2 : capsuleX + INSET + rank * SMALL_ITEM;
+    const rank = i < shownIdx ? i : i - 1;
+    return i === shownIdx ? startX + (SMALL_H - SMALL_ITEM) / 2 : capsuleX + INSET + rank * SMALL_ITEM;
   };
   const itemStyle = (i: number) => {
     return {
       position: 'absolute',
       ...NO_BROWSER_GESTURE,
-      left: Animated.add(mix(INSET + i * slot, itemLeftAtRest(i)), i === activeIdx ? pieceDrop : pieceCapsule),
+      left: Animated.add(mix(INSET + i * slot, itemLeftAtRest(i)), i === shownIdx ? pieceDrop : pieceCapsule),
       width: mix(slot, SMALL_ITEM),
       bottom: mix(INSET, (SMALL_H - 44) / 2),
       height: mix(PILL_H - INSET * 2, 44),
@@ -451,7 +484,7 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
     <View pointerEvents="box-none" onLayout={(e) => setBarW(e.nativeEvent.layout.width - 24)} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 12, paddingTop: PILL_TOP, paddingBottom: Math.max(insets.bottom, PILL_BOTTOM_MIN) }}>
       <Animated.View {...pan.panHandlers} pointerEvents="box-none" style={{ height: PILL_H }}>
         {barW > 0 ? (
-          <LiquidView radius={PILL_H / 2} flip glow="touch" moving={isMoving} style={{ position: 'absolute', borderRadius: PILL_H / 2, bottom: 0, ...NO_BROWSER_GESTURE, left: Animated.add(mix(0, capsuleX), pieceCapsule), width: mix(barW, capsuleW), height: mix(PILL_H, SMALL_H), transform: [{ scaleY: snap.interpolate({ inputRange: [-1, 1], outputRange: [0.97, 1.03] }) }] } as never} animated overlay={(
+          <LiquidView radius={PILL_H / 2} glow="touch" moving={isMoving} style={{ position: 'absolute', borderRadius: PILL_H / 2, bottom: 0, ...NO_BROWSER_GESTURE, left: Animated.add(mix(0, capsuleX), pieceCapsule), width: mix(barW, capsuleW), height: mix(PILL_H, SMALL_H), transform: [{ scaleY: snap.interpolate({ inputRange: [-1, 1], outputRange: [0.97, 1.03] }) }] } as never} animated overlay={(
             <>
               <Lens radius={(SMALL_H - INSET * 2) / 2} moving={isMoving || gliding} drop={c} style={{
                 left: 0, bottom: mix(INSET, 0), width: mix(slot, SMALL_H), height: mix(PILL_H - INSET * 2, SMALL_H), borderRadius: PILL_H / 2,
@@ -460,7 +493,7 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
               <Neck width={barW} slot={slot} index={leftIndex} startX={margin} capsuleX={leftCapsuleX} snap={snap} curve={curve} mirrored={dropRight} />
               <InkLayer style={styles.barItems}>
                 {routes.map((r, i) => (
-                  <TabItem key={r.key} label={TABS[r.name].label} Icon={TABS[r.name].Icon} active={i === activeIdx} layout="bar" style={itemStyle(i)}
+                  <TabItem key={r.key} label={TABS[r.name].label} Icon={TABS[r.name].Icon} active={i === activeIdx} inDrop={i === shownIdx} layout="bar" style={itemStyle(i)}
                     onPress={() => press(r.key, i === activeIdx)} />
                 ))}
               </InkLayer>

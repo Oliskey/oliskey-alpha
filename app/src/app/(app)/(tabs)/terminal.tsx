@@ -223,6 +223,9 @@ export function Terminal() {
     if (!params.signal) return;
     openSignal({ id: Number(params.signal), asset_id: params.asset ?? assetId, tf: params.tf === '60' ? '1m' : params.tf === '3600' ? '1h' : params.tf === '14400' ? '4h' : '1d' });
     if (desk) setDeskPanel('signals'); else setSheet('signals');
+    // A link opens its signal once. The link's numbers stayed on the Terminal, so every later visit (tapping the Terminal
+    // tab) opened the same missed signal again. Clearing them after use makes the next visit a plain Terminal.
+    router.setParams({ signal: undefined, at: undefined });
   }, [params.signal]); // eslint-disable-line react-hooks/exhaustive-deps
   const needVolume = indicators.some((s) => indDef(s.key).needsVolume);
   const volumeQ = useQuery({

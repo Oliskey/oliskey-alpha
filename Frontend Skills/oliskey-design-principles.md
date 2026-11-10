@@ -115,7 +115,7 @@ Glass is the navigation layer floating over content: liquid that bends light, no
 | Sheet middle stop ↔ 90% | 300 ms | long lists and details open with their top at the middle of the screen; drag up or scroll to reach 90%, drag down to go back, then close |
 | Dialog in / out | 220 / 160 ms | grows from 96% while fading |
 | Banner in / out | 280 / 200 ms | drops 24 px while fading; stays 3.2 s + reading time |
-| Selection lens | 420 ms | glides; label darkens as it arrives |
+| Selection lens | 300 ms | glides; label darkens as it arrives |
 | Late content | 260 ms | fades in rising 6–8 px (`ui/FadeIn.tsx`) |
 
 - Only transform and opacity move; never width, height or blur of glass.
@@ -142,7 +142,11 @@ popped → fades in.
 - Long sheets (asset list, signals, chart tools, trade details, a list of trades) stop at the middle first, then 90% on drag or scroll; short sheets open to their own height; sheets whose action button sits at the bottom (deposit, a running trade) open at full height.
 - Prepare likely next pages after the first screen is up, one every 0.6 s.
 - Tab bar follows the finger: parts on scroll (~170 px end to end), settles after ~140 ms still, pours back on scroll up or tap.
-- A tap on navigation shakes nothing; the selection glides 420 ms. No hover effects on navigation.
+- A tap on navigation shakes nothing; the selection glides 300 ms. No hover effects on navigation.
+- Tapping the split bar: the tapped icon lights where it is, the bar pours back in 300 ms, then the selection glides to it; the page opens at once. Icons never jump or cross.
+- While the bar is whole the selection is a soft patch inside the liquid, with no ring; its drop look (rim, edge, shadow) appears only as it splits off alone.
+- Thick liquid: denser body (white 70% / dark 55%, 6 px blur), a bright rim that never switches off while moving, and a fat water bridge that holds a 20 px gap before it pinches.
+- The bar never flips light or dark (large glass); sampling mid-move turned the white bar grey.
 - Sheets for a task on top of the page; dialogs only for an urgent yes/no; banners at the top, never blocking taps.
 
 ## Checklist before shipping

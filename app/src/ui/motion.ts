@@ -13,7 +13,7 @@ export const EASE = {
 export const MOTION = {
   pressScale: 0.96, pressMs: 120,             // press: a quick, small give; no wobble
   hoverScale: 1.02, hoverMs: 160,             // mouse over: grows 2% (small controls only)
-  glideMs: 420,                               // selection drops and segment lenses
+  glideMs: 300,                               // selection drops and segment lenses (420 felt slow, owner 2026-11-10)
   fadeMs: 180,                                // cross-fades, colour
   enterMs: 260, enterRise: 12,                // a page arriving: rises 12 px, fully opaque (no fade: fading from nothing blinks)
   // main tabs switch at once: a fade from nothing showed the page background for a moment (a blink)

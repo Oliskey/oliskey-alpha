@@ -114,9 +114,9 @@ function addFilter(id: string, w: number, h: number, href: string, scale: number
   host.appendChild(f);
 }
 
-// Real liquid, not frost: only enough blur to stop text behind fighting the labels. The bend does the work.
-const REST = (tone: Tone) => (tone === 'light' ? 'blur(2px) saturate(170%)' : 'blur(2px) saturate(165%) brightness(1.04)');
-const MOVING = (tone: Tone) => (tone === 'light' ? 'blur(3px) saturate(170%)' : 'blur(3px) saturate(165%) brightness(1.04)');
+// Thick liquid glass (owner 2026-11-10: "the liquid should be more thick"): a denser body that still bends what is behind.
+const REST = (tone: Tone) => (tone === 'light' ? 'blur(6px) saturate(180%)' : 'blur(6px) saturate(170%) brightness(1.06)');
+const MOVING = REST;   // the same body moving or still, so nothing changes look a moment after it stops
 
 function inScroller(el: HTMLElement) {
   for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
@@ -131,8 +131,9 @@ export function applyBend(el: HTMLElement, { radius, bezel, thickness, tone, mov
   const w = Math.round(el.offsetWidth), h = Math.round(el.offsetHeight);
   if (w < 8 || h < 8) return;
   const rim = bezel ?? Math.max(5, Math.min(16, h * 0.3));
-  const maps = mapsFor(w, h, radius, rim, thickness ?? rim * 1.25, tone === 'light' ? 0.9 : 0.5);
-  el.style.backgroundImage = moving ? 'none' : `url("${maps.rim}")`;
+  const maps = mapsFor(w, h, radius, rim, thickness ?? rim * 1.5, tone === 'light' ? 1 : 0.75);   // thicker, brighter rim
+  // the bright rim stays on while it moves (owner 2026-11-10): only the costly bend is dropped, so its look never changes
+  el.style.backgroundImage = `url("${maps.rim}")`;
   el.style.backgroundSize = '100% 100%';
   el.style.backgroundRepeat = 'no-repeat';
   // Inside a scrolling page a control sits on a flat surface: it keeps its rim, and skipping the filter keeps scrolling smooth.

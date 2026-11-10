@@ -17,11 +17,11 @@ export const moreContrast = () => media('(prefers-contrast: more)');
 export type Tone = 'light' | 'dark';
 
 // Edge light: bright top lip, faint bottom light. Small glints come from the rim map in liquid.tsx.
-const RIM = 'inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(255,255,255,0.05)';
+const RIM = 'inset 0 1.5px 0 rgba(255,255,255,0.34), inset 0 -1px 0 rgba(255,255,255,0.08), inset 0 0 0 1px rgba(255,255,255,0.05)';
 const DROP = '0 10px 28px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.35)';
 // White mode: glass over white has to carry its own body, so a frosted fill, a fine dark hairline, a bright top lip
 // and a soft neutral shadow, never a coloured one.
-const RIM_L = 'inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(0,0,0,0.03)';
+const RIM_L = 'inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(0,0,0,0.05), inset 0 0 0 1px rgba(255,255,255,0.5)';
 const DROP_L = '0 8px 28px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)';
 const LIFT_L = '0 1px 2px rgba(0,0,0,0.05)';
 const DROP_PLAIN = '0 6px 18px rgba(0,0,0,0.38), 0 1px 3px rgba(0,0,0,0.25)';   // softer over a plain surface
@@ -36,7 +36,7 @@ export function glass(_variant: 'regular' = 'regular', { shadow = true, tone, bu
   const contrast = moreContrast();
   const blur = blurOk && !reducedTransparency() && !contrast;
   const fill = blur
-    ? (light ? (bent ? 'rgba(255,255,255,0.54)' : 'rgba(255,255,255,0.55)') : bent ? 'rgba(24,24,28,0.3)' : 'rgba(28,28,33,0.42)')
+    ? (light ? (bent ? 'rgba(255,255,255,0.70)' : 'rgba(255,255,255,0.62)') : bent ? 'rgba(30,30,36,0.55)' : 'rgba(28,28,33,0.5)')   // thicker body (2026-11-10)
     : light ? '#FFFFFF' : '#1E1E1E';
   const style: Record<string, unknown> = {
     backgroundColor: fill,
@@ -47,7 +47,7 @@ export function glass(_variant: 'regular' = 'regular', { shadow = true, tone, bu
     const dropL = bent ? (busy ? DROP_BUSY_L : DROP_PLAIN_L) : DROP_L;
     style.boxShadow = light ? (shadow ? `${RIM_L}, ${dropL}` : `${RIM_L}, ${LIFT_L}`) : shadow ? `${RIM}, ${bent && !busy ? DROP_PLAIN : DROP}` : RIM;
     if (blur) {
-      const filter = light ? 'blur(2px) saturate(170%)' : 'blur(2px) saturate(165%) brightness(1.04)';   // before the bend attaches; also Safari and Firefox
+      const filter = light ? 'blur(6px) saturate(180%)' : 'blur(6px) saturate(170%) brightness(1.06)';   // before the bend attaches; also Safari and Firefox
       style.backdropFilter = filter;
       style.WebkitBackdropFilter = filter;
     }

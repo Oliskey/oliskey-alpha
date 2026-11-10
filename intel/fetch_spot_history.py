@@ -16,7 +16,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from engine.spot.data import SYMBOLS, TF_MS, TIMEFRAMES, frame_from_klines, load_mirror_dir, save, validate  # noqa: E402
+from engine.spot.data import SYMBOLS, TF_MS, TIMEFRAMES, UNSEEN, frame_from_klines, load_mirror_dir, save, validate  # noqa: E402
 
 START = {"15m": "2024-12-30", "1h": "2022-01-01", "4h": "2017-08-17", "1d": "2017-08-17"}
 MIRROR = "https://finom.github.io/static-klines/api/klines"
@@ -60,23 +60,26 @@ def from_mirror_web(symbol: str, tf: str) -> pd.DataFrame:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--mirror", help="path to a static-klines .klines-cache folder")
+    ap.add_argument("--unseen", action="store_true", help="also fetch 4h/1d for the batch-3 unseen coins")
     args = ap.parse_args()
     failed = 0
-    for sym in SYMBOLS:
-        for tf in TIMEFRAMES:
-            if args.mirror:
-                df, src = load_mirror_dir(Path(args.mirror), sym, tf), "mirror (local)"
-            else:
-                try:
-                    df, src = from_binance(sym, tf), "binance"
-                except Exception as err:   # noqa: BLE001 - fall back, the reason is printed
-                    print(f"  binance unavailable for {sym} {tf} ({type(err).__name__}); using the mirror")
-                    df, src = from_mirror_web(sym, tf), "mirror (web)"
-            q = validate(df, sym, tf)
-            save(df, sym, tf)
-            print(f"{'OK  ' if q.ok else 'FAIL'} {sym} {tf:>3} {q.bars:>7} bars {q.first[:10]} -> {q.last[:16]} "
-                  f"src={src} {'; '.join(q.problems)}")
-            failed += not q.ok
+    jobs = [(s, tf) for s in SYMBOLS for tf in TIMEFRAMES]
+    if args.unseen:
+        jobs += [(s, tf) for s in UNSEEN for tf in ("4h", "1d")]
+    for sym, tf in jobs:
+        if args.mirror:
+            df, src = load_mirror_dir(Path(args.mirror), sym, tf), "mirror (local)"
+        else:
+            try:
+                df, src = from_binance(sym, tf), "binance"
+            except Exception as err:   # noqa: BLE001 - fall back, the reason is printed
+                print(f"  binance unavailable for {sym} {tf} ({type(err).__name__}); using the mirror")
+                df, src = from_mirror_web(sym, tf), "mirror (web)"
+        q = validate(df, sym, tf)
+        save(df, sym, tf)
+        print(f"{'OK  ' if q.ok else 'FAIL'} {sym} {tf:>3} {q.bars:>7} bars {q.first[:10]} -> {q.last[:16]} "
+              f"src={src} {'; '.join(q.problems)}")
+        failed += not q.ok
     return 1 if failed else 0
 
 

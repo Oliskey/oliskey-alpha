@@ -12,6 +12,7 @@ bar is dropped so a signal can never be decided on an unfinished candle.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -19,8 +20,12 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[3]
-STORE = ROOT / "intel" / "data" / "spot"
+# Candles live on the permanent disk when there is one (Railway /data, Windows %LOCALAPPDATA%), else in the repo folder.
+STORE = (Path(os.environ["LOCALAPPDATA"]) / "oliskey-alpha" / "spot") if os.environ.get("LOCALAPPDATA") \
+    else ROOT / "intel" / "data" / "spot"
 SYMBOLS = ("BTCUSDT", "ETHUSDT")
+# Never used to design or test any AI Spot strategy before batch 3 (pre-registered in docs/intel/SPOT_HYPOTHESES.md).
+UNSEEN = ("ADAUSDT", "AVAXUSDT", "BNBUSDT", "DOGEUSDT", "DOTUSDT", "LINKUSDT", "SOLUSDT", "XRPUSDT")
 TIMEFRAMES = ("15m", "1h", "4h", "1d")
 TF_MS = {"15m": 15 * 60_000, "1h": 3_600_000, "4h": 4 * 3_600_000, "1d": 86_400_000}
 COLS = ["open", "high", "low", "close", "volume"]
@@ -111,3 +116,11 @@ def load(symbol: str, tf: str) -> pd.DataFrame:
     df = pd.read_csv(p, index_col=0, parse_dates=True)
     df.index = pd.to_datetime(df.index, utc=True).as_unit("ns")
     return df[COLS].astype("float64")
+
+
+def live_coins() -> list[str]:
+    """The owner's live crypto list (intel/config/universe.yaml, not train-only), as Binance USDT symbols."""
+    import yaml
+    u = yaml.safe_load((ROOT / "intel" / "config" / "universe.yaml").read_text(encoding="utf-8"))
+    return [a["symbol"] for a in u["assets"].values()
+            if u["classes"][a["class"]].get("provider") == "binance" and not a.get("train_only")]

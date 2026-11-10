@@ -64,6 +64,11 @@ def main() -> int:
                                 "checks": r.get("checks", {})} for r in results]}
     DOCS.mkdir(parents=True, exist_ok=True)
     MODELS.mkdir(parents=True, exist_ok=True)
+    try:   # keep verdicts written by other tests (batch 3 basket); this script only owns the per-symbol rows
+        old_rows = json.loads((DOCS / "spot_registry.json").read_text())["strategies"]
+        registry["strategies"] += [s for s in old_rows if s.get("symbol") == "BASKET"]
+    except (OSError, ValueError, KeyError):
+        pass
     for p in (DOCS / "spot_registry.json", MODELS / "spot_registry.json"):
         p.write_text(json.dumps(registry, indent=2, default=str))
 

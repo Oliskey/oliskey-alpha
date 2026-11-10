@@ -57,3 +57,36 @@ All long-only, 4h signal bars, 1d context, costs 0.12% per side, one position pe
 - **When it should fail:** choppy years with many failed breaks; it relies on a few large winners.
 - **Exit:** initial stop below the 10-bar swing low, at least 2 ATR; no fixed target; stop trails up to the
   20-bar low (never down); no time stop.
+
+## Batch 3 (2026-11-10) — unseen-coins test, pre-registered before any run
+
+**Question:** do the two frozen batch-2 candidates earn on coins they were never designed or tested on?
+The coins below were not used for any AI Spot strategy before this entry, so their history is genuinely unseen
+by these rules.
+
+- **Strategies (unchanged, every setting frozen):** `trend_breakout` 0.1.0 and `squeeze_breakout` 0.1.0.
+- **Coins:** the owner's live crypto list in `intel/config/universe.yaml` minus BTC and ETH. This run uses the 8 the
+  research data mirror provides: ADA, AVAX, BNB, DOGE, DOT, LINK, SOL, XRP (USDT spot, 4h signals, 1d context).
+  The other 7 live coins (LTC, TRX, BCH, XLM, UNI, ATOM, NEAR) are a later, separate confirmation from Binance.
+- **One test per strategy**, all 8 coins pooled in exit order: 2 tests, so the tally rises to **16**.
+- **Gates (same fixed gates as the lab, plus one):** at least 100 pooled trades; bootstrap lower bound of
+  expectancy > 0 at 97.5% two-sided confidence (Bonferroni over these 2 tests); expectancy > 0 at 1.5× costs;
+  at least 70% of 6 walk-forward windows profitable; the most recent 20% profitable; bootstrap 95th-percentile
+  drawdown ≤ 25% at 1% risk per trade; **and at least 5 of the 8 coins profitable** (breadth).
+- **Run once.** Pass → `APPROVED_FOR_PAPER` for that strategy. Fail → recorded; the settings are not changed.
+- **Known limit:** trades on different coins often run at the same time and move together, so pooled trades are less
+  independent than they look. The live Risk Manager caps open risk at 3%, which the pooled equity curve does not.
+
+## Forward paper trading protocol (pre-registered 2026-11-10)
+
+The only data that can never have been seen is data from the future. From its first run on the server:
+
+- **Strategies:** `trend_breakout` 0.1.0 and `squeeze_breakout` 0.1.0, frozen.
+- **Coins:** all 17 live crypto coins in `intel/config/universe.yaml`, Binance USDT spot, 4h bars.
+- **Rules:** the same engine as the lab (signal at a bar's close, fill at the next bar's open, stop first,
+  0.12% costs per side). Each strategy starts flat; only bars that close after tracking starts count.
+- **Records:** every paper trade is stored; a closed trade is frozen and never rewritten.
+- **Money figure:** a virtual 10,000 USDT account, 1% of equity risked per trade, at most 3 trades open at once
+  (3% open risk, as the Risk Manager allows). Trades skipped by that cap still count as evidence for the strategy.
+- **Forward pass:** the same gates as batch 3, applied to forward trades only (2 tests). Until a strategy passes,
+  its paper results are labelled "not yet proven". Real money stays off whatever the result (REAL-MONEY GATE).

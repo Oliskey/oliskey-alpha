@@ -20,9 +20,16 @@ from engine.spot.strategies import Spec, entries, stop_price
 RISK_PER_TRADE = 0.01      # 1% of equity per trade for the equity curve (illustrative, as in the spec)
 
 
-def run(f: pd.DataFrame, spec: Spec, cost_mult: float = 1.0) -> pd.DataFrame:
-    """One row per closed trade: times, prices, net R, MFE/MAE in R, bars held, exit reason, regime at entry."""
+def run(f: pd.DataFrame, spec: Spec, cost_mult: float = 1.0, start_at: pd.Timestamp | None = None,
+        include_open: bool = False, bar: pd.Timedelta | None = None) -> pd.DataFrame:
+    """One row per closed trade: times, prices, net R, MFE/MAE in R, bars held, exit reason, regime at entry.
+
+    start_at (forward paper trading): ignore every signal whose bar closed before start_at, so the strategy starts flat.
+    include_open: also return the trade still open at the last bar (status 'open', current stop, no exit)."""
     sig = entries(f, spec).to_numpy()
+    if start_at is not None:
+        closes = f.index + (bar if bar is not None else (f.index[1] - f.index[0]))
+        sig = sig & (closes >= start_at)
     o, h, l, c = (f[k].to_numpy() for k in ("open", "high", "low", "close"))
     cost = spec.cost_per_side * cost_mult
     idx, regimes = f.index, f["regime"].to_numpy()
@@ -77,14 +84,19 @@ def run(f: pd.DataFrame, spec: Spec, cost_mult: float = 1.0) -> pd.DataFrame:
                 stop = entry * (1 + 2 * cost)
                 protected = True
             j += 1
-        if exit_px is None:          # data ended with the trade open: drop it, it has no result yet
+        if exit_px is None:          # data ended with the trade open: no result yet
+            if include_open:
+                trades.append({"signal_at": idx[i], "entry_at": idx[e_i], "exit_at": pd.NaT, "entry": entry,
+                               "stop0": entry - risk, "target": target, "exit": np.nan, "reason": None, "r": np.nan,
+                               "net_ret": np.nan, "risk_pct": risk / entry, "mfe_r": mfe, "mae_r": mae,
+                               "bars": n - e_i, "regime": regimes[i], "status": "open", "stop_now": stop})
             break
         net_ret = (exit_px * (1 - cost) - entry * (1 + cost)) / entry
         r = net_ret / (risk / entry)
         trades.append({"signal_at": idx[i], "entry_at": idx[e_i], "exit_at": idx[j], "entry": entry, "stop0": entry - risk,
                        "target": target, "exit": exit_px, "reason": reason, "r": r, "net_ret": net_ret,
                        "risk_pct": risk / entry, "mfe_r": mfe, "mae_r": mae, "bars": j - e_i + 1,
-                       "regime": regimes[i]})
+                       "regime": regimes[i], "status": "closed", "stop_now": stop})
         i = j + 1                     # next signal only after this trade is closed
     return pd.DataFrame(trades)
 
@@ -110,7 +122,7 @@ def metrics(t: pd.DataFrame) -> dict:
     eq = equity_curve(t)
     daily = eq.resample("1D").last().ffill()
     dret = daily.pct_change().dropna()
-    years = max((t["exit_at"].iloc[-1] - t["entry_at"].iloc[0]).days / 365.25, 1 / 365)
+    years = max((t["exit_at"].max() - t["entry_at"].min()).days / 365.25, 1 / 365)
     cagr = eq.iloc[-1] ** (1 / years) - 1
     dd = max_drawdown(eq)
     sd, dsd = dret.std(), dret[dret < 0].std()
@@ -169,16 +181,14 @@ class Gates:
 GATES = Gates()
 
 
-def evaluate(f: pd.DataFrame, spec: Spec, n_tests: int) -> dict:
-    t1 = run(f, spec, 1.0)
-    t15 = run(f, spec, 1.5)
-    t2 = run(f, spec, 2.0)
+def judge(t1: pd.DataFrame, t15: pd.DataFrame, t2: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp,
+          n_tests: int) -> dict:
+    """The fixed gates applied to one set of closed trades (one coin, or several pooled in exit order)."""
     m1 = metrics(t1)
-    start, end = f.index[0], f.index[-1]
     fl = folds(t1, start, end)
     sealed_from = start + (end - start) * (1 - GATES.sealed_share)
     sealed = t1[t1["entry_at"] >= sealed_from] if not t1.empty else t1
-    out = {"spec": spec.as_dict(), "period": [str(start), str(end)], "metrics_1x": m1,
+    out = {"period": [str(start), str(end)], "metrics_1x": m1,
            "metrics_1_5x": metrics(t15), "metrics_2x": metrics(t2), "folds": fl,
            "sealed_test": {"from": str(sealed_from), **metrics(sealed)},
            "by_regime": (t1.groupby("regime")["r"].agg(["count", "mean"]).round(3).to_dict("index")
@@ -203,4 +213,32 @@ def evaluate(f: pd.DataFrame, spec: Spec, n_tests: int) -> dict:
     out["checks"] = checks
     out["fold_share"] = fold_share
     out["verdict"] = "APPROVED_FOR_PAPER" if all(checks.values()) else "REJECTED"
+    return out
+
+
+def evaluate(f: pd.DataFrame, spec: Spec, n_tests: int) -> dict:
+    out = judge(run(f, spec, 1.0), run(f, spec, 1.5), run(f, spec, 2.0), f.index[0], f.index[-1], n_tests)
+    return {"spec": spec.as_dict(), **out}
+
+
+def pooled(by_symbol: dict[str, tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]], n_tests: int,
+           min_positive_share: float = 5 / 8) -> dict:
+    """One test over several coins: each coin's trades at 1x, 1.5x and 2x costs, pooled in exit order.
+    Adds a breadth rule so one lucky coin cannot carry the result."""
+    def pool(k: int) -> pd.DataFrame:
+        parts = [v[k].assign(symbol=s) for s, v in by_symbol.items() if not v[k].empty]
+        return pd.concat(parts).sort_values("exit_at").reset_index(drop=True) if parts else pd.DataFrame()
+    t1 = pool(0)
+    start = min(v[0]["entry_at"].min() for v in by_symbol.values() if not v[0].empty)
+    end = max(v[0]["exit_at"].max() for v in by_symbol.values() if not v[0].empty)
+    out = judge(t1, pool(1), pool(2), start, end, n_tests)
+    per = {s: {"trades": int(len(v[0])), "expectancy_r": float(v[0]["r"].mean()) if len(v[0]) else None}
+           for s, v in by_symbol.items()}
+    out["per_symbol"] = per
+    with_trades = [x for x in per.values() if x["trades"]]
+    share = sum(x["expectancy_r"] > 0 for x in with_trades) / len(with_trades) if with_trades else 0.0
+    out["positive_share"] = share
+    if out["verdict"] != "MORE_DATA":
+        out["checks"][f"at least {min_positive_share:.0%} of coins profitable"] = bool(share >= min_positive_share)
+        out["verdict"] = "APPROVED_FOR_PAPER" if all(out["checks"].values()) else "REJECTED"
     return out

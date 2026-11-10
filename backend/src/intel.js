@@ -409,7 +409,17 @@ export function signalRouter({ engine, settlement, orders }) {
     const top = result.strongest_bar == null || result.strongest_bar === result.sure_bar ? null : (result.tops ?? []).find((t) => t.bar === result.strongest_bar);
     const strongest = { offered: !!top, won: top?.won ?? null, perDay: top?.per_day ?? null };
     const onboarded = !!(await pool.query('select onboarded_at from profiles where id = $1', [userId])).rows[0]?.onboarded_at;
-    return { min: AUTO_MIN, demo, real: of('real'), waiting, strongest, onboarded };
+    // Per trade type: does the AI trade users' money there now, and if not, why (shown in the app so "signals only" is never a mystery).
+    // proven: a group of that type passed the money test (money_proof). Forex signals are on markets with simulated prices
+    // (only crypto is live), and the AI never trades simulated prices, so Forex waits for a live price feed.
+    const groups = (await intel('/evidence').catch(() => null))?.groups;
+    const proven = (...cls) => !!groups && cls.some((c) => earnsInTests(groups, c));
+    const modes = {
+      fixed_time: proven('crypto_ft', 'crypto_ft_wide') ? 'on' : groups ? 'unproven' : 'starting',
+      inzone: proven('crypto_iz', 'crypto_iz_wide') ? 'on' : groups ? 'unproven' : 'starting',
+      forex: 'simulated',
+    };
+    return { min: AUTO_MIN, demo, real: of('real'), waiting, strongest, onboarded, modes };
   }
 
   async function waitingFor(userId, strength, bar) {

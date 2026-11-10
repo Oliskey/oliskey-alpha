@@ -4,8 +4,8 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpDown } from 'lucide-react-native';
-import { api, type Trade, type TradeMode } from '@/lib/api';
+import { ArrowUpDown, BellRing, Bot, ShieldAlert } from 'lucide-react-native';
+import { api, type AutoState, type Trade, type TradeMode } from '@/lib/api';
 import { money } from '@/lib/format';
 import { getPref, setPref } from '@/lib/storage';
 import { useAccount } from '@/context/AccountContext';
@@ -62,6 +62,7 @@ export default function Trades() {
   const active = (openQ.data ?? []).filter((t) => t.mode === tab && t.account_id === accountId);
   // What the AI is watching. Its trades for you are in your own list above, from your balance; its practice account is not shown here.
   const ai = useAiTrader();
+  const auto = useQuery({ queryKey: ['intel', 'auto'], queryFn: () => api<AutoState>('/intel/auto'), refetchInterval: 60_000 });
   const prices = useLivePrices([...new Set(active.map((t) => t.asset_id))]);
   const totalAmount = active.reduce((s, t) => s + Number(t.amount), 0);
   const totalPnl = active.reduce((s, t) => s + (previewPnl(t, prices[t.asset_id]) ?? 0), 0);
@@ -104,6 +105,8 @@ export default function Trades() {
               </EmptyState>
             )}
 
+            {accType === 'DEMO' ? <AutoLine state={auto.data?.modes?.[tab]} choice={auto.data?.demo.mode} /> : null}
+
             {accType === 'DEMO' && ai.data?.listening ? (
               <View style={{ gap: 8 }}>
                 <SectionHeader title="AI trades" action="See why" onAction={() => router.push({ pathname: '/scanner', params: { tab: 'ai' } })} />
@@ -136,7 +139,33 @@ export default function Trades() {
   );
 }
 
+// One line under the trades: does the AI trade this type for you, and if not, why. Before, Fixed Time and Forex showed
+// signals but never traded, with nothing saying why, so it looked broken.
+const AUTO_TEXT = {
+  on: { icon: Bot, color: () => colors.up, title: 'AI auto trade: on', text: 'It trades for you when a signal passes. You get an alert each time.' },
+  ask: { icon: Bot, color: () => colors.accent, title: 'AI asks you first', text: 'You get an alert to approve each trade.' },
+  unproven: { icon: ShieldAlert, color: () => colors.demo, title: 'AI auto trade: off for now', text: 'Not proven to make money yet. You still get an alert for each signal.' },
+  simulated: { icon: ShieldAlert, color: () => colors.demo, title: 'AI auto trade: off', text: 'Prices here are simulated. It starts when live prices are added. Signals still alert you.' },
+  starting: { icon: BellRing, color: () => colors.muted, title: 'AI is starting', text: 'Check again in a minute.' },
+} as const;
+
+function AutoLine({ state, choice }: { state?: 'on' | 'unproven' | 'simulated' | 'starting'; choice?: 'ask' | 'auto' }) {
+  if (!state) return null;
+  const a = AUTO_TEXT[state === 'on' && choice === 'ask' ? 'ask' : state];
+  const Icon = a.icon;
+  return (
+    <View style={styles.auto}>
+      <Icon size={20} color={a.color()} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <Txt style={{ fontFamily: font.semibold, fontSize: 14, color: a.color() }}>{a.title}</Txt>
+        <Txt style={{ color: colors.muted, fontSize: 13 }}>{a.text}</Txt>
+      </View>
+    </View>
+  );
+}
+
 const styles = createStyles(() => ({
+  auto: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, backgroundColor: colors.surface2 },
   page: { paddingHorizontal: SIDE, paddingTop: 40, paddingBottom: 30, gap: 18 },
   section: { fontSize: 20, fontFamily: font.bold, letterSpacing: -0.3 },
   totals: { flexDirection: 'row', justifyContent: 'space-between' },

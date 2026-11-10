@@ -106,6 +106,8 @@ export type AutoState = {
   min: number; demo: AutoChoice; real: AutoChoice;
   waiting: { id: number; asset_id: string; asset_class: string; direction: 1 | -1; enter_until: string }[];
   strongest: { offered: boolean; won: number | null; perDay: number | null };
+  // whether the AI trades users' money in each trade type now (server: autoState in backend/src/intel.js)
+  modes?: Record<TradeMode, 'on' | 'unproven' | 'simulated' | 'starting'>;
 };
 
 export type Trade = {

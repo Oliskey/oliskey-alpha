@@ -23,7 +23,10 @@ const symKey = (s) => s.replace('/', '');
 /** Is this strategy version allowed to trade this symbol in this mode? Live is never allowed from here. */
 export function eligibility(registry, { strategyId, strategyVersion, symbol }, mode = 'paper') {
   if (mode !== 'paper') return { ok: false, reason: 'live trading is not enabled for AI Spot' };
-  const row = registry.strategies?.find((r) => r.strategy_id === strategyId && r.version === strategyVersion && r.symbol === symKey(symbol));
+  const sym = symKey(symbol);
+  // A per-coin verdict wins; otherwise a basket verdict covers the coins it was tested on.
+  const row = registry.strategies?.find((r) => r.strategy_id === strategyId && r.version === strategyVersion && r.symbol === sym)
+    ?? registry.strategies?.find((r) => r.strategy_id === strategyId && r.version === strategyVersion && r.symbol === 'BASKET' && r.coins?.includes(sym));
   if (!row) return { ok: false, reason: 'strategy version not in the registry' };
   if (row.verdict !== 'APPROVED_FOR_PAPER') return { ok: false, reason: `strategy ${row.verdict} by the lab` };
   return { ok: true };

@@ -89,7 +89,8 @@ def run(f: pd.DataFrame, spec: Spec, cost_mult: float = 1.0, start_at: pd.Timest
                 trades.append({"signal_at": idx[i], "entry_at": idx[e_i], "exit_at": pd.NaT, "entry": entry,
                                "stop0": entry - risk, "target": target, "exit": np.nan, "reason": None, "r": np.nan,
                                "net_ret": np.nan, "risk_pct": risk / entry, "mfe_r": mfe, "mae_r": mae,
-                               "bars": n - e_i, "regime": regimes[i], "status": "open", "stop_now": stop})
+                               "bars": n - e_i, "regime": regimes[i], "status": "open", "stop_now": stop,
+                               "last_price": c[n - 1]})
             break
         net_ret = (exit_px * (1 - cost) - entry * (1 + cost)) / entry
         r = net_ret / (risk / entry)

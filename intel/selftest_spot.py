@@ -119,6 +119,53 @@ bt.entries = orig
 check("batch-2 strategies are registered with their own family and version",
       {s.strategy_id for s in SPECS if s.batch == 2} == {"range_reversion", "squeeze_breakout", "trend_breakout"})
 
+# --- forward paper trading ------------------------------------------------------------------------------------
+from engine.spot import paper   # noqa: E402
+spec_tb = BY_ID["trend_breakout"]
+fb = prepare(bars(2000, "4h", seed=3, drift=0.0008), bars(400, "1D", seed=3, drift=0.004), spec_tb)
+all_t = bt.run(fb, spec_tb)
+cut = fb.index[1200]
+fwd = bt.run(fb, spec_tb, start_at=cut, include_open=True, bar=pd.Timedelta(hours=4))
+check("forward run has trades to check", len(all_t) > 3 and len(fwd) > 0)
+check("forward trades never come from bars that closed before the start",
+      (fwd["signal_at"] + pd.Timedelta(hours=4) >= cut).all())
+check("without include_open the result is unchanged (lab results stay identical)",
+      bt.run(fb, spec_tb).equals(all_t))
+op = bt.run(fb.iloc[: fb.index.get_loc(all_t["exit_at"].iloc[-1])], spec_tb, include_open=True)
+check("an unfinished trade is reported as open with the latest price",
+      op["status"].iloc[-1] == "open" and op["last_price"].iloc[-1] == fb["close"].iloc[fb.index.get_loc(all_t["exit_at"].iloc[-1]) - 1])
+ts = pd.date_range("2026-01-01", periods=6, freq="h", tz="UTC")
+book = pd.DataFrame({"strategy_id": "trend_breakout", "symbol": ["A", "B", "C", "D", "A", "E"], "status": "closed",
+                     "entry_at": ts, "exit_at": ts + pd.Timedelta(days=1), "entry": 100.0, "stop_now": 95.0,
+                     "last_price": None, "r": [2.0, -1.0, 1.0, 5.0, 3.0, 1.0], "risk_pct": 0.05})
+pf = paper.portfolio(book)
+check("money figure: at most 3 trades open at once, one per coin, the rest still recorded as skipped",
+      pf["taken"] == 3 and pf["skipped"] == 3 and abs(pf["equity"] - (10_000 + 100 * 2 - 100 + 100)) < 1e-6)
+rec = book.assign(exit=[102.0, 99.0, 101.0, 105.0, 103.0, 101.0], mfe_r=1.0, mae_r=-0.5, bars=3, reason="trail",
+                  regime="TRENDING_UP", net_ret=book["r"] * 0.05)
+sm = paper.summarise(rec, pd.Timestamp("2026-01-01", tz="UTC"), ["A"], ["every coin failed this cycle"])
+tbs = sm["strategies"]["trend_breakout"]
+check("summary counts come from the stored record even when every download failed",
+      tbs["closed"] == 6 and tbs["verdict"] == "NOT_YET_PROVEN" and tbs["needed"] == 100 and abs(tbs["total_r"] - 11.0) < 1e-9)
+check("re-pricing stored trades at higher costs lowers every result",
+      (paper.at_costs(rec, 0.0012, 2.0)["r"] < paper.at_costs(rec, 0.0012, 1.0)["r"]).all())
+def record(rs):
+    """Stored forward trades over two years, 8 coins, with consistent prices for each R result."""
+    n, c = len(rs), 0.0012
+    at = pd.date_range("2027-01-01", periods=n, freq="3D", tz="UTC")
+    net = np.array(rs) * 0.05
+    return pd.DataFrame({"strategy_id": "trend_breakout", "symbol": [f"C{(i // 2) % 8}" for i in range(n)], "status": "closed",
+                         "entry_at": at, "exit_at": at + pd.Timedelta(days=2), "entry": 100.0,
+                         "exit": (net * 100 + 100 * (1 + c)) / (1 - c), "stop_now": 95.0, "last_price": None,
+                         "r": rs, "risk_pct": 0.05, "net_ret": net, "mfe_r": 2.0, "mae_r": -0.5, "bars": 12,
+                         "reason": "trail", "regime": "TRENDING_UP"})
+good = paper.summarise(record([2.0, -0.8] * 120), None, [], [])["strategies"]["trend_breakout"]
+bad = paper.summarise(record([0.8, -1.0] * 120), None, [], [])["strategies"]["trend_breakout"]
+check("a strong live record of 240 trades is marked PASSED_FORWARD", good["verdict"] == "PASSED_FORWARD")
+check("a losing live record is marked FAILED_FORWARD, never proven", bad["verdict"] == "FAILED_FORWARD")
+check("paper runs 2 minutes after each 4h close", paper.seconds_to_next_run(4 * 3600 * 10 + 60) == 4 * 3600 - 60 + 120)
+check("only the two pre-registered candidates are paper traded", paper.TRACKED == ("trend_breakout", "squeeze_breakout"))
+
 # --- metrics and gates -----------------------------------------------------------------------------------------
 tr = pd.DataFrame({"r": [1.0, -1.0] * 60, "entry_at": pd.date_range("2024-01-01", periods=120, freq="D", tz="UTC"),
                    "exit_at": pd.date_range("2024-01-02", periods=120, freq="D", tz="UTC"), "bars": 3,

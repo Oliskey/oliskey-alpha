@@ -16,6 +16,7 @@ import { pnlColor, previewPnl } from '@/components/TradeCard';
 import { AssetIcon } from '@/components/AssetIcon';
 import { EvidenceLines, SignalBadge, strategyLabel, testLine, liveLine, useEvidence } from '@/components/terminal/SignalEvidence';
 import { UnderlineTabs } from '@/components/UnderlineTabs';
+import { SpotPanel } from '@/components/terminal/SpotPanel';
 import { card, colors, font, radius, SIDE, type, createStyles } from '@/theme';
 import { AppBar } from '@/ui/AppBar';
 import { Button } from '@/ui/Button';
@@ -26,7 +27,7 @@ import { Txt } from '@/ui/Txt';
 import { Grid, Page } from '@/ui/Page';
 import { useLayout } from '@/hooks/useLayout';
 
-const TABS = [{ key: 'ideas', label: 'Ideas' }, { key: 'markets', label: 'Markets' }, { key: 'record', label: 'Record' }, { key: 'ai', label: 'AI trader' }] as const;
+const TABS = [{ key: 'ideas', label: 'Ideas' }, { key: 'markets', label: 'Markets' }, { key: 'record', label: 'Record' }, { key: 'ai', label: 'AI trader' }, { key: 'spot', label: 'AI Spot' }] as const;
 const CLASS = { crypto: 'Crypto', currency: 'Forex', index: 'Indices', commodity: 'Commodities' } as Record<string, string>;
 const COVERED = 34;
 
@@ -45,7 +46,8 @@ export default function Scanner() {
   const ai = useAiTrader();
   const refreshing = ideas.isFetching || scan.isFetching;
   const refetch = () => { void ideas.refetch(); void scan.refetch(); void perf.refetch(); };
-  const error = ideas.error ?? scan.error ?? (tab === 'record' ? perf.error : null);
+  // AI Spot has its own data and error message, so it stays usable while the engine starts up.
+  const error = tab === 'spot' ? null : ideas.error ?? scan.error ?? (tab === 'record' ? perf.error : null);
 
   const now = Date.now();
   const active = (ideas.data ?? []).filter((i) => i.kind === 'idea' && i.status === 'open' && new Date(i.enter_until).getTime() > now);
@@ -70,6 +72,8 @@ export default function Scanner() {
           <MarketsTab markets={scan.data?.markets ?? []} loading={scan.isLoading} />
         ) : tab === 'ai' ? (
           <AiTab />
+        ) : tab === 'spot' ? (
+          <SpotPanel />
         ) : (
           <RecordTab perf={perf.data} ideas={ideas.data ?? []} loading={perf.isLoading || ideas.isLoading} />
         )}

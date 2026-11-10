@@ -56,3 +56,10 @@ AI SPOT (added 2026-11-09, docs/spot/SPEC.md): long-only BTC/USDT and ETH/USDT s
 - Backend: backend/src/spot (contracts, deterministic Risk Manager, kill switch in %LOCALAPPDATA%/oliskey-alpha or /data,
   paper exchange, pipeline). Only strategies the lab marks APPROVED_FOR_PAPER may trade, only on paper.
   GET /spot/status is read-only. There is NO real-money path for AI Spot; it falls under the REAL-MONEY GATE above.
+- Batch 3 (2026-11-10): trend_breakout 0.1.0 passed every gate on 8 unseen coins (docs/intel/SPOT_UNSEEN.md) and is
+  approved for PAPER. Re-run: npm run spot:fetch -- --unseen, then python intel/run_spot_unseen.py.
+- Forward paper trading (intel/engine/spot/paper.py, loop in intel/api.py): every 4 h, 2 min after the bar closes, on the
+  17 live coins; trend_breakout and squeeze_breakout, frozen. Tables intel.spot_paper_tracking / spot_paper_trades /
+  spot_paper_summary (created by intel's ensure_schema). Closed trades are frozen; the verdict comes from the stored
+  record. Proven only at 100+ closed live trades passing the batch-3 gates. App: Market Scanner -> AI Spot tab.
+  Switch off with INTEL_SPOT_PAPER=off.

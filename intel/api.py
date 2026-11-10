@@ -20,6 +20,7 @@ from fastapi import FastAPI, HTTPException
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from engine import data, db, learning, news, progress, scanner, tracking, updown, rootcause   # noqa: E402
 from engine.settings import APP_ASSETS, ASSETS, PORT   # noqa: E402
+from engine.spot import paper as spot_paper_engine   # noqa: E402
 
 CYCLE_SEC = 5 * 60
 DAILY_EVERY_SEC = 3 * 60 * 60
@@ -186,12 +187,38 @@ def lab_results() -> dict:
         return {}
 
 
+SPOT_PAPER = os.environ.get("INTEL_SPOT_PAPER", "on") != "off"
+
+
+def spot_paper() -> None:
+    """AI Spot forward paper trading: records only, no orders, no money (docs/intel/SPOT_HYPOTHESES.md)."""
+    import httpx
+    with db.connect() as conn, httpx.Client(timeout=20) as client:
+        s = spot_paper_engine.cycle(conn, client)
+    tb = s["strategies"]["trend_breakout"]
+    print(f"spot paper: equity {s['account']['equity']} | trend_breakout {tb['closed']} closed, {tb['open']} open | "
+          f"errors {len(s['errors'])}", flush=True)
+
+
+async def spot_loop() -> None:
+    """Every 4 h, two minutes after the bar closes. A failure is logged and retried at the next bar."""
+    if not SPOT_PAPER:
+        return
+    await asyncio.sleep(60)
+    while True:
+        try:
+            await asyncio.to_thread(spot_paper)
+        except Exception as err:
+            print("spot paper failed:", err, flush=True)
+        await asyncio.sleep(spot_paper_engine.seconds_to_next_run())
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     db.ensure_schema()
     learning.ensure()
     news.ensure()
-    tasks = [asyncio.create_task(c) for c in (loop(), research_loop(), quick_loop(), daily_loop())]
+    tasks = [asyncio.create_task(c) for c in (loop(), research_loop(), quick_loop(), daily_loop(), spot_loop())]
     yield
     for t in tasks:
         t.cancel()

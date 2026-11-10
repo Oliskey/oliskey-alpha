@@ -192,7 +192,7 @@ app.use(pushRouter);
 const SPOT_KILL_SWITCH = process.env.LOCALAPPDATA
   ? path.join(process.env.LOCALAPPDATA, 'oliskey-alpha', 'spot-kill-switch.json')
   : fileURLToPath(new URL('../.data/spot-kill-switch.json', import.meta.url));
-app.use(spotRouter({ killSwitch: new KillSwitch(SPOT_KILL_SWITCH) }));
+app.use(spotRouter({ killSwitch: new KillSwitch(SPOT_KILL_SWITCH), pool }));
 app.use('/admin', requireAdmin, adminRouter);
 app.use('/intel', signalRouter({ engine, settlement, orders }));
 app.use('/intel', intelRouter);

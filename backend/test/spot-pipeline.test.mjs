@@ -38,6 +38,18 @@ test('the real lab registry is obeyed: a strategy the lab rejected never reaches
   assert.equal(ex.orders.size, 0, 'no order reached the exchange');
 });
 
+test('a basket verdict covers only its own coins, and a per-coin verdict wins over it', () => {
+  const reg = { strategies: [
+    { strategy_id: 'trend_breakout', version: '0.1.0', symbol: 'BTCUSDT', verdict: 'MORE_DATA' },
+    { strategy_id: 'trend_breakout', version: '0.1.0', symbol: 'BASKET', coins: ['SOLUSDT', 'ADAUSDT'], verdict: 'APPROVED_FOR_PAPER' }] };
+  const p = (symbol) => ({ strategyId: 'trend_breakout', strategyVersion: '0.1.0', symbol });
+  assert.equal(eligibility(reg, p('SOL/USDT')).ok, true);
+  assert.equal(eligibility(reg, p('BTC/USDT')).ok, false, 'BTC has its own verdict: MORE_DATA');
+  assert.equal(eligibility(reg, p('XRP/USDT')).ok, false, 'not in the basket');
+  assert.equal(eligibility(reg, p('SOL/USDT'), 'live').ok, false, 'never live');
+  assert.equal(eligibility(reg, { ...p('SOL/USDT'), strategyVersion: '0.2.0' }).ok, false, 'other versions are not covered');
+});
+
 test('live mode is never eligible from the pipeline', () => {
   assert.equal(eligibility(approved, proposal(), 'live').ok, false);
 });

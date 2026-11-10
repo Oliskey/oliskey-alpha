@@ -78,10 +78,10 @@ def main() -> int:
                   f"bootstrap 95th-pct drawdown {c.get('max_dd_p95_pct', float('nan')):.1f}%", ""]
         L += [f"- {'PASS' if ok else 'FAIL'}: {k}" for k, ok in r.get("checks", {}).items()] + [""]
         L += ["| Coin | Trades | Expectancy R |", "| --- | ---: | ---: |"]
-        L += [f"| {s.replace('USDT', '')} | {v['trades']} | {'' if v['expectancy_r'] is None else f'{v['expectancy_r']:+.3f}'} |"
+        L += ["| %s | %d | %s |" % (s.replace("USDT", ""), v["trades"], "" if v["expectancy_r"] is None else "%+.3f" % v["expectancy_r"])
               for s, v in r["per_symbol"].items()]
         L += ["", "| Window | Trades | Expectancy R |", "| --- | ---: | ---: |"]
-        L += [f"| {x['from']} to {x['to']} | {x['trades']} | {'' if x['expectancy_r'] is None else f'{x['expectancy_r']:+.3f}'} |"
+        L += ["| %s to %s | %d | %s |" % (x["from"], x["to"], x["trades"], "" if x["expectancy_r"] is None else "%+.3f" % x["expectancy_r"])
               for x in r["folds"]]
         L.append("")
     (DOCS / "SPOT_UNSEEN.md").write_text("\n".join(L) + "\n")

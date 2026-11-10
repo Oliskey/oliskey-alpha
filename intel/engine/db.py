@@ -69,6 +69,45 @@ create table if not exists intel.paper_trades (
   trade_id uuid not null,
   created_at timestamptz not null default now()
 );
+
+-- AI Spot forward paper trading (docs/intel/SPOT_HYPOTHESES.md, forward protocol). No money moves: these are records.
+create table if not exists intel.spot_paper_tracking (
+  strategy_id text not null,
+  version text not null,
+  symbol text not null,
+  started_at timestamptz not null default now(),
+  primary key (strategy_id, version, symbol)
+);
+create table if not exists intel.spot_paper_trades (
+  id text primary key,                         -- strategy|version|symbol|signal bar
+  strategy_id text not null,
+  version text not null,
+  symbol text not null,
+  timeframe text not null,
+  status text not null check (status in ('open', 'closed')),
+  signal_at timestamptz not null,
+  entry_at timestamptz not null,
+  entry double precision not null,
+  stop0 double precision not null,
+  stop_now double precision,
+  target double precision,
+  last_price double precision,
+  exit_at timestamptz,
+  exit double precision,
+  reason text,
+  r double precision,
+  mfe_r double precision,
+  mae_r double precision,
+  bars int,
+  regime text,
+  updated_at timestamptz not null default now()
+);
+create index if not exists spot_paper_trades_entry_idx on intel.spot_paper_trades (strategy_id, entry_at);
+create table if not exists intel.spot_paper_summary (
+  id text primary key,
+  summary jsonb not null,
+  updated_at timestamptz not null default now()
+);
 """
 
 

@@ -32,7 +32,7 @@ const PUSH_TEXT: Record<PushState, string> = {
   unsupported: '',
   install: 'Add the app to your home screen first',
   blocked: 'Allow alerts in your browser settings',
-  off: 'Off. Get an alert for new signals and your signal trades',
+  off: 'Off. Get an alert for signals, AI trades and every result',
   on: 'On for this device. Tap to turn off',
 };
 
@@ -138,7 +138,7 @@ export default function Profile() {
           ) : null}
           {Platform.OS === 'web' && push !== 'unsupported' ? (
             <Row icon={push === 'on' ? Bell : BellOff} title="Alerts" subtitle={push === 'install' || push === 'blocked' ? PUSH_TEXT[push] : undefined}
-              right={<Toggle accessibilityLabel="Alerts for new signals" value={push === 'on'} onValueChange={togglePush} />} />
+              right={<Toggle accessibilityLabel="Alerts for signals, AI trades and results" value={push === 'on'} onValueChange={togglePush} />} />
           ) : null}
           <Row icon={AiIcon} title="AI trading" onPress={() => router.push({ pathname: '/scanner', params: { tab: 'ai' } })} />
           <Row icon={CircleHelp} title="Help" onPress={() => router.navigate('/help')} last />

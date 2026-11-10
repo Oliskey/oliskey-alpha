@@ -23,12 +23,12 @@ export function validEndpoint(endpoint) {
   }
 }
 
-export async function sendPush(userId, { title, body, link }) {
+export async function sendPush(userId, { title, body, link, tag = null }) {
   if (!enabled) return;
   const { rows } = await pool.query(
     `select s.endpoint, s.p256dh, s.auth from push_subscriptions s join profiles p on p.id = s.user_id
      where s.user_id = $1 and p.deleted_at is null`, [userId]);
-  const payload = JSON.stringify({ title, body, link });
+  const payload = JSON.stringify({ title, body, link, tag });
   await Promise.all(rows.map(async (s) => {
     try {
       await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 3600, urgency: 'high' });

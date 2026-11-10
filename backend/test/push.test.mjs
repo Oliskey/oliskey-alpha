@@ -37,3 +37,26 @@ test('at most five devices per person', async () => {
   for (let i = 0; i < 5; i++) assert.equal((await call('POST', '/push/subscribe', token, { subscription: { endpoint: `https://fcm.googleapis.com/fcm/send/many-${Date.now()}-${i}`, keys } })).status, 201);
   assert.equal((await call('POST', '/push/subscribe', token, { subscription: { endpoint: `https://fcm.googleapis.com/fcm/send/many-${Date.now()}-x`, keys } })).status, 400);
 });
+
+// Root cause of "no alert on profit or loss": only results of followed signals were alerted, and the open app got no
+// details to ring with. Now every result reaches the open app with its title and colour (and the browser alert).
+test('the open app gets a ringing alert for an ordinary trade result', async () => {
+  const { default: WebSocket } = await import('ws');
+  const token = await signUp();
+  assert.equal((await call('POST', '/me/onboarding', token, { answers: { lose: 'stake', demo: 'practice', ai: 'mine' }, aiMode: 'ask' })).status, 200);
+  const demo = (await call('GET', '/me', token)).body.accounts.find((a) => a.type === 'DEMO');
+  const ws = new WebSocket(API.replace('http', 'ws') + '/stream');
+  await new Promise((r) => ws.once('open', r));
+  const alerts = [];
+  ws.on('message', (d) => { const m = JSON.parse(d); if (m.type === 'notification' && m.alert) alerts.push(m.alert); });
+  ws.send(JSON.stringify({ type: 'auth', token }));
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal((await call('POST', '/trades', token, { accountId: demo.id, assetId: 'EURUSD', mode: 'fixed_time', direction: 'up', amount: 100, durationSec: 5 })).status, 201);
+  for (let i = 0; i < 40 && !alerts.some((a) => /^(Trade won|Trade lost|Amount returned)/.test(a.title)); i++) await new Promise((r) => setTimeout(r, 250));
+  ws.close();
+  const result = alerts.find((a) => /^(Trade won|Trade lost|Amount returned)/.test(a.title));
+  assert.ok(result, 'result alert arrived: ' + JSON.stringify(alerts));
+  assert.equal(result.category, 'activities');
+  assert.equal(result.link, '/history');
+  assert.equal(result.tone, /^Trade won/.test(result.title) ? 'up' : /^Trade lost/.test(result.title) ? 'down' : 'neutral');
+});

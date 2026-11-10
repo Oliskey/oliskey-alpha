@@ -4,7 +4,7 @@
 //  - page loads: network first, the saved app when offline
 //  - built files (/_expo, /assets, fonts, images): served from the saved copy, saved on first use if missing
 //  - everything else (API calls, prices, trades) goes straight to the network and is never saved
-const CACHE = 'oliskey-alpha-app-v2';
+const CACHE = 'oliskey-alpha-app-v3';
 const SHELL = '/';
 const STATIC = /^\/(_expo|assets)\/|\.(js|css|png|jpg|jpeg|svg|ico|ttf|woff2?)$/;
 
@@ -31,7 +31,16 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data.json(); } catch { /* an alert with no details still shows */ }
-  e.waitUntil(self.registration.showNotification(d.title || 'Oliskey Alpha', { body: d.body || '', icon: '/icon-512.png', badge: '/icon-512.png', data: { link: d.link } }));
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((all) => {
+    // The app is open and on screen: it already rang and showed the banner itself, so no second alert.
+    if (all.some((c) => c.visibilityState === 'visible' && c.focused)) return;
+    return self.registration.showNotification(d.title || 'Oliskey Alpha', {
+      body: d.body || '', icon: '/icon-512.png', badge: '/icon-192.png', data: { link: d.link },
+      // same tag = the newer alert replaces the older one, and still rings again
+      ...(d.tag ? { tag: String(d.tag), renotify: true } : {}),
+      silent: false, vibrate: [180, 80, 180],
+    });
+  }));
 });
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();

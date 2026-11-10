@@ -29,6 +29,7 @@ import { pnlColor } from '@/components/TradeCard';
 import { useAiTrader } from '@/hooks/useCounts';
 import { useSignals } from '@/hooks/useSignals';
 import { Page } from '@/ui/Page';
+import { AlertsPrompt } from '@/components/AlertsPrompt';
 
 // Market Scanner shortcuts (Market Intelligence Engine, real market data).
 const SCANNERS = (signals: number) => [
@@ -88,6 +89,8 @@ export default function Home() {
           <Button style={{ flex: 1 }} height={42} variant="secondary" label="Withdraw" onPress={() => router.push('/withdraw')} />
           <Button style={{ flex: 1 }} height={42} label="Deposit" onPress={() => setSheet('deposit')} />
         </View>
+
+        <AlertsPrompt />
 
         {/* story circles */}
         <SideScroll contentContainerStyle={{ gap: 12 }}>

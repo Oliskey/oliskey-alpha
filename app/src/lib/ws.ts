@@ -7,7 +7,8 @@ import { PREVIEW } from './preview';
 type Tick = { type: 'tick'; asset: string; price: number; ts: number };
 type Momentum = { type: 'momentum'; asset: string; up: number };
 export type ServerEvent = { type: 'trade_closed'; trade: any } | { type: 'trade_opened'; trade: any } | { type: 'task_completed'; taskId: string }
-  | { type: 'order_update'; order: any; trade: any } | { type: 'notification' };
+  | { type: 'order_update'; order: any; trade: any }
+  | { type: 'notification'; alert?: { category: string; title: string; body: string | null; link: string | null; tone: 'up' | 'down' | 'neutral' } };
 
 const tickListeners = new Map<string, Set<(t: Tick) => void>>();
 const momentumListeners = new Map<string, Set<(m: Momentum) => void>>();

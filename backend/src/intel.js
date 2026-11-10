@@ -9,7 +9,7 @@ import { Router } from 'express';
 import { pool } from './db.js';
 import { createUser, usingSupabase } from './supabaseAuth.js';
 import { isUuid, messageFor } from './http.js';
-import { notify, pushEvent } from './notify.js';
+import { notify, notifyAiTradeOpened, pushEvent } from './notify.js';
 import { openTrade } from './openTrade.js';
 import { fixedTimePlan, signalPlan } from './signalPlan.js';
 
@@ -133,13 +133,14 @@ async function tradeForOne(u, idea, engine, settlement, orderFor) {
   try {
     if (u.mode === 'ask') {
       if (await claimAlert(`ask:${idea.id}:${u.user_id}`)) {
-        await notify(u.user_id, 'activities', 'The AI wants your OK on a trade', 'It can lose. Open the AI trader to approve or skip it.', '/scanner?tab=ai');
+        await notify(u.user_id, 'activities', 'The AI wants your OK on a trade', 'It can lose. Open the AI trader to approve or skip it.', '/scanner?tab=ai', { outside: true, tag: `ask-${idea.id}` });
       }
       return false;
     }
     if (!withinLimits(Number(u.balance), Number(u.amount), Number(u.open_auto))) return false;
     const trade = await openTrade({ userId: u.user_id, engine, settlement, order: { ...orderFor(Number(u.amount)), accountId: u.account_id, auto: true } });
     pushEvent(u.user_id, { type: 'trade_opened', trade });   // their Trades list and balance update at once
+    void notifyAiTradeOpened(trade);
     return true;
   } catch (err) {
     console.error('AI trade for a user', idea.asset_id, err.message);   // one user's trade must not stop the others
@@ -290,7 +291,8 @@ export function startSignalAlerts() {
     const now = Date.now();
     for (const i of ideas) {
       if (i.kind !== 'idea' || i.status !== 'open' || new Date(i.enter_until).getTime() <= now) continue;
-      if (i.asset_class.startsWith('crypto')) continue;   // test signals stay inside the app: they are frequent and unproven
+      // Crypto signals were skipped here, so almost no signal ever alerted anyone (most live signals are crypto). They go out
+      // now, marked experimental unless their group is proven; one alert per coin replaces the last instead of piling up.
       if (!await claimAlert(`idea:${i.id}`)) continue;
       const { rows } = await pool.query('select name from assets where id = $1', [i.asset_id]);
       const proven = evidence.groups?.[i.asset_class]?.status === 'proven';
@@ -298,7 +300,7 @@ export function startSignalAlerts() {
       for (const u of await everyone()) {
         await notify(u.id, 'activities', `New signal: ${rows[0]?.name ?? i.asset_id}, ${i.direction > 0 ? 'Up' : 'Down'}`,
           `${proven ? '' : 'Experimental, not yet proven. '}It can lose. Open it to see the plan.`,
-          `/terminal?asset=${encodeURIComponent(i.asset_id)}&mode=forex&signal=${i.id}&tf=${tf}`, { outside: true });
+          `/terminal?asset=${encodeURIComponent(i.asset_id)}&mode=forex&signal=${i.id}&tf=${tf}`, { outside: true, tag: `signal-${i.asset_id}` });
       }
     }
     for (const [cls, g] of Object.entries(evidence.groups ?? {})) {

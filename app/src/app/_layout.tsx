@@ -1,7 +1,7 @@
 import { prepareInstall } from '@/lib/install';
-import { Fragment, useEffect } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import { Platform, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -16,7 +16,8 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { AccountProvider } from '@/context/AccountContext';
 import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { colors } from '@/theme';
-import { ToastProvider } from '@/ui/Toast';
+import { ToastProvider, useToast } from '@/ui/Toast';
+import { chime } from '@/lib/chime';
 import { OfflineBanner } from '@/components/OfflineState';
 import { subscribeEvents } from '@/lib/ws';
 
@@ -39,13 +40,24 @@ function Root() {
   const loaded = ready && fontsLoaded;
 
   useEffect(() => { if (loaded) SplashScreen.hideAsync(); }, [loaded]);
-  // a new notification updates the bell and the list at once
+  // A new notification updates the bell and the list at once, and, while the app is open, rings and shows a banner.
+  // (Before, it only changed the bell count, so an open app never made a sound for a signal or a result.)
+  const toast = useToast();
+  const pathname = usePathname();
+  const here = useRef(pathname);
+  here.current = pathname;
   useEffect(() => subscribeEvents((e) => {
     if (e.type !== 'notification') return;
     void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     void queryClient.invalidateQueries({ queryKey: ['me'] });
     void queryClient.invalidateQueries({ queryKey: ['rewards'] });
-  }), []);
+    const a = e.alert;
+    if (!a || a.category !== 'activities') return;
+    chime(a.tone);
+    // the trading screen already shows its own, more detailed result banner
+    const result = /^(Trade won|Trade lost|Amount returned)/.test(a.title);
+    if (!(result && here.current.startsWith('/terminal'))) toast({ title: a.title, message: a.body ?? undefined, tone: a.tone });
+  }), [toast]);
   if (!loaded) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   return (

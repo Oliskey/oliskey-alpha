@@ -5,6 +5,7 @@ import { pool } from '../db.js';
 import { amountText, notify } from '../notify.js';
 import { isUuid } from '../http.js';
 import { paystack, paystackConfigured, toKobo, validSignature } from '../paystack.js';
+import { kycEvent } from '../kyc.js';
 
 const COMING_SOON = 'Real-money trading is coming soon.';
 
@@ -152,6 +153,9 @@ export function paystackWebhook(req, res) {
   res.sendStatus(200);
   if (req.body?.event === 'charge.success' && req.body.data?.reference) {
     settleDeposit(req.body.data.reference).catch((err) => console.error('webhook', err.message));
+  }
+  if (String(req.body?.event).startsWith('customeridentification.')) {
+    Promise.resolve(kycEvent(req.body.event, req.body.data)).catch((err) => console.error('webhook', err.message));
   }
   if ((req.body?.event === 'transfer.failed' || req.body?.event === 'transfer.reversed') && req.body.data?.reference) {
     returnFailedTransfer(req.body.data.reference).catch((err) => console.error('webhook', err.message));

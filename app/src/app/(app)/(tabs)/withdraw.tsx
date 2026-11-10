@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, Info } from 'lucide-react-native';
+import { ChevronRight, Info, ShieldCheck } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { money } from '@/lib/format';
 import { useAccount } from '@/context/AccountContext';
@@ -29,6 +29,10 @@ export default function Withdraw() {
   const [deposit, setDeposit] = useState(false);
   useEffect(() => { const id = setTimeout(() => setLoading(false), 1000); return () => clearTimeout(id); }, []);
   const history = useQuery({ queryKey: ['withdrawals'], queryFn: () => api<Withdrawal[]>('/payments/withdrawals') });
+  const kyc = useQuery({
+    queryKey: ['kyc'], queryFn: () => api<Kyc>('/kyc'),
+    refetchInterval: (q) => (q.state.data?.status === 'pending' ? 15_000 : false),   // the bank answers within minutes
+  });
 
   const ngn = me?.accounts.find((a) => a.type === 'NGN');
   const available = Number(ngn?.balance ?? 0);
@@ -57,7 +61,7 @@ export default function Withdraw() {
                   ? 'Real-money trading is coming soon. Withdrawals open once Oliskey Alpha is licensed.'
                   : available <= 0
                     ? 'You have insufficient funds to make a withdrawal from this account'
-                    : `Withdrawals need a verified identity and are approved by our team.${feePct > 0 ? ` A ${feePct}% withdrawal fee applies.` : ''}`}
+                    : `${kyc.data?.status === 'verified' ? 'Withdrawals are approved by our team before the transfer is sent.' : 'Withdrawals need a verified identity and are approved by our team.'}${feePct > 0 ? ` A ${feePct}% withdrawal fee applies.` : ''}`}
               </Txt>
               {live && available <= 0 ? (
                 <Press onPress={() => setDeposit(true)} haptic={false}>
@@ -67,7 +71,9 @@ export default function Withdraw() {
             </View>
           </View>
 
-          {live && available > 0 && ngn ? <WithdrawForm accountId={ngn.id} max={available} feePct={feePct} onDone={() => void history.refetch()} /> : null}
+          {live && available > 0 && kyc.data && kyc.data.status !== 'verified' ? <KycForm kyc={kyc.data} onDone={() => void kyc.refetch()} /> : null}
+
+          {live && available > 0 && ngn && kyc.data?.status === 'verified' ? <WithdrawForm accountId={ngn.id} max={available} feePct={feePct} onDone={() => void history.refetch()} /> : null}
 
           {history.data?.length ? (
             <View style={{ gap: 8, marginTop: 8 }}>
@@ -89,6 +95,75 @@ export default function Withdraw() {
       )}
       <DepositSheet open={deposit} onClose={() => setDeposit(false)} />
     </SafeAreaView>
+  );
+}
+
+type Kyc = { status: 'none' | 'pending' | 'verified' | 'rejected'; reason: string | null };
+
+// Identity check: BVN + bank account + legal name, matched by Paystack. The BVN is not stored by Oliskey Alpha.
+function KycForm({ kyc, onDone }: { kyc: Kyc; onDone: () => void }) {
+  const toast = useToast();
+  const banks = useQuery({ queryKey: ['banks'], queryFn: () => api<Bank[]>('/payments/banks'), staleTime: Infinity });
+  const [first, setFirst] = useState('');
+  const [last, setLast] = useState('');
+  const [bvn, setBvn] = useState('');
+  const [bank, setBank] = useState<Bank | null>(null);
+  const [accountNumber, setAccountNumber] = useState('');
+  const [pickBank, setPickBank] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  if (kyc.status === 'pending') {
+    return (
+      <View style={styles.kyc}>
+        <ShieldCheck size={22} color={colors.accent} />
+        <View style={{ flex: 1, gap: 4 }}>
+          <Txt style={{ fontFamily: font.bold }}>Checking your identity</Txt>
+          <Txt style={{ color: colors.muted, fontSize: 14 }}>Your bank is confirming your details. This usually takes a few minutes; we will tell you when it is done.</Txt>
+        </View>
+      </View>
+    );
+  }
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      await api('/kyc', { method: 'POST', body: { firstName: first, lastName: last, bvn, bankCode: bank!.code, accountNumber } });
+      setBvn('');
+      onDone();
+    } catch (e) { toast({ title: 'Check not started', message: (e as Error).message, tone: 'down' }); } finally { setBusy(false); }
+  };
+  const ready = first.trim().length > 1 && last.trim().length > 1 && bvn.length === 11 && !!bank && accountNumber.length === 10;
+
+  return (
+    <View style={{ gap: 10 }}>
+      <View style={styles.kyc}>
+        <ShieldCheck size={22} color={colors.accent} />
+        <View style={{ flex: 1, gap: 4 }}>
+          <Txt style={{ fontFamily: font.bold }}>Verify your identity</Txt>
+          <Txt style={{ color: colors.muted, fontSize: 14 }}>
+            {kyc.status === 'rejected' && kyc.reason
+              ? `${kyc.reason} Check your details and try again.`
+              : 'Once, before your first withdrawal. Your bank confirms that the BVN, the account and the name belong to you.'}
+          </Txt>
+        </View>
+      </View>
+      <Field label="First name (as on your BVN)" value={first} onChangeText={setFirst} autoCapitalize="words" />
+      <Field label="Last name (as on your BVN)" value={last} onChangeText={setLast} autoCapitalize="words" />
+      <Field label="BVN (11 digits)" value={bvn} onChangeText={(v) => setBvn(v.replace(/\D/g, '').slice(0, 11))} keyboardType="number-pad" secureTextEntry />
+      <Press style={styles.row} onPress={() => setPickBank(true)}><Txt>{bank?.name ?? 'Choose your bank'}</Txt><ChevronRight size={18} color={colors.text} /></Press>
+      <Field label="Account number in your name" value={accountNumber} onChangeText={(v) => setAccountNumber(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />
+      <Txt style={{ color: colors.muted, fontSize: 13 }}>Your BVN is sent securely to Paystack for this check and is not stored by Oliskey Alpha.</Txt>
+      <Button label="Verify identity" height={52} loading={busy} disabled={!ready} onPress={submit} />
+      <Sheet open={pickBank} onClose={() => setPickBank(false)}>
+        <ScrollView style={{ maxHeight: 460 }}>
+          {(banks.data ?? []).map((b) => (
+            <Press key={b.code} haptic={false} style={{ height: 48, justifyContent: 'center', paddingHorizontal: 20 }} onPress={() => { setBank(b); setPickBank(false); }}>
+              <Txt>{b.name}</Txt>
+            </Press>
+          ))}
+        </ScrollView>
+      </Sheet>
+    </View>
   );
 }
 
@@ -178,5 +253,6 @@ const styles = createStyles(() => ({
   notice: { flexDirection: 'row', gap: 12, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 14 },
   row: { ...card, flexDirection: 'row', justifyContent: 'space-between', padding: 14 },
   breakdown: { ...card, gap: 8, padding: 14 },
+  kyc: { ...card, flexDirection: 'row', gap: 12, padding: 14 },
   line: { flexDirection: 'row', justifyContent: 'space-between' },
 }));

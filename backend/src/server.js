@@ -22,6 +22,7 @@ import { accountRouter } from './routes/account.js';
 import { tradesRouter } from './routes/trades.js';
 import { paymentsRouter, paystackWebhook, reconcileDeposits } from './routes/payments.js';
 import { paystackConfigured } from './paystack.js';
+import { kycRouter, reconcileKyc } from './kyc.js';
 import { adminRouter } from './routes/admin.js';
 import { intelRouter, signalRouter, startIntel, startPaperTrading, startSignalAlerts } from './intel.js';
 import { pushRouter } from './webPush.js';
@@ -189,6 +190,7 @@ app.use(tradesRouter({ engine, settlement, assetNames: new Map(assets.map((a) =>
 const orders = startOrders({ engine, settlement, push: stream.push });
 app.use(ordersRouter({ engine, orders }));
 app.use(paymentsRouter);
+app.use(kycRouter);
 app.use(pushRouter);
 // AI Spot kill switch lives on the permanent disk (Railway /data, Windows %LOCALAPPDATA%), so a restart or deploy never clears it.
 const SPOT_KILL_SWITCH = process.env.LOCALAPPDATA
@@ -211,6 +213,8 @@ whenLeader(async () => {
   startSignalAlerts();
   if (paystackConfigured()) {   // deposits the webhook missed: re-checked with Paystack every 5 minutes
     setInterval(() => reconcileDeposits().catch((err) => console.error('deposit reconcile', err.message)), 5 * 60_000).unref();
+    // identity checks whose webhook was lost
+    setInterval(() => reconcileKyc().catch((err) => console.error('kyc reconcile', err.message)), 5 * 60_000).unref();
   }
   if (process.env.INTEL_DISABLED !== '1') {
     startIntel();

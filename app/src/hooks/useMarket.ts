@@ -1,10 +1,10 @@
 // Live feeds go through liveUpdate (lib/liveBatch): applied one by one they keep restarting a page that is being built.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { liveUpdate } from '@/lib/liveBatch';
 import { useQuery } from '@tanstack/react-query';
 import { api, type Asset, type Candle } from '@/lib/api';
-import { subscribeMomentum, subscribeTicks } from '@/lib/ws';
+import { subscribeMomentum, subscribeResume, subscribeTicks } from '@/lib/ws';
 
 export function useAssets() {
   const q = useQuery({ queryKey: ['assets'], queryFn: () => api<Asset[]>('/assets'), staleTime: 60_000 });
@@ -101,7 +101,23 @@ export function useLiveCandles(assetId: string, tf: number, count = 120) {
   }, [q.data, key]);
   useEffect(() => { if (held.key === key) keepCandles(key, held.list); }, [held, key]);
 
+  // Missed time: candles are built from live ticks, so minutes without ticks (phone asleep, data off, app in the background) would stay
+  // missing until the market was switched. The history is reloaded from the server when the connection or the screen comes back, and when
+  // a tick lands more than one candle after the last one. At most once every 5 s.
+  const lastTime = useRef(0);
+  lastTime.current = held.key === key ? held.list[held.list.length - 1]?.time ?? 0 : 0;
+  const reloadedAt = useRef(0);
+  const refetch = q.refetch;
+  const reload = useRef(() => {});
+  reload.current = () => {
+    if (Date.now() - reloadedAt.current < 5000) return;
+    reloadedAt.current = Date.now();
+    void refetch();
+  };
+  useEffect(() => subscribeResume(() => reload.current()), []);
+
   useEffect(() => subscribeTicks(assetId, (t) => {
+    if (lastTime.current && Math.floor(t.ts / (tf * 1000)) * tf * 1000 > lastTime.current + tf * 1000) reload.current();
     liveUpdate(() => setLast({ price: t.price, ts: t.ts, key }), setLast);
     liveUpdate(() => setHeld((h) => {
       if (h.key !== key) return h;

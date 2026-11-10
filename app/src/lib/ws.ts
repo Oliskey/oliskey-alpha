@@ -1,5 +1,6 @@
 // One shared WebSocket to the backend price stream, with auto-reconnect. Its state (connected or not) drives the
 // offline screens: live prices and trading need this connection.
+import { AppState } from 'react-native';
 import { WS_URL } from './api';
 import { PREVIEW } from './preview';
 
@@ -18,7 +19,30 @@ let retry = 0;
 let closedByUs = false;
 let connected = false;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let lastMessageAt = 0;
+let wasDown = false;
 const statusListeners = new Set<() => void>();
+const resumeListeners = new Set<() => void>();
+const resumed = () => resumeListeners.forEach((fn) => fn());
+/** Called when live data may have been missed: the connection came back, or the app came back to the screen. Charts reload their history. */
+export function subscribeResume(fn: () => void) { resumeListeners.add(fn); return () => { resumeListeners.delete(fn); }; }
+
+// Back on screen (phone unlocked, app or tab reopened). A phone that slept can leave the socket looking open while nothing arrives:
+// if it has been silent, it is closed and reopened at once. Either way the charts reload what they missed.
+function onScreenAgain() {
+  if (PREVIEW || closedByUs) return;
+  if (socket?.readyState === WebSocket.OPEN && Date.now() - lastMessageAt > 8000) {
+    retry = 0;
+    socket.close();   // onclose reconnects; onopen then calls resumed()
+    return;
+  }
+  if (!socket) { if (retryTimer) clearTimeout(retryTimer); retry = 0; connect(); return; }
+  resumed();
+}
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') onScreenAgain(); });
+}
+AppState.addEventListener?.('change', (s) => { if (s === 'active') onScreenAgain(); });
 const setConnected = (v: boolean) => { if (v !== connected) { connected = v; statusListeners.forEach((fn) => fn()); } };
 /** Live connection to the server (prices and trade updates). */
 export const isStreamConnected = () => connected;
@@ -27,7 +51,7 @@ export function subscribeStreamStatus(fn: () => void) { statusListeners.add(fn);
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
   window.addEventListener('online', () => {
     if (closedByUs) return;
-    if (socket?.readyState === WebSocket.OPEN) { setConnected(true); return; }
+    if (socket?.readyState === WebSocket.OPEN) { setConnected(true); onScreenAgain(); return; }
     if (!socket) { if (retryTimer) clearTimeout(retryTimer); retry = 0; connect(); }
   });
   // the device lost its network: a socket may linger half-open, so close it and reconnect cleanly when back
@@ -44,12 +68,15 @@ function connect() {
   socket = new WebSocket(WS_URL);
   socket.onopen = () => {
     retry = 0;
+    lastMessageAt = Date.now();
     setConnected(true);
     if (authToken) send({ type: 'auth', token: authToken });
     const assets = new Set([...tickListeners.keys(), ...momentumListeners.keys()]);
     for (const asset of assets) send({ type: 'subscribe', asset });
+    if (wasDown) { wasDown = false; resumed(); }   // ticks were missed while it was closed
   };
   socket.onmessage = (e) => {
+    lastMessageAt = Date.now();
     const msg = JSON.parse(String(e.data));
     if (msg.type === 'tick') tickListeners.get(msg.asset)?.forEach((fn) => fn(msg));
     else if (msg.type === 'momentum') momentumListeners.get(msg.asset)?.forEach((fn) => fn(msg));
@@ -57,6 +84,7 @@ function connect() {
   };
   socket.onclose = () => {
     socket = null;
+    wasDown = true;
     setConnected(false);
     if (closedByUs) return;
     retryTimer = setTimeout(connect, Math.min(1000 * 2 ** retry++, 15000));

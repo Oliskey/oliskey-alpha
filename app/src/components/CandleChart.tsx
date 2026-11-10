@@ -148,7 +148,12 @@ function ChartInner(props: Props) {
   const timeOfX = (x: number) => anchorTime + (x - anchorX - body / 2) / pxPerMs;
   const visibleCount = Math.ceil(anchorX / unit) + 1;
   const startIdx = Math.max(0, anchorIdx + 1 - visibleCount);
-  const visible = candles.slice(startIdx, anchorIdx + 1);
+  // On screen by time, not by count: after a gap in the data, candles from before it are off to the left and must not stretch the
+  // price scale (that squashed the candles on screen into flat lines until the chart was scrolled).
+  const leftTime = timeOfX(-unit);
+  const inView = candles.slice(startIdx, anchorIdx + 1);
+  const onScreen = inView.filter((c) => c.time >= leftTime);
+  const visible = onScreen.length ? onScreen : inView;
   // index -> time, also for indicator points drawn ahead of the last candle
   const timeAt = (i: number) => (i < candles.length ? candles[i].time : (candles[candles.length - 1]?.time ?? now) + (i - candles.length + 1) * tf * 1000);
   const lastIdx = anchorIdx + Math.ceil(Math.max(0, plotW - anchorX) / Math.max(1, unit)) + 1;   // last index that can show

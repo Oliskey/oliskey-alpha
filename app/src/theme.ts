@@ -32,24 +32,24 @@ const dark = {
 const light: Record<keyof typeof dark, string> = {
   bg: '#FFFFFF',
   surface: '#FFFFFF',
-  surface2: '#F2F2F7',
-  border: '#E5E5EA',
-  text: '#1D1D1F',
-  muted: '#6E6E73',
-  faint: '#6E6E73',          // readable on white, also as small text
-  accent: '#5B2EFF',
-  primaryFrom: '#6A3DFF',    // main buttons: a slight same-colour shift, not a two-colour gradient
-  primaryTo: '#5126F0',
-  up: '#007A46',
-  upVivid: '#00A35B',
-  down: '#E0103A',
-  demo: '#96600A',
-  grid: '#F2F2F5',
+  surface2: '#F4F5F8',       // inputs, pills, pressed rows: a cool, barely-there grey
+  border: '#E6E8EE',
+  text: '#0F172A',           // deep slate: softer than black, still 17:1
+  muted: '#5B6475',          // 5.9:1 on white
+  faint: '#6B7280',          // readable on white, also as small text (4.8:1)
+  accent: '#5B3DF5',
+  primaryFrom: '#6A4BFF',    // main buttons: a slight same-colour shift, not a two-colour gradient
+  primaryTo: '#5432F0',
+  up: '#0A8449',             // emerald: 4.7:1 as text on white, and white text on it
+  upVivid: '#12B76A',        // candles, switches, bars (no text on them)
+  down: '#E11D48',           // rose red: 4.7:1 as text on white, and white text on it
+  demo: '#B45309',           // amber: 5:1 on white
+  grid: '#F1F3F7',
   tabBar: '#FFFFFF',
-  teal: '#00857A',
-  zone: '#0066CC',
+  teal: '#0E8A80',
+  zone: '#2563EB',
   dark: '#FFFFFF',
-  tooltipBg: '#1D1D1F',
+  tooltipBg: '#0F172A',
 };
 
 export type ThemeName = 'dark' | 'light';

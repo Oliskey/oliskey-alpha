@@ -5,6 +5,8 @@ import { sendPush } from './webPush.js';
 
 let push = null;
 export const setNotifyPush = (fn) => { push = fn; };
+// A live event with no notification row (e.g. the AI opened a trade for this person): their app refreshes trades and balance.
+export const pushEvent = (userId, msg) => { try { push?.(userId, msg); } catch { /* the app also refreshes by itself */ } };
 
 export const SYMBOL = { DEMO: 'α', NGN: '₦', USDT: 'USDT ' };
 export const amountText = (type, value) => `${SYMBOL[type] ?? ''}${Math.abs(Number(value)).toFixed(2)}`;

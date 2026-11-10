@@ -9,7 +9,7 @@ import { Router } from 'express';
 import { pool } from './db.js';
 import { createUser, usingSupabase } from './supabaseAuth.js';
 import { isUuid, messageFor } from './http.js';
-import { notify } from './notify.js';
+import { notify, pushEvent } from './notify.js';
 import { openTrade } from './openTrade.js';
 import { fixedTimePlan, signalPlan } from './signalPlan.js';
 
@@ -138,7 +138,8 @@ async function tradeForOne(u, idea, engine, settlement, orderFor) {
       return false;
     }
     if (!withinLimits(Number(u.balance), Number(u.amount), Number(u.open_auto))) return false;
-    await openTrade({ userId: u.user_id, engine, settlement, order: { ...orderFor(Number(u.amount)), accountId: u.account_id, auto: true } });
+    const trade = await openTrade({ userId: u.user_id, engine, settlement, order: { ...orderFor(Number(u.amount)), accountId: u.account_id, auto: true } });
+    pushEvent(u.user_id, { type: 'trade_opened', trade });   // their Trades list and balance update at once
     return true;
   } catch (err) {
     console.error('AI trade for a user', idea.asset_id, err.message);   // one user's trade must not stop the others

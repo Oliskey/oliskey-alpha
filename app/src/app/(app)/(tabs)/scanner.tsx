@@ -460,7 +460,7 @@ export function ListenCard({ l, fill }: { l: AiListening; fill?: boolean }) {   
         // how strong the best signal is now (bar) against the strength it needs before it trades (line)
         <View style={{ gap: 4 }} accessibilityLabel={`Best signal ${name} ${pct(l.reading)}, needs ${pct(l.needed)}`}>
           <View style={styles.meter}>
-            <View style={[styles.meterFill, { width: `${Math.min(100, l.reading * 100)}%`, backgroundColor: l.reading >= l.needed ? colors.up : colors.demo }]} />
+            <View style={[styles.meterFill, { width: `${Math.min(100, l.reading * 100)}%`, backgroundColor: l.reading >= l.needed ? colors.upVivid : colors.demo }]} />
             <View style={[styles.meterMark, { left: `${Math.min(100, l.needed * 100)}%` }]} />
           </View>
           <Txt style={styles.meta}>{name} {pct(l.reading)} · needs {pct(l.needed)}</Txt>

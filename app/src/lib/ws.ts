@@ -6,7 +6,7 @@ import { PREVIEW } from './preview';
 
 type Tick = { type: 'tick'; asset: string; price: number; ts: number };
 type Momentum = { type: 'momentum'; asset: string; up: number };
-export type ServerEvent = { type: 'trade_closed'; trade: any } | { type: 'task_completed'; taskId: string }
+export type ServerEvent = { type: 'trade_closed'; trade: any } | { type: 'trade_opened'; trade: any } | { type: 'task_completed'; taskId: string }
   | { type: 'order_update'; order: any; trade: any } | { type: 'notification' };
 
 const tickListeners = new Map<string, Set<(t: Tick) => void>>();
@@ -80,7 +80,7 @@ function connect() {
     const msg = JSON.parse(String(e.data));
     if (msg.type === 'tick') tickListeners.get(msg.asset)?.forEach((fn) => fn(msg));
     else if (msg.type === 'momentum') momentumListeners.get(msg.asset)?.forEach((fn) => fn(msg));
-    else if (msg.type === 'trade_closed' || msg.type === 'task_completed' || msg.type === 'order_update' || msg.type === 'notification') eventListeners.forEach((fn) => fn(msg));
+    else if (msg.type === 'trade_closed' || msg.type === 'trade_opened' || msg.type === 'task_completed' || msg.type === 'order_update' || msg.type === 'notification') eventListeners.forEach((fn) => fn(msg));
   };
   socket.onclose = () => {
     socket = null;

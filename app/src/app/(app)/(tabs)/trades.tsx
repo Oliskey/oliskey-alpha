@@ -46,6 +46,7 @@ export default function Trades() {
     queryKey: ['trades', 'open'],
     queryFn: () => api<{ trades: Trade[] }>('/trades?status=open&limit=100'),
     select: (d) => d.trades,
+    refetchInterval: 30_000,   // a backstop: the server also says at once when a trade opens or closes
   });
   const historyQ = useQuery({
     // only what finished today, at most 4; everything else is under Show All
@@ -98,8 +99,8 @@ export default function Trades() {
                 ))}
               </View>
             ) : (
-              <EmptyState icon={<ArrowUpDown size={26} color={colors.muted} />} title="No open trades" text={`Your active ${NAMES[tab]} trades on this account show here.`}>
-                <Button variant="secondary" height={48} label="Explore Assets" onPress={() => router.navigate('/market')} />
+              <EmptyState icon={<ArrowUpDown size={26} color={colors.muted} />} title={`No open ${NAMES[tab]} trades`} text="Your trades show here while they run.">
+                <Button height={48} label="Trade now" onPress={() => router.navigate('/terminal')} />
               </EmptyState>
             )}
 

@@ -7,8 +7,8 @@ export type Lesson = { icon: LucideIcon; color: 'violet' | 'teal' | 'blue' | 'am
 export const LESSONS: Lesson[] = [
   { icon: CircleDollarSign, color: 'amber', title: 'Welcome to Oliskey Alpha', lines: [
     'Your demo account has α10,000 to practise with.',
-    'α is practice money. It is not real money, and it cannot be withdrawn.',
-    'A few short steps first, then you can start trading.',
+    'α is practice money. It is not real money.',
+    'A few short steps, then you can trade.',
   ] },
   { icon: ChartCandlestick, color: 'violet', title: 'How a trade works', lines: [
     'You choose a market, an amount and how long the trade lasts.',

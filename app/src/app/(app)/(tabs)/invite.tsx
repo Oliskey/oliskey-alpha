@@ -64,14 +64,14 @@ export default function Invite() {
               <View style={[styles.icon, { backgroundColor: tint(4).bg }]}><Zap size={18} color={tint(4).fg} /></View>
               <View style={{ flex: 1, gap: 2 }}>
                 <Txt style={styles.itemTitle}>A Profitability Boost</Txt>
-                <Txt style={styles.muted}>Available now. When a friend finishes their first trade, you earn +10 points on Fixed Time payouts for 1 hour on your demo account.</Txt>
+                <Txt style={styles.muted}>A friend's first trade gives you +10 points on Fixed Time payouts for 1 hour.</Txt>
               </View>
             </View>
             <View style={[card, styles.item]}>
               <View style={[styles.icon, { backgroundColor: tint(2).bg }]}><Users size={18} color={tint(2).fg} /></View>
               <View style={{ flex: 1, gap: 2 }}>
                 <Txt style={styles.itemTitle}>{`A $${r.bonus_usd} trading bonus`}</Txt>
-                <Txt style={styles.muted}>Not available yet: it starts when real-money trading opens, once Oliskey Alpha is licensed. Your friend must verify their identity and make a real deposit first. You can trade with the bonus but not withdraw it; you can withdraw the profit you make with it.</Txt>
+                <Txt style={styles.muted}>Coming with real money, after your friend's first deposit. Trade it; only the profit can be withdrawn.</Txt>
               </View>
             </View>
           </>

@@ -232,16 +232,16 @@ export default function Profile() {
         </Section>
 
         <Section title="Security">
-          <Row icon={KeyRound} title="Password" subtitle="Change the password you log in with"
+          <Row icon={KeyRound} title="Password"
             onPress={() => toggle('password')} open={openRow === 'password'} last={!p?.is_admin}>
             <ChangePassword onDone={() => setOpenRow(null)} />
           </Row>
           {p?.is_admin ? (
             p.mfa_enabled ? (
-              <Row icon={ShieldCheck} title="2-step login" subtitle="A code from your authenticator app is asked at every login"
+              <Row icon={ShieldCheck} title="2-step login" subtitle="On"
                 right={<Badge label="On" color={colors.up} />} last />
             ) : (
-              <Row icon={ShieldCheck} title="2-step login" subtitle="Required before admin tools open"
+              <Row icon={ShieldCheck} title="2-step login" subtitle="Needed for admin tools"
                 right={<Badge label="Off" color={colors.down} />} onPress={() => toggle('twostep')} open={openRow === 'twostep'} last>
                 <TwoStepSetup />
               </Row>
@@ -251,13 +251,13 @@ export default function Profile() {
 
         {p?.is_admin ? (
           <Section title="Admin">
-            <Row icon={LayoutDashboard} title="Admin tools" subtitle="Withdrawals and the live-trading switch" onPress={() => router.push('/admin')} last />
+            <Row icon={LayoutDashboard} title="Admin tools" onPress={() => router.push('/admin')} last />
           </Section>
         ) : null}
 
         <Section title="Account">
-          <Row icon={LogOut} title="Log out" subtitle="Sign out on this device" onPress={() => { void signOut(); }} />
-          <Row icon={Trash2} title="Delete account" subtitle="Only after all real money is withdrawn" tone={colors.down}
+          <Row icon={LogOut} title="Log out" onPress={() => { void signOut(); }} />
+          <Row icon={Trash2} title="Delete account" tone={colors.down}
             onPress={() => toggle('delete')} open={openRow === 'delete'} last>
             <DeleteAccount onCancel={() => setOpenRow(null)} />
           </Row>

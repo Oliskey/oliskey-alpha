@@ -1,11 +1,13 @@
 // AI Spot: long-only BTC/ETH and altcoin spot strategies, paper traded on live Binance prices.
 // Shows the honest record: what passed its tests, the paper account, open positions and every recent trade.
 // Read-only. No real money: the server has no real-money path for AI Spot.
+import { useState } from 'react';
 import { View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { FlaskConical, ShieldAlert } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { card, colors, font, radius, type, createStyles } from '@/theme';
+import { Button } from '@/ui/Button';
 import { Spinner } from '@/ui/kit';
 import { Txt } from '@/ui/Txt';
 
@@ -39,6 +41,7 @@ const VERDICT: Record<string, string> = { NOT_YET_PROVEN: 'Not yet proven', PASS
 
 export function SpotPanel() {
   const q = useQuery({ queryKey: ['spot', 'status'], queryFn: () => api<SpotStatus>('/spot/status'), refetchInterval: 300_000 });
+  const [tests, setTests] = useState(false);   // the lab's long list stays folded
   if (q.isLoading) return <Spinner />;
   if (q.error || !q.data) return <Txt style={styles.meta}>{(q.error as Error | null)?.message ?? 'AI Spot is not available.'}</Txt>;
   const s = q.data;
@@ -50,10 +53,7 @@ export function SpotPanel() {
     <View style={{ gap: 14 }}>
       <View style={styles.notice}>
         <ShieldAlert size={18} color={colors.demo} />
-        <Txt style={styles.noticeText}>
-          Paper trading on live Binance prices. No real money is used or at risk. A strategy counts as proven only after 100 closed
-          trades pass the same fixed tests, and past results never promise future ones.
-        </Txt>
+        <Txt style={styles.noticeText}>Practice money on live prices. No real money. Proven only after 100 trades.</Txt>
       </View>
       {s.killSwitch.on && (
         <View style={[styles.card, { borderColor: colors.down }]}>
@@ -64,19 +64,13 @@ export function SpotPanel() {
       <Txt style={type.sectionTitle}>Paper account</Txt>
       {!p ? (
         <View style={styles.card}>
-          <Txt style={styles.reason}>Paper trading starts within 4 hours of this update, at the next 4-hour candle close. Results appear here then.</Txt>
+          <Txt style={styles.reason}>Starts at the next 4-hour candle.</Txt>
         </View>
       ) : (
         <View style={styles.card}>
-          <Txt style={styles.meta}>Virtual account · started {p.started_at ? day(p.started_at) : '–'} with {usdt(p.account.start)}</Txt>
+          <Txt style={styles.meta}>Practice account{p.started_at ? ` · since ${day(p.started_at)}` : ''}</Txt>
           <Txt style={[styles.big, { color: tone(change) }]}>{usdt(p.account.equity)}</Txt>
-          <Txt style={styles.meta}>
-            {change >= 0 ? '+' : ''}{((change / p.account.start) * 100).toFixed(2)}% · realised {usdt(p.account.realised)} · open {usdt(p.account.unrealised)}
-          </Txt>
-          <Txt style={styles.reason}>
-            1% of the account is risked per trade, with at most 3 trades open at once. {p.account.skipped} signal{p.account.skipped === 1 ? '' : 's'} came
-            while 3 were open; they still count toward each strategy's record below.
-          </Txt>
+          <Txt style={[styles.meta, { color: tone(change) }]}>{change >= 0 ? '+' : ''}{((change / p.account.start) * 100).toFixed(2)}% since start</Txt>
         </View>
       )}
 
@@ -92,9 +86,7 @@ export function SpotPanel() {
                 </Txt>
               </View>
               <Txt style={styles.meta}>
-                {v.closed} of {v.needed ?? 100} closed trades · {v.open} open · {v.win_rate == null ? '–' : `${Math.round(v.win_rate * 100)}% won`} · average{' '}
-                <Txt style={{ color: tone(v.expectancy_r), fontSize: 12 }}>{R(v.expectancy_r)}</Txt> · total{' '}
-                <Txt style={{ color: tone(v.total_r), fontSize: 12 }}>{R(v.total_r)}</Txt>
+                {v.closed}/{v.needed ?? 100} trades · total <Txt style={{ color: tone(v.total_r), fontSize: 12 }}>{R(v.total_r)}</Txt>
               </Txt>
             </View>
           ))}
@@ -124,6 +116,8 @@ export function SpotPanel() {
         </>
       )}
 
+      <Button variant="secondary" height={44} label={tests ? 'Hide past tests' : 'Past tests'} onPress={() => setTests((v) => !v)} />
+      {tests ? <>
       <Txt style={type.sectionTitle}>Tests on past prices</Txt>
       <View style={styles.card}>
         <View style={styles.row}>
@@ -146,6 +140,7 @@ export function SpotPanel() {
           </View>
         ))}
       </View>
+      </> : null}
     </View>
   );
 }

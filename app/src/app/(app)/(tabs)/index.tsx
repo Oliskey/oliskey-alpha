@@ -33,7 +33,7 @@ import { Page } from '@/ui/Page';
 // Market Scanner shortcuts (Market Intelligence Engine, real market data).
 const SCANNERS = (signals: number) => [
   { id: 'ideas', name: 'Trade ideas', tag: signals ? `${signals} active` : 'Real data', Icon: AiIcon, bg: '#7C5CFF', fg: '#fff', text: 'When to enter, stop, target and how long to hold' },
-  { id: 'markets', name: "Don't enter", tag: 'Alerts', Icon: Zap, bg: '#F59E0B', fg: '#000000', text: 'Markets with setups the engine says to skip' },
+  { id: 'markets', name: 'Markets to skip', tag: 'Alerts', Icon: Zap, bg: '#F59E0B', fg: '#000000', text: 'Markets with setups the engine says to skip' },
   { id: 'record', name: 'Track record', tag: 'Honest', Icon: Target, bg: '#EEF2F7', fg: '#000000', text: 'How every idea and skipped setup turned out' },
 ];
 
@@ -92,9 +92,9 @@ export default function Home() {
         {/* story circles */}
         <SideScroll contentContainerStyle={{ gap: 12 }}>
           {[
-            { label: 'Skill Hub: 5-minute lessons', icon: <GlossIcon icon={GraduationCap} color="violet" size={58} />, go: () => router.push('/skill-hub') },
-            { label: 'Your bonus benefits', icon: <GlossIcon icon={Gift} color="pink" size={58} />, go: () => router.push('/rewards') },
-            { label: 'Funded: trade our capital', icon: <GlossIcon icon={Trophy} color="amber" size={58} />, go: () => router.navigate('/funded') },
+            { label: 'Lessons', icon: <GlossIcon icon={GraduationCap} color="violet" size={58} />, go: () => router.push('/skill-hub') },
+            { label: 'Bonus', icon: <GlossIcon icon={Gift} color="pink" size={58} />, go: () => router.push('/rewards') },
+            { label: 'Funded', icon: <GlossIcon icon={Trophy} color="amber" size={58} />, go: () => router.navigate('/funded') },
           ].map((s) => (
             <Press key={s.label} onPress={s.go} style={{ width: 80, alignItems: 'center', gap: 8 }}>
               {s.icon}
@@ -107,8 +107,7 @@ export default function Home() {
         <Press onPress={() => router.push('/skill-hub')} style={styles.banner}>
           <View style={{ flex: 1, gap: 6 }}>
             <Txt style={{ fontSize: 19, fontFamily: font.semibold, letterSpacing: -0.3 }}>Learn before you trade</Txt>
-            <Txt style={{ fontSize: 14, color: colors.muted, lineHeight: 19 }}>Five-minute lessons on forecasts, risk and the corridor.</Txt>
-            <Txt style={{ fontSize: 14, color: colors.accent, fontFamily: font.medium, marginTop: 2 }}>Start a lesson</Txt>
+            <Txt style={{ fontSize: 14, color: colors.accent, fontFamily: font.medium, marginTop: 2 }}>Start a 5-minute lesson</Txt>
           </View>
           <Mascot size={92} pose="book" />
         </Press>
@@ -153,8 +152,8 @@ export default function Home() {
           <View style={[styles.scanIcon, { backgroundColor: '#22C55E' }]}><AiIcon size={20} color="#000000" /></View>
           <View style={{ flex: 1, gap: 2 }}>
             <Txt style={{ fontSize: 15, fontFamily: font.bold }}>AI trader{ai.data ? ` · ${ai.data.open} open now` : ''}</Txt>
-            <Txt style={{ fontSize: 12, color: colors.muted }} numberOfLines={2}>
-              {ai.data?.picks ? `Listening on Fixed Time, InZone and Forex. Its picks: ${ai.data.picks.won} won, ${ai.data.picks.lost} lost. See why.` : 'Listening on Fixed Time, InZone and Forex. See its trades, and why.'}
+            <Txt style={{ fontSize: 13, color: colors.muted }} numberOfLines={1}>
+              {ai.data?.picks ? `${ai.data.picks.won} won · ${ai.data.picks.lost} lost` : 'Watching the markets'}
             </Txt>
           </View>
           {ai.data?.picks ? <Txt style={{ fontSize: 15, fontFamily: font.bold, fontVariant: ['tabular-nums'], color: pnlColor(ai.data.picks.pnl) }}>{ai.data.picks.pnl > 0 ? '+' : ai.data.picks.pnl < 0 ? '-' : ''}α{Math.abs(ai.data.picks.pnl).toFixed(0)}</Txt> : null}
@@ -171,7 +170,6 @@ export default function Home() {
                   <View style={styles.tag}><Txt style={{ fontSize: 12 }}>{s.tag}</Txt></View>
                 </View>
                 <Txt style={{ fontSize: 15, fontFamily: font.bold }}>{s.name}</Txt>
-                <Txt style={{ fontSize: 12, color: colors.muted }} numberOfLines={2}>{s.text}</Txt>
               </Press>
             ))}
           </SideScroll>

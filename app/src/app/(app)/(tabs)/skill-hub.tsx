@@ -52,7 +52,6 @@ export default function SkillHub() {
           return (
             <View key={s} style={{ gap: 10, marginTop: 8 }}>
               <Txt style={{ fontSize: 20, fontFamily: font.bold }}>{SECTIONS[s].title}</Txt>
-              <Txt style={{ color: colors.muted, fontSize: 14 }}>{SECTIONS[s].description}</Txt>
               {s === 'first' ? <Tile c={list[0]} featured /> : null}
               <View style={styles.grid}>
                 {(s === 'first' ? list.slice(1) : list).map((c) => <Tile key={c.id} c={c} basis={basis} />)}

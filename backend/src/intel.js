@@ -39,7 +39,7 @@ async function intel(pathname) {
   try {
     res = await fetch(INTEL_URL + pathname, { signal: AbortSignal.timeout(15_000) });
   } catch {
-    const err = new Error('The Intelligence Engine is starting up. Try again in a minute.');
+    const err = new Error('The AI is starting. Try again in a minute.');
     err.status = 503;
     throw err;
   }

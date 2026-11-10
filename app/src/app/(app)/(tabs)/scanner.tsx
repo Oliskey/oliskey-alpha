@@ -59,7 +59,7 @@ export default function Scanner() {
       <Page width="wide" gap={14} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={colors.muted} />}>
         <View style={styles.notice}>
           <ShieldAlert size={18} color={colors.demo} />
-          <Txt style={styles.noticeText}>Demo only, not financial advice. Every signal can lose.</Txt>
+          <Txt style={styles.noticeText}>Demo only. Any signal can lose.</Txt>
         </View>
         <UnderlineTabs tabs={TABS.map((t) => ({ ...t, count: t.key === 'ideas' ? active.length : t.key === 'ai' ? ai.data?.open ?? 0 : 0 }))} value={tab} onChange={setTab} />
         {error ? (
@@ -145,7 +145,7 @@ function IdeaCard({ idea: i }: { idea: IntelIdea }) {
         <View style={{ gap: 4 }}>
           {i.reasons.map((reason) => <Txt key={reason} style={styles.reason}>• {reason}</Txt>)}
         </View>
-        {simulated ? <Txt style={[styles.meta, { color: colors.demo }]}>Practice only: this market's price is simulated in the app, so your result can differ from the real market.</Txt> : null}
+        {simulated ? <Txt style={[styles.meta, { color: colors.demo }]}>Simulated price: a real market could end differently.</Txt> : null}
       </More>
     </View>
   );
@@ -278,6 +278,7 @@ function AiTab() {
   const { columns } = useLayout();
   const q = useAiTrader();
   const [open, setOpen] = useState<string | null>(null);   // one detail row open at a time
+  const [more, setMore] = useState(false);                  // the details stay folded: the result and what it is doing come first
   const a = q.data;
   if (q.error && !a) {
     return (
@@ -303,17 +304,17 @@ function AiTab() {
     <View style={{ gap: 14 }}>
       <AutoCard />
       <View style={styles.card}>
-        <Txt style={styles.meta}>Clean record, demo money on real prices</Txt>
+        <Txt style={styles.meta}>AI results · demo money</Txt>
         <Txt style={[styles.big, { color: clean.pnl > 0 ? colors.up : clean.pnl < 0 ? colors.down : colors.text }]}>{clean.pnl > 0 ? '+' : clean.pnl < 0 ? '-' : ''}α{Math.abs(clean.pnl).toFixed(2)}</Txt>
         <Txt style={styles.reason}>{clean.won} of {clean.finished} won. {a.open} open now.</Txt>
         {a.picks.too_few ? <Txt style={[styles.reason, { color: colors.demo }]}>Too few trades to judge yet.</Txt> : null}
-        {a.last_100 ? <Txt style={styles.meta}>Last {a.last_100.finished} of 100 signals: {a.last_100.won} right, {a.last_100.lost} wrong{a.last_100.finished ? ` (${Math.round((a.last_100.won / a.last_100.finished) * 100)}%)` : ''}.</Txt> : null}
       </View>
 
       <Grid columns={columns}>{a.listening?.map((l) => <ListenCard key={l.mode} l={l} fill={columns > 1} />)}</Grid>
       {a.positions.length ? <Positions a={a} /> : null}
 
-      <View style={[card, { overflow: 'hidden' }]}>
+      <Button variant="secondary" height={44} label={more ? 'Fewer details' : 'More details'} onPress={() => { setMore((v) => !v); setOpen(null); }} />
+      {more ? <View style={[card, { overflow: 'hidden' }]}>
         <Row icon={Scale} title="Full record" subtitle={`${a.picks.finished} finished, ${clean.finished} clean`} open={open === 'record'} onPress={() => show('record')}>
           <Txt style={styles.reason}>Everything on record: {a.picks.pnl >= 0 ? '+' : '-'}α{Math.abs(a.picks.pnl).toFixed(2)} from {a.picks.finished} finished, {a.picks.won} won, {a.picks.lost} lost. {a.skipped} skipped by its rules. Each trade is α{a.stake}.</Txt>
           <Txt style={styles.reason}>Clean record: {clean.finished} trades matched what was tested, across {clean.moments} separate {clean.moments === 1 ? 'hour' : 'hours'}. It needs at least {a.needed} clean trades to judge, and even a profit can be luck.</Txt>
@@ -439,7 +440,7 @@ function AiTab() {
             </View>
           ))}
         </Row>
-      </View>
+      </View> : null}
     </View>
   );
 }
@@ -455,13 +456,18 @@ export function ListenCard({ l, fill }: { l: AiListening; fill?: boolean }) {   
         <Txt style={{ flex: 1, fontFamily: font.semibold }}>{l.name}</Txt>
         <Txt style={{ fontSize: 13, fontFamily: font.semibold, color: l.open ? colors.up : colors.muted }}>{l.open ? `${l.open} trading` : 'Listening'}</Txt>
       </View>
-      <Txt style={styles.meta}>
-        {!l.at ? 'Its first reading is running.'
-          : l.no_setup ? 'No chart setup right now.'
-          : l.reading != null && l.needed != null
-            ? `Strongest: ${name}, ${pct(l.reading)}. Trades from ${pct(l.needed)}.`
-            : `Checks ${l.every}.`}
-      </Txt>
+      {l.at && !l.no_setup && l.reading != null && l.needed != null ? (
+        // how strong the best signal is now (bar) against the strength it needs before it trades (line)
+        <View style={{ gap: 4 }} accessibilityLabel={`Best signal ${name} ${pct(l.reading)}, needs ${pct(l.needed)}`}>
+          <View style={styles.meter}>
+            <View style={[styles.meterFill, { width: `${Math.min(100, l.reading * 100)}%`, backgroundColor: l.reading >= l.needed ? colors.up : colors.demo }]} />
+            <View style={[styles.meterMark, { left: `${Math.min(100, l.needed * 100)}%` }]} />
+          </View>
+          <Txt style={styles.meta}>{name} {pct(l.reading)} · needs {pct(l.needed)}</Txt>
+        </View>
+      ) : (
+        <Txt style={styles.meta}>{!l.at ? 'Starting…' : l.no_setup ? 'No setup right now' : `Checks ${l.every}`}</Txt>
+      )}
     </View>
   );
 }
@@ -627,6 +633,9 @@ function Level({ label, value, color }: { label: string; value: string; color?: 
 }
 
 const styles = createStyles(() => ({
+  meter: { height: 6, borderRadius: 3, backgroundColor: colors.surface2, overflow: 'visible' },
+  meterFill: { height: 6, borderRadius: 3 },
+  meterMark: { position: 'absolute', top: -3, width: 2, height: 12, borderRadius: 1, backgroundColor: colors.text },
   page: { paddingHorizontal: SIDE, paddingBottom: 30, gap: 14 },
   notice: { flexDirection: 'row', gap: 10, padding: 12, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border },
   noticeText: { flex: 1, fontSize: 12, color: colors.muted, lineHeight: 17 },

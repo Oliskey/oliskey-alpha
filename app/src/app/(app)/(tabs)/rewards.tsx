@@ -94,11 +94,10 @@ export default function Rewards() {
             <View style={[styles.icon, { backgroundColor: tint(3).bg }]}><TicketPercent size={18} color={tint(3).fg} /></View>
             <View style={{ flex: 1 }}>
               <Txt style={{ fontSize: 15, fontFamily: font.semibold }}>{p.code}</Txt>
-              <Txt style={styles.muted}>{p.description}</Txt>
-              <Txt style={styles.muted}>{`Adds ${Number(p.bonus_pct)}% to a deposit of ₦${Number(p.min_deposit).toLocaleString()} or more, up to ₦${Number(p.max_bonus).toLocaleString()}`}</Txt>
+              <Txt style={styles.muted}>{`+${Number(p.bonus_pct)}% on deposits from ₦${Number(p.min_deposit).toLocaleString()}`}</Txt>
             </View>
           </View>
-        )) : <Txt style={styles.muted}>No promo codes are open right now. They apply to real-money deposits, which open once Oliskey Alpha is licensed.</Txt>}
+        )) : <Txt style={styles.muted}>No promo codes right now.</Txt>}
       </Page>
     </SafeAreaView>
   );

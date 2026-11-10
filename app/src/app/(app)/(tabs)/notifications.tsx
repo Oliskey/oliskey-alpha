@@ -80,7 +80,7 @@ export default function Notifications() {
                       <Txt style={{ flex: 1, fontSize: 15, fontFamily: font.semibold }}>{n.title}</Txt>
                       <Txt style={{ fontSize: 12, color: colors.muted }}>{clock(n.created_at)}</Txt>
                     </View>
-                    {n.body ? <Txt style={{ color: colors.muted, fontSize: 14, lineHeight: 20 }}>{n.body}</Txt> : null}
+                    {n.body ? <Txt style={{ color: colors.muted, fontSize: 14, lineHeight: 20 }} numberOfLines={1}>{n.body}</Txt> : null}
                   </View>
                   {n.link ? <ChevronRight size={16} color={colors.faint} style={{ alignSelf: 'center' }} /> : null}
                 </Press>

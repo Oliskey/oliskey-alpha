@@ -113,7 +113,7 @@ export default function Trades() {
             {showTip && (historyQ.data?.length ?? 0) > 0 ? (
               <Tooltip
                 title="Analyze your trades with AI"
-                body="Open any trade below to see what shaped the result and what to try next time."
+                body="Tap a trade to see why it won or lost."
                 onDismiss={() => { setShowTip(false); void setPref('tip-ai', '1'); }}
               />
             ) : null}

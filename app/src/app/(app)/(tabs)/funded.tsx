@@ -13,9 +13,9 @@ import { useToast } from '@/ui/Toast';
 import { Txt } from '@/ui/Txt';
 
 const STEPS = [
-  { Icon: ChartLine, title: 'Prove your skill on demo', text: 'Trade a challenge account with clear rules: a profit target, a daily loss limit and a minimum number of trading days.' },
-  { Icon: ShieldCheck, title: 'Get verified', text: 'Pass the challenge and confirm your identity.' },
-  { Icon: Trophy, title: 'Trade a funded account', text: 'Trade our capital and keep a share of the profit you make, paid out on a fixed schedule.' },
+  { Icon: ChartLine, title: 'Pass a challenge', text: 'Reach a profit goal on demo without big losses.' },
+  { Icon: ShieldCheck, title: 'Get verified', text: 'Confirm who you are.' },
+  { Icon: Trophy, title: 'Trade our money', text: 'Keep a share of the profit.' },
 ];
 
 export default function Funded() {
@@ -34,8 +34,7 @@ export default function Funded() {
           <View style={{ alignItems: 'center' }}><Mascot size={120} pose="trophy" /></View>
           <Txt style={type.screenTitle}>Funded</Txt>
           <Txt style={{ color: colors.muted, fontSize: 16, lineHeight: 23 }}>
-            Show your skill and trade with our capital. Funded is being prepared and opens once Oliskey Alpha holds the licences
-            real-money trading needs. The rules below are the plan and may change before launch.
+            Trade with our money when you are good enough. Coming soon.
           </Txt>
         </View>
         <View style={[card, { padding: 16, gap: 18 }]}>

@@ -57,7 +57,10 @@ export default function Help() {
           <Press haptic={false} onPress={() => router.push('/terms')} accessibilityRole="link" accessibilityLabel="Terms of Service"><Txt style={styles.link}>Terms of Service</Txt></Press>
           <Press haptic={false} onPress={() => router.push('/privacy')} accessibilityRole="link" accessibilityLabel="Privacy Policy"><Txt style={styles.link}>Privacy Policy</Txt></Press>
         </View>
-        <Txt style={{ color: colors.muted, fontSize: 12, textAlign: 'center' }}>Oliskey Alpha by Oliskeylee Ltd.</Txt>
+        <Txt style={{ color: colors.muted, fontSize: 12, textAlign: 'center' }} accessibilityRole="link"
+          {...({ href: 'https://www.oliskey.com/products', hrefAttrs: { target: '_blank', rel: 'noopener' } } as object)}>
+          Oliskey Alpha by Oliskeylee Ltd. <Txt style={{ color: colors.accent, fontSize: 12 }}>More Oliskey apps</Txt>
+        </Txt>
       </Page>
     </SafeAreaView>
   );

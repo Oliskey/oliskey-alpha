@@ -14,13 +14,19 @@ const PATHS = ['/', '/welcome', '/login', '/register', '/terms', '/privacy'];
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// The maker is the same organisation, with the same @id, that www.oliskey.com describes: search engines then connect this app
+// to the main website, and the main website's product page (MAIN_PAGE) to this app.
+const MAIN = 'https://www.oliskey.com';
+const MAIN_PAGE = `${MAIN}/trading-app`;
+const ORG = { '@id': `${MAIN}/#organization` };
 function structuredData() {
   return [
-    { '@context': 'https://schema.org', '@type': 'Organization', name: 'Oliskeylee Ltd', url: SITE, logo: `${SITE}/icon-512.png` },
-    { '@context': 'https://schema.org', '@type': 'WebSite', name: NAME, url: SITE, description: DESCRIPTION },
+    { '@context': 'https://schema.org', '@type': 'Organization', '@id': ORG['@id'], name: 'Oliskey', legalName: 'Oliskeylee Ltd', url: MAIN },
+    { '@context': 'https://schema.org', '@type': 'WebSite', name: NAME, url: SITE, description: DESCRIPTION, publisher: ORG },
     {
-      '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: NAME, url: SITE, applicationCategory: 'EducationalApplication',
-      operatingSystem: 'Web, Android, iOS', description: DESCRIPTION, image: `${SITE}/og-image.png`, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      '@context': 'https://schema.org', '@type': 'SoftwareApplication', '@id': `${MAIN}/#product-alpha`, name: NAME, url: SITE, applicationCategory: 'EducationalApplication',
+      operatingSystem: 'Web, Android, iOS', description: DESCRIPTION, image: `${SITE}/og-image.png`, offers: { '@type': 'Offer', price: '0', priceCurrency: 'NGN' },
+      publisher: ORG, sameAs: [MAIN_PAGE],
     },
   ];
 }
@@ -32,6 +38,8 @@ const HEAD = () => `
 <meta name="theme-color" content="#000000">
 <meta name="robots" content="index, follow, max-image-preview:large">${VERIFY ? `\n<meta name="google-site-verification" content="${VERIFY}">` : ''}
 <link rel="canonical" href="${SITE}/">
+<meta name="author" content="Oliskey">
+<link rel="author" href="${MAIN}/">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/icon-512.png">
@@ -65,6 +73,7 @@ const BODY = `
 <li>Learn from free lessons on trading and risk.</li>
 </ul>
 <p>Demo credits have no cash value. Trading can lose money, and past results do not promise future ones. This is not financial advice.</p>
+<p>A product by <a href="${MAIN}/" style="color:#3ba4ff">Oliskey</a>. <a href="${MAIN_PAGE}" style="color:#3ba4ff">About Oliskey Alpha</a> · <a href="${MAIN}/products" style="color:#3ba4ff">All Oliskey products</a></p>
 <p><a href="/terms" style="color:#3ba4ff">Terms</a> · <a href="/privacy" style="color:#3ba4ff">Privacy</a></p>
 <p>Please turn on JavaScript to use the app.</p>
 </main>

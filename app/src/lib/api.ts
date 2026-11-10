@@ -25,26 +25,54 @@ export function setOnUnauthorized(fn: () => void) {
   onUnauthorized = fn;
 }
 
-export async function api<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+// Weak mobile networks: every request gives up after a limit instead of spinning forever, a garbled reply (a network's
+// error page) is reported instead of crashing, and an action that timed out says its outcome is unknown, because the
+// server may have done it. Retrying such an action is only safe with an idempotency key (see newActionKey).
+const TIMEOUT_MS = 20_000;
+export const OUTCOME_UNKNOWN = 'OUTCOME_UNKNOWN';
+
+/** A one-time key for an action that must not happen twice; the server answers a repeated key with the first result. */
+export const newActionKey = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+
+export async function api<T>(path: string, init: { method?: string; body?: unknown; idempotencyKey?: string; timeoutMs?: number } = {}): Promise<T> {
   if (PREVIEW) throw new ApiError(PREVIEW_MESSAGE, 0);
+  const method = init.method ?? 'GET';
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), init.timeoutMs ?? TIMEOUT_MS);
   let res: Response;
+  let text: string;
   try {
     res = await fetch(API_URL + path, {
-      method: init.method ?? 'GET',
+      method,
+      signal: ctrl.signal,
       headers: {
         'content-type': 'application/json',
         ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(init.idempotencyKey ? { 'idempotency-key': init.idempotencyKey } : {}),
       },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
     });
+    text = await res.text();
   } catch {
-    throw new ApiError('Cannot reach the server. Check your connection.', 0);
+    const timedOut = ctrl.signal.aborted;
+    if (method !== 'GET') {
+      throw new ApiError(timedOut
+        ? 'No answer from the server in time. It may still have gone through: check before trying again.'
+        : 'Cannot reach the server. Check your connection, then check whether it went through before trying again.', 0, OUTCOME_UNKNOWN);
+    }
+    throw new ApiError(timedOut ? 'The server is taking too long. Check your connection and try again.' : 'Cannot reach the server. Check your connection.', 0, timedOut ? 'TIMEOUT' : 'OFFLINE');
+  } finally {
+    clearTimeout(timer);
   }
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: any = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    if (res.ok) throw new ApiError('The server sent an answer the app cannot read. Try again.', res.status, 'BAD_RESPONSE');
+  }
   if (!res.ok) {
     if (res.status === 401 && token) onUnauthorized?.();
-    throw new ApiError(data?.error ?? 'Something went wrong.', res.status, data?.code, data ?? undefined);
+    throw new ApiError(data?.error ?? (res.status >= 500 ? 'The server had a problem. Try again in a moment.' : 'Something went wrong.'), res.status, data?.code, data ?? undefined);
   }
   return data as T;
 }

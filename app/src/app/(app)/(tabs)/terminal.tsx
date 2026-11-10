@@ -8,7 +8,7 @@ import {
   ArrowDown, Check, ArrowUp, ChartArea, ChartCandlestick, ChartNoAxesColumn, ChevronDown, CircleHelp, DraftingCompass, Radio, Search,
   SlidersHorizontal, Trash2, Undo2, Wallet, X,
 } from 'lucide-react-native';
-import { api, type ApiError, type Trade, type TradeMode, type IntelIdea, type SignalPlan } from '@/lib/api';
+import { api, newActionKey, OUTCOME_UNKNOWN, type ApiError, type Trade, type TradeMode, type IntelIdea, type SignalPlan } from '@/lib/api';
 import { countdown, duration, money, moneyShort } from '@/lib/format';
 import { subscribeEvents } from '@/lib/ws';
 import { useAccount } from '@/context/AccountContext';
@@ -284,7 +284,9 @@ export function Terminal() {
     queryFn: () => api<{ id: string; asset_id: string; direction: 'up' | 'down' | null; amount: string; trigger_price: string | null; trigger_when: 'above' | 'below' | 'time'; trigger_at: string | null }[]>('/orders?status=pending'),
   });
   const open = useMutation({
+    // one key per press: a duplicate send of the same press can never open a second trade (server: idempotency.js)
     mutationFn: (direction: 'up' | 'down' | null) => {
+      const key = newActionKey();
       const body = {
         accountId: activeAccount!.id, assetId, mode, direction, amount,
         ...(mode === 'forex'
@@ -293,10 +295,10 @@ export function Terminal() {
         riskFree: riskAllowed && opts.riskFree && (riskQ.data?.left ?? 0) > 0,
       };
       return opts.orderOn
-        ? api<Trade>('/orders', { method: 'POST', body: opts.orderBy === 'time'
+        ? api<Trade>('/orders', { method: 'POST', idempotencyKey: key, body: opts.orderBy === 'time'
           ? { ...body, triggerAt: new Date(opts.triggerAt ?? defaultTriggerAt()).toISOString() }
           : { ...body, triggerPrice: opts.trigger ?? price } })
-        : api<Trade>('/trades', { method: 'POST', body });
+        : api<Trade>('/trades', { method: 'POST', body, idempotencyKey: key });
     },
     onSuccess: (t) => {
       if (opts.orderOn) {
@@ -310,7 +312,15 @@ export function Terminal() {
       qc.invalidateQueries({ queryKey: ['me'] });
       if (t.risk_free) void qc.invalidateQueries({ queryKey: ['risk-free'] });
     },
-    onError: (e: ApiError) => toast({ title: opts.orderOn ? 'Order not placed' : 'Trade not opened', message: e.message, tone: 'down' }),
+    onError: (e: ApiError) => {
+      if (e.code === OUTCOME_UNKNOWN) {   // it may have opened: refresh so the person sees the truth before pressing again
+        void qc.invalidateQueries({ queryKey: ['trades', 'open'] });
+        void qc.invalidateQueries({ queryKey: ['orders'] });
+        void qc.invalidateQueries({ queryKey: ['me'] });
+        return toast({ title: 'Not sure it went through', message: e.message, tone: 'down' });
+      }
+      toast({ title: opts.orderOn ? 'Order not placed' : 'Trade not opened', message: e.message, tone: 'down' });
+    },
   });
   const cancelOrder = useMutation({
     mutationFn: (id: string) => api(`/orders/${id}`, { method: 'DELETE' }),

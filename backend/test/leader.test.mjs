@@ -2,11 +2,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const backend = path.resolve(import.meta.dirname, '..');
-const line = readFileSync(path.join(backend, '.env'), 'utf8').split(/\r?\n/).find((l) => l.startsWith('DATABASE_URL='));
+// The local backend/.env on the owner's PC; CI has no such file and passes DATABASE_URL in the environment instead.
+const envFile = path.join(backend, '.env');
+const line = existsSync(envFile) ? readFileSync(envFile, 'utf8').split(/\r?\n/).find((l) => l.startsWith('DATABASE_URL=')) : `DATABASE_URL=${process.env.DATABASE_URL}`;
 const url = line.slice('DATABASE_URL='.length).replace(/^['"]|['"]$/g, '').replace(/\/oliskey_alpha(\?|$)/, '/oliskey_alpha_test$1');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

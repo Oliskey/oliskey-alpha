@@ -144,22 +144,38 @@ export default function History() {
   );
 }
 
-// Today and this week, one line each: the amount traded and the result, then won and lost underneath.
+// Today and this week: the total result large and clear, then what was won (green) and lost (red) side by side.
 function Summary({ today, week, accountType }: { today?: Totals; week?: Totals; accountType: 'DEMO' | 'NGN' | 'USDT' }) {
-  const line = (title: string, s?: Totals) => (
-    <View style={styles.sumRow} key={title} testID={`summary-${title}`}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-        <Txt style={{ fontSize: 16, fontFamily: font.semibold }}>{title}</Txt>
-        <Txt style={{ fontSize: 18, fontFamily: font.bold, fontVariant: ['tabular-nums'], color: !s || s.net === 0 ? colors.text : s.net > 0 ? colors.up : colors.down }}>
-          {s ? money(s.net, accountType, { sign: true }) : money(0, accountType)}
-        </Txt>
+  const block = (title: string, s?: Totals) => {
+    const net = s?.net ?? 0;
+    return (
+      <View style={styles.sumRow} key={title} testID={`summary-${title}`}>
+        <View style={styles.sumHead}>
+          <Txt style={{ fontSize: 16, fontFamily: font.semibold }}>{title}</Txt>
+          <Txt style={styles.sumMeta}>
+            {s ? `${s.trades} ${s.trades === 1 ? 'trade' : 'trades'} · ${money(s.traded, accountType)} traded` : 'No finished trades yet'}
+          </Txt>
+        </View>
+        <View>
+          <Txt style={styles.sumLabel}>Total result</Txt>
+          <Txt style={[styles.sumTotal, { color: net > 0 ? colors.up : net < 0 ? colors.down : colors.text }]}>
+            {s ? money(net, accountType, { sign: true }) : money(0, accountType)}
+          </Txt>
+        </View>
+        <View style={styles.sumPair}>
+          <View style={[styles.sumBox, { backgroundColor: `${colors.up}1A`, borderColor: `${colors.up}55` }]}>
+            <Txt style={[styles.sumLabel, { color: colors.up }]}>Won</Txt>
+            <Txt style={[styles.sumAmount, { color: colors.up }]}>+{money(Math.abs(s?.won ?? 0), accountType)}</Txt>
+          </View>
+          <View style={[styles.sumBox, { backgroundColor: `${colors.down}1A`, borderColor: `${colors.down}55` }]}>
+            <Txt style={[styles.sumLabel, { color: colors.down }]}>Lost</Txt>
+            <Txt style={[styles.sumAmount, { color: colors.down }]}>-{money(Math.abs(s?.lost ?? 0), accountType)}</Txt>
+          </View>
+        </View>
       </View>
-      <Txt style={styles.sumMeta}>
-        {s ? `Traded ${money(s.traded, accountType)} in ${s.trades} ${s.trades === 1 ? 'trade' : 'trades'} · won ${money(s.won, accountType)} · lost ${money(s.lost, accountType)}` : 'No finished trades yet'}
-      </Txt>
-    </View>
-  );
-  return <View style={styles.sumCard}>{line('Today', today)}<View style={styles.sumLine} />{line('This week', week)}</View>;
+    );
+  };
+  return <View style={styles.sumCard}>{block('Today', today)}<View style={styles.sumLine} />{block('This week', week)}</View>;
 }
 
 // A day in the list, with that day's result beside it.
@@ -219,9 +235,15 @@ const styles = createStyles(() => ({
   day: { fontSize: 13, fontFamily: font.bold, color: colors.muted, letterSpacing: 0.5, marginTop: 8 },
   dayNet: { fontSize: 13, fontFamily: font.semibold, fontVariant: ['tabular-nums'] },
   sumCard: { backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 14, gap: 12, marginBottom: 6 },
-  sumRow: { gap: 4 },
+  sumRow: { gap: 10 },
+  sumHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 },
   sumLine: { height: 1, backgroundColor: colors.border },
-  sumMeta: { fontSize: 13, color: colors.muted, fontVariant: ['tabular-nums'] },
+  sumMeta: { fontSize: 13, color: colors.muted, fontVariant: ['tabular-nums'], flexShrink: 1, textAlign: 'right' },
+  sumLabel: { fontSize: 12, color: colors.muted, fontFamily: font.semibold },
+  sumTotal: { fontSize: 28, fontFamily: font.bold, fontVariant: ['tabular-nums'] },
+  sumPair: { flexDirection: 'row', gap: 10 },
+  sumBox: { flex: 1, borderRadius: 12, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, gap: 2 },
+  sumAmount: { fontSize: 17, fontFamily: font.bold, fontVariant: ['tabular-nums'] },
   option: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 52, paddingHorizontal: 20 },
   analytics: { flex: 1, padding: SIDE, maxWidth: 520, width: '100%', alignSelf: 'center' },
 }));

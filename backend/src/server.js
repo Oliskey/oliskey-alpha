@@ -20,7 +20,8 @@ import { errorHandler } from './http.js';
 import { authRouter } from './routes/auth.js';
 import { accountRouter } from './routes/account.js';
 import { tradesRouter } from './routes/trades.js';
-import { paymentsRouter, paystackWebhook } from './routes/payments.js';
+import { paymentsRouter, paystackWebhook, reconcileDeposits } from './routes/payments.js';
+import { paystackConfigured } from './paystack.js';
 import { adminRouter } from './routes/admin.js';
 import { intelRouter, signalRouter, startIntel, startPaperTrading, startSignalAlerts } from './intel.js';
 import { pushRouter } from './webPush.js';
@@ -115,7 +116,8 @@ app.use((req, res, next) => {
 // share an IP, so counting files here would give them blank pages.
 // A client that vanished mid-request has no address; the limiter cannot key it, and nobody is waiting for the answer.
 app.use((req, res, next) => (req.ip ? next() : res.destroy()));
-app.use(rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: 'draft-8', legacyHeaders: false }));
+// 300 requests a minute per address in production; the test suite (one address, hundreds of requests) raises it with RATE_LIMIT.
+app.use(rateLimit({ windowMs: 60_000, limit: Number(process.env.RATE_LIMIT) || 300, standardHeaders: 'draft-8', legacyHeaders: false }));
 // Keep the raw body for the Paystack webhook signature check.
 app.use(express.json({ limit: '100kb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
 
@@ -207,6 +209,9 @@ whenLeader(async () => {
   console.log(`Settling: ${reloaded} open trades reloaded`);
   await orders.start();
   startSignalAlerts();
+  if (paystackConfigured()) {   // deposits the webhook missed: re-checked with Paystack every 5 minutes
+    setInterval(() => reconcileDeposits().catch((err) => console.error('deposit reconcile', err.message)), 5 * 60_000).unref();
+  }
   if (process.env.INTEL_DISABLED !== '1') {
     startIntel();
     startPaperTrading({ engine, settlement });

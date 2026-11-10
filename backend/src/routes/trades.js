@@ -3,13 +3,14 @@ import { pool } from '../db.js';
 import { isUuid } from '../http.js';
 import { MODES, openTrade, orderError } from '../openTrade.js';
 import { analyzeTrade, tradeFacts } from '../ai.js';
+import { idempotent } from '../idempotency.js';
 
 const RESULTS = ['win', 'loss', 'refund'];
 
 export function tradesRouter({ engine, settlement, assetNames }) {
   const r = Router();
 
-  r.post('/trades', async (req, res) => {
+  r.post('/trades', idempotent, async (req, res) => {
     const err = orderError(req.body, engine);
     if (err) return res.status(400).json({ error: err });
     res.status(201).json(await openTrade({ userId: req.user.id, order: req.body, engine, settlement }));

@@ -26,6 +26,7 @@ jobs:
       ALLOWED_ORIGINS: http://localhost:3311
       INTEL_DISABLED: '1'          # the Python engine is tested separately below
       AUTH_RATE_LIMIT: '1000'      # the suite signs up ~40 users; production keeps the default 30
+      RATE_LIMIT: '100000'         # every test request comes from one address; production keeps the default 300
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,6 +39,11 @@ jobs:
         run: |
           for f in supabase/local/*.sql supabase/migrations/*.sql supabase/tests/*.sql; do
             echo "== $f"; psql -h localhost -U postgres -d oliskey_alpha -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+          # second database for tests that stand in for hosted Supabase (reset-code.test.mjs)
+          psql -h localhost -U postgres -c "create database oliskey_alpha_test"
+          for f in supabase/local/*.sql supabase/migrations/*.sql; do
+            psql -h localhost -U postgres -d oliskey_alpha_test -v ON_ERROR_STOP=1 -q -f "$f"
           done
 
       - name: App typecheck

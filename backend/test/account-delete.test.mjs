@@ -20,6 +20,8 @@ test('delete account: password, open trades, then anonymised and logged out', as
   const email = `del${Date.now()}@test.local`;
   const reg = await call('POST', '/auth/register', { body: { fullName: 'Delete Me', email, password: 'password123' } });
   const token = reg.body.token;
+  // trading opens only after the short lessons (added after this test was written; see onboarding.test.mjs)
+  assert.equal((await call('POST', '/me/onboarding', { token, body: { answers: { lose: 'stake', demo: 'practice', ai: 'mine' }, aiMode: 'ask' } })).status, 200);
   const demo = (await call('GET', '/me', { token })).body.accounts.find((a) => a.type === 'DEMO');
 
   assert.equal((await call('DELETE', '/me', { token, body: { password: 'wrong-pass' } })).status, 400);

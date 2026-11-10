@@ -6,6 +6,7 @@ import { pool } from './db.js';
 import { isUuid, messageFor } from './http.js';
 import { notify } from './notify.js';
 import { openTrade, orderError } from './openTrade.js';
+import { idempotent } from './idempotency.js';
 
 const LOOP_MS = 250;
 const RELOAD_MS = 5000;
@@ -83,7 +84,7 @@ export function ordersRouter({ engine, orders }) {
 
   // Place: the trade that opens later, plus what triggers it: a price ("above" fills when the price rises to it) or
   // a time (triggerAt, ISO date or ms; up to 7 days ahead).
-  r.post('/orders', async (req, res) => {
+  r.post('/orders', idempotent, async (req, res) => {
     const { triggerPrice, triggerAt, expiresInHours = 24 } = req.body ?? {};
     const err = orderError(req.body, engine);
     if (err) return res.status(400).json({ error: err });

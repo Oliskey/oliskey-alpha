@@ -2,7 +2,7 @@
 // Client → {type:'auth', token} | {type:'subscribe'|'unsubscribe', asset}
 // Server → {type:'tick'|'momentum'} for subscribed assets, {type:'trade_closed', trade} to the trade owner.
 import { WebSocketServer } from 'ws';
-import { verifyToken } from './auth.js';
+import { isActiveUser, verifyToken } from './auth.js';
 
 export function createStream(server, engine, assetIds) {
   const wss = new WebSocketServer({ server, path: '/stream', maxPayload: 4096 });
@@ -17,7 +17,7 @@ export function createStream(server, engine, assetIds) {
 
       if (msg.type === 'auth') {
         const userId = (await verifyToken(String(msg.token ?? '')))?.id;
-        if (!userId) return send(ws, { type: 'error', message: 'Invalid token' });
+        if (!userId || !(await isActiveUser(userId))) return send(ws, { type: 'error', message: 'Invalid token' });
         byUser.get(ws.userId)?.delete(ws);
         ws.userId = userId;
         if (!byUser.has(userId)) byUser.set(userId, new Set());

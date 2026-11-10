@@ -4,7 +4,7 @@ import { usingSupabase, passwordIsRight } from '../supabaseAuth.js';
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { isUuid } from '../http.js';
-import { verifyPassword } from '../auth.js';
+import { forgetUser, verifyPassword } from '../auth.js';
 
 export const accountRouter = Router();
 
@@ -53,6 +53,7 @@ accountRouter.delete('/me', async (req, res) => {
   const right = rows[0] && (usingSupabase() ? await passwordIsRight(rows[0].email, password) : await verifyPassword(password, rows[0].encrypted_password));
   if (!right) return res.status(400).json({ error: 'Password is incorrect.' });
   await pool.query('select close_account($1)', [req.user.id]);
+  forgetUser(req.user.id);   // its sessions stop working at once
   await pool.query('delete from user_settings where user_id = $1', [req.user.id]);
   res.json({ ok: true });
 });

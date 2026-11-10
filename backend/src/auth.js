@@ -68,10 +68,24 @@ export async function verifyToken(token) {
   }
 }
 
+// A deleted account's sessions stop working. Checked on every request with a 30-second cache per user, so the check
+// costs about one indexed query per user per 30 s; forgetUser() makes a deletion take effect at once on this server.
+const status = new Map();   // user id -> { active, at }
+export async function isActiveUser(id) {
+  const hit = status.get(id);
+  if (hit && Date.now() - hit.at < 30_000) return hit.active;
+  const { rows } = await pool.query('select deleted_at from profiles where id = $1', [id]);
+  const active = !rows[0]?.deleted_at;
+  if (status.size > 50_000) status.clear();
+  status.set(id, { active, at: Date.now() });
+  return active;
+}
+export const forgetUser = (id) => status.delete(id);
+
 export async function requireAuth(req, res, next) {
   const header = req.get('authorization') || '';
   const user = header.startsWith('Bearer ') ? await verifyToken(header.slice(7)) : null;
-  if (!user) return res.status(401).json({ error: 'Please sign in again.' });
+  if (!user || !(await isActiveUser(user.id))) return res.status(401).json({ error: 'Please sign in again.' });
   req.user = user;
   next();
 }

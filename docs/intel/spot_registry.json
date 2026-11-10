@@ -272,6 +272,64 @@
       "checks": {
         "at least 100 trades (has 68)": false
       }
+    },
+    {
+      "strategy_id": "trend_breakout",
+      "version": "0.1.0",
+      "symbol": "BASKET",
+      "coins": [
+        "ADAUSDT",
+        "AVAXUSDT",
+        "BNBUSDT",
+        "DOGEUSDT",
+        "DOTUSDT",
+        "LINKUSDT",
+        "SOLUSDT",
+        "XRPUSDT"
+      ],
+      "timeframe": "4h",
+      "verdict": "APPROVED_FOR_PAPER",
+      "expectancy_r": 0.5191525929777708,
+      "trades": 305,
+      "expectancy_low": 0.19372979039510027,
+      "checks": {
+        "expectancy lower bound > 0 (1x costs)": true,
+        "expectancy > 0 at 1.5x costs": true,
+        ">= 70% of folds profitable": true,
+        "sealed test (last 20%) expectancy > 0": true,
+        "bootstrap 95th pct drawdown <= 25%": true,
+        "at least 62% of coins profitable": true
+      },
+      "test": "batch 3, unseen coins"
+    },
+    {
+      "strategy_id": "squeeze_breakout",
+      "version": "0.1.0",
+      "symbol": "BASKET",
+      "coins": [
+        "ADAUSDT",
+        "AVAXUSDT",
+        "BNBUSDT",
+        "DOGEUSDT",
+        "DOTUSDT",
+        "LINKUSDT",
+        "SOLUSDT",
+        "XRPUSDT"
+      ],
+      "timeframe": "4h",
+      "verdict": "REJECTED",
+      "expectancy_r": 0.189238537516025,
+      "trades": 245,
+      "expectancy_low": -0.011493499818953775,
+      "checks": {
+        "expectancy lower bound > 0 (1x costs)": false,
+        "expectancy > 0 at 1.5x costs": true,
+        ">= 70% of folds profitable": true,
+        "sealed test (last 20%) expectancy > 0": true,
+        "bootstrap 95th pct drawdown <= 25%": true,
+        "at least 62% of coins profitable": true
+      },
+      "test": "batch 3, unseen coins"
     }
   ]
 }

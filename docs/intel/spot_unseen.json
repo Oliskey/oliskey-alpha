@@ -1,0 +1,457 @@
+{
+  "generated_at": "2026-11-10 06:43 UTC",
+  "coins": [
+    "ADAUSDT",
+    "AVAXUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "DOTUSDT",
+    "LINKUSDT",
+    "SOLUSDT",
+    "XRPUSDT"
+  ],
+  "results": {
+    "trend_breakout": {
+      "period": [
+        "2018-06-02 12:00:00+00:00",
+        "2026-10-29 20:00:00+00:00"
+      ],
+      "metrics_1x": {
+        "trades": 305,
+        "win_rate": 0.39344262295081966,
+        "avg_win_r": 2.2510884731093275,
+        "avg_loss_r": -0.6042652752156712,
+        "expectancy_r": 0.5191525929777708,
+        "profit_factor": 2.4164312528959413,
+        "net_return_pct": 343.70359296319685,
+        "max_drawdown_pct": 10.92523244026713,
+        "sharpe": 1.2027981033598363,
+        "sortino": 1.9245517436546868,
+        "calmar": 1.7746440914131016,
+        "avg_bars_held": 37.40327868852459,
+        "trades_per_month": 3.0229363399544127,
+        "avg_cost_r": 0.027702097833347192,
+        "capture_ratio": 0.38566061701108534,
+        "exits": {
+          "trail": 284,
+          "stop": 21
+        }
+      },
+      "metrics_1_5x": {
+        "trades": 305,
+        "win_rate": 0.39344262295081966,
+        "avg_win_r": 2.2362416158436598,
+        "avg_loss_r": -0.6174703943924557,
+        "expectancy_r": 0.5053015440610977,
+        "profit_factor": 2.3491573285810365,
+        "net_return_pct": 325.459939657042,
+        "max_drawdown_pct": 11.315349649757323,
+        "sharpe": 1.1736081449748363,
+        "sortino": 1.8443688385775918,
+        "calmar": 1.6609037188417997,
+        "avg_bars_held": 37.40327868852459,
+        "trades_per_month": 3.0229363399544127,
+        "avg_cost_r": 0.04155314675002027,
+        "capture_ratio": 0.37956356332711483,
+        "exits": {
+          "trail": 284,
+          "stop": 21
+        }
+      },
+      "metrics_2x": {
+        "trades": 305,
+        "win_rate": 0.38688524590163936,
+        "avg_win_r": 2.2591238896534054,
+        "avg_loss_r": -0.6239797751874432,
+        "expectancy_r": 0.491450495144426,
+        "profit_factor": 2.284598754138004,
+        "net_return_pct": 307.96316080306906,
+        "max_drawdown_pct": 11.70388245149121,
+        "sharpe": 1.144222030623635,
+        "sortino": 1.7503861281738933,
+        "calmar": 1.555198792291462,
+        "avg_bars_held": 37.40327868852459,
+        "trades_per_month": 3.0229363399544127,
+        "avg_cost_r": 0.05540419566669193,
+        "capture_ratio": 0.37984225166338365,
+        "exits": {
+          "trail": 284,
+          "stop": 21
+        }
+      },
+      "folds": [
+        {
+          "from": "2018-06-02",
+          "to": "2019-10-27",
+          "trades": 17,
+          "expectancy_r": 0.160890888555221
+        },
+        {
+          "from": "2019-10-27",
+          "to": "2021-03-22",
+          "trades": 71,
+          "expectancy_r": 0.9268520959064297
+        },
+        {
+          "from": "2021-03-22",
+          "to": "2022-08-16",
+          "trades": 68,
+          "expectancy_r": 0.5875153814088745
+        },
+        {
+          "from": "2022-08-16",
+          "to": "2024-01-10",
+          "trades": 28,
+          "expectancy_r": 1.09261092749365
+        },
+        {
+          "from": "2024-01-10",
+          "to": "2025-06-04",
+          "trades": 84,
+          "expectancy_r": 0.0853716697057934
+        },
+        {
+          "from": "2025-06-04",
+          "to": "2026-10-29",
+          "trades": 37,
+          "expectancy_r": 0.32660877790574416
+        }
+      ],
+      "sealed_test": {
+        "from": "2025-02-22 13:36:00+00:00",
+        "trades": 41,
+        "win_rate": 0.3902439024390244,
+        "avg_win_r": 1.6016384929094327,
+        "avg_loss_r": -0.6475266128946143,
+        "expectancy_r": 0.2301963552240381,
+        "profit_factor": 1.5830216319292267,
+        "net_return_pct": 9.29861507093419,
+        "max_drawdown_pct": 4.633818393472944,
+        "sharpe": 0.8751623128103168,
+        "sortino": 0.956402601157677,
+        "calmar": 1.3150893461904585,
+        "avg_bars_held": 35.31707317073171,
+        "trades_per_month": 2.273110200364299,
+        "avg_cost_r": 0.04128704854883379,
+        "capture_ratio": 0.3685927058072612,
+        "exits": {
+          "trail": 38,
+          "stop": 3
+        }
+      },
+      "by_regime": {
+        "BREAKOUT": {
+          "count": 111,
+          "mean": 0.853
+        },
+        "HIGH_VOLATILITY": {
+          "count": 16,
+          "mean": 1.237
+        },
+        "RANGING": {
+          "count": 36,
+          "mean": -0.052
+        },
+        "TRANSITIONAL": {
+          "count": 37,
+          "mean": 0.302
+        },
+        "TRENDING_UP": {
+          "count": 105,
+          "mean": 0.329
+        }
+      },
+      "confidence": {
+        "expectancy_low": 0.19372979039510027,
+        "expectancy_high": 0.9368906433470114,
+        "level": 0.975,
+        "max_dd_p95_pct": 16.3788427832652
+      },
+      "checks": {
+        "expectancy lower bound > 0 (1x costs)": true,
+        "expectancy > 0 at 1.5x costs": true,
+        ">= 70% of folds profitable": true,
+        "sealed test (last 20%) expectancy > 0": true,
+        "bootstrap 95th pct drawdown <= 25%": true,
+        "at least 62% of coins profitable": true
+      },
+      "fold_share": 1.0,
+      "verdict": "APPROVED_FOR_PAPER",
+      "per_symbol": {
+        "ADAUSDT": {
+          "trades": 41,
+          "expectancy_r": 0.5804525275032953
+        },
+        "AVAXUSDT": {
+          "trades": 22,
+          "expectancy_r": 0.205531283428781
+        },
+        "BNBUSDT": {
+          "trades": 70,
+          "expectancy_r": 0.44010157880730916
+        },
+        "DOGEUSDT": {
+          "trades": 27,
+          "expectancy_r": 1.6153010744957015
+        },
+        "DOTUSDT": {
+          "trades": 19,
+          "expectancy_r": -0.10629638090426995
+        },
+        "LINKUSDT": {
+          "trades": 51,
+          "expectancy_r": 0.29275226539681687
+        },
+        "SOLUSDT": {
+          "trades": 40,
+          "expectancy_r": 0.3709034729899721
+        },
+        "XRPUSDT": {
+          "trades": 35,
+          "expectancy_r": 0.7958338928457375
+        }
+      },
+      "positive_share": 0.875,
+      "spec": {
+        "strategy_id": "trend_breakout",
+        "version": "0.1.0",
+        "style": "swing",
+        "timeframe": "4h",
+        "context_timeframe": "1d",
+        "context_rule": "up",
+        "adx_min": 0,
+        "rsi_low": 0,
+        "rsi_high": 100,
+        "vol_confirm": 0.0,
+        "stop_atr_min": 2.0,
+        "target_r": 0.0,
+        "time_stop_bars": 1000000000,
+        "time_stop_min_r": -1000000000.0,
+        "max_spread_pct": 0.001,
+        "cost_per_side": 0.0012,
+        "hypothesis": "A 4h close above the 55-bar high, above EMA200 in a daily up-trend, starts moves that a 20-bar-low trailing exit captures profitably.",
+        "family": "trend_breakout",
+        "target_mode": "none",
+        "trail": "low20",
+        "batch": 2
+      }
+    },
+    "squeeze_breakout": {
+      "period": [
+        "2018-06-05 20:00:00+00:00",
+        "2026-10-29 20:00:00+00:00"
+      ],
+      "metrics_1x": {
+        "trades": 245,
+        "win_rate": 0.3469387755102041,
+        "avg_win_r": 1.6929645393955506,
+        "avg_loss_r": -0.6096159009824731,
+        "expectancy_r": 0.189238537516025,
+        "profit_factor": 1.4753345673963059,
+        "net_return_pct": 55.38948714862626,
+        "max_drawdown_pct": 11.890835580053949,
+        "sharpe": 0.6934395648925245,
+        "sortino": 0.35211154998377375,
+        "calmar": 0.45307859256987587,
+        "avg_bars_held": 22.183673469387756,
+        "trades_per_month": 2.430634778357236,
+        "avg_cost_r": 0.03684691134161812,
+        "capture_ratio": 0.6525069646827015,
+        "exits": {
+          "stop": 83,
+          "time": 74,
+          "breakeven": 48,
+          "target": 40
+        }
+      },
+      "metrics_1_5x": {
+        "trades": 245,
+        "win_rate": 0.34285714285714286,
+        "avg_win_r": 1.6598862891464996,
+        "avg_loss_r": -0.6186395714491104,
+        "expectancy_r": 0.16256929504081302,
+        "profit_factor": 1.3998904517073114,
+        "net_return_pct": 45.63682079802695,
+        "max_drawdown_pct": 12.652354153912915,
+        "sharpe": 0.6017626954760064,
+        "sortino": 0.29809048224560336,
+        "calmar": 0.36177942494841986,
+        "avg_bars_held": 22.081632653061224,
+        "trades_per_month": 2.430634778357236,
+        "avg_cost_r": 0.0552554978316529,
+        "capture_ratio": 0.6397834419327699,
+        "exits": {
+          "stop": 83,
+          "time": 74,
+          "breakeven": 49,
+          "target": 39
+        }
+      },
+      "metrics_2x": {
+        "trades": 245,
+        "win_rate": 0.34285714285714286,
+        "avg_win_r": 1.6417409247792498,
+        "avg_loss_r": -0.6314562201319655,
+        "expectancy_r": 0.14792565812330846,
+        "profit_factor": 1.3564843534433988,
+        "net_return_pct": 40.516511482465425,
+        "max_drawdown_pct": 13.407762938082858,
+        "sharpe": 0.5483901493133833,
+        "sortino": 0.2671535691410589,
+        "calmar": 0.30823249862241653,
+        "avg_bars_held": 22.081632653061224,
+        "trades_per_month": 2.430634778357236,
+        "avg_cost_r": 0.07368307857404809,
+        "capture_ratio": 0.6285856502558425,
+        "exits": {
+          "stop": 83,
+          "time": 74,
+          "breakeven": 49,
+          "target": 39
+        }
+      },
+      "folds": [
+        {
+          "from": "2018-06-05",
+          "to": "2019-10-30",
+          "trades": 16,
+          "expectancy_r": 0.38207168140232645
+        },
+        {
+          "from": "2019-10-30",
+          "to": "2021-03-24",
+          "trades": 49,
+          "expectancy_r": 0.37401786258446273
+        },
+        {
+          "from": "2021-03-24",
+          "to": "2022-08-17",
+          "trades": 61,
+          "expectancy_r": 0.1343265115980721
+        },
+        {
+          "from": "2022-08-17",
+          "to": "2024-01-11",
+          "trades": 23,
+          "expectancy_r": -0.01954958341400508
+        },
+        {
+          "from": "2024-01-11",
+          "to": "2025-06-05",
+          "trades": 64,
+          "expectancy_r": 0.023385706512227322
+        },
+        {
+          "from": "2025-06-05",
+          "to": "2026-10-29",
+          "trades": 32,
+          "expectancy_r": 0.39632679739398097
+        }
+      ],
+      "sealed_test": {
+        "from": "2025-02-23 05:36:00+00:00",
+        "trades": 37,
+        "win_rate": 0.32432432432432434,
+        "avg_win_r": 1.9486885429297238,
+        "avg_loss_r": -0.5941950819056965,
+        "expectancy_r": 0.2305239315544398,
+        "profit_factor": 1.5741808188757749,
+        "net_return_pct": 8.490037987063603,
+        "max_drawdown_pct": 5.88640966526145,
+        "sharpe": 0.8321656996631212,
+        "sortino": 0.5610151539551673,
+        "calmar": 0.8898130825550161,
+        "avg_bars_held": 22.62162162162162,
+        "trades_per_month": 1.9317109777015438,
+        "avg_cost_r": 0.05196073701797628,
+        "capture_ratio": 0.7079038141743378,
+        "exits": {
+          "stop": 13,
+          "time": 10,
+          "breakeven": 7,
+          "target": 7
+        }
+      },
+      "by_regime": {
+        "BREAKOUT": {
+          "count": 245,
+          "mean": 0.189
+        }
+      },
+      "confidence": {
+        "expectancy_low": -0.011493499818953775,
+        "expectancy_high": 0.4260611765197291,
+        "level": 0.975,
+        "max_dd_p95_pct": 21.703870760980838
+      },
+      "checks": {
+        "expectancy lower bound > 0 (1x costs)": false,
+        "expectancy > 0 at 1.5x costs": true,
+        ">= 70% of folds profitable": true,
+        "sealed test (last 20%) expectancy > 0": true,
+        "bootstrap 95th pct drawdown <= 25%": true,
+        "at least 62% of coins profitable": true
+      },
+      "fold_share": 0.8333333333333334,
+      "verdict": "REJECTED",
+      "per_symbol": {
+        "ADAUSDT": {
+          "trades": 33,
+          "expectancy_r": 0.2433126899562606
+        },
+        "AVAXUSDT": {
+          "trades": 17,
+          "expectancy_r": 0.07610067058535663
+        },
+        "BNBUSDT": {
+          "trades": 56,
+          "expectancy_r": 0.35458379527260414
+        },
+        "DOGEUSDT": {
+          "trades": 15,
+          "expectancy_r": 0.0898230400950662
+        },
+        "DOTUSDT": {
+          "trades": 15,
+          "expectancy_r": 0.02809555870897184
+        },
+        "LINKUSDT": {
+          "trades": 47,
+          "expectancy_r": 0.15369181013149164
+        },
+        "SOLUSDT": {
+          "trades": 31,
+          "expectancy_r": 0.22390551196977904
+        },
+        "XRPUSDT": {
+          "trades": 31,
+          "expectancy_r": 0.04033400188221931
+        }
+      },
+      "positive_share": 1.0,
+      "spec": {
+        "strategy_id": "squeeze_breakout",
+        "version": "0.1.0",
+        "style": "swing",
+        "timeframe": "4h",
+        "context_timeframe": "1d",
+        "context_rule": "up",
+        "adx_min": 0,
+        "rsi_low": 0,
+        "rsi_high": 100,
+        "vol_confirm": 1.5,
+        "stop_atr_min": 2.0,
+        "target_r": 3.0,
+        "time_stop_bars": 30,
+        "time_stop_min_r": 1.0,
+        "max_spread_pct": 0.001,
+        "cost_per_side": 0.0012,
+        "hypothesis": "After a volatility squeeze, a volume-confirmed close above the 20-bar high in a daily up-trend runs to 3R.",
+        "family": "breakout",
+        "target_mode": "r",
+        "trail": "none",
+        "batch": 2
+      }
+    }
+  }
+}

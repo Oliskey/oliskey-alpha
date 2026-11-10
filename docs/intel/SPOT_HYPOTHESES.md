@@ -4,7 +4,7 @@ Every hypothesis below was written down, with all its settings, and committed to
 Settings are never changed after a result is seen; a failed idea gets a new version and a new hypothesis, and
 counts toward the multiple-testing penalty. Gates are those in `intel/engine/spot/backtest.py` (`Gates`).
 
-Multiple-testing tally (strategy x symbol tests run so far): **14** after batch 2
+Multiple-testing tally (strategy x symbol tests run so far): **16** after batch 3
 (Bonferroni divides the 5% error rate by this number).
 
 ## Batch 1 (2026-11-09) — tested, 0 of 8 passed
@@ -58,7 +58,23 @@ All long-only, 4h signal bars, 1d context, costs 0.12% per side, one position pe
 - **Exit:** initial stop below the 10-bar swing low, at least 2 ATR; no fixed target; stop trails up to the
   20-bar low (never down); no time stop.
 
-## Batch 3 (2026-11-10) — unseen-coins test, pre-registered before any run
+## Batch 3 (2026-11-10) — unseen-coins test: trend_breakout PASSED, squeeze_breakout failed
+
+Rules committed in `81db2b6` before the single run (GitHub access was unavailable at that moment, so the push came
+after; the commit order is the record). Full report: `docs/intel/SPOT_UNSEEN.md`.
+
+| Strategy | Trades | Win % | Expectancy | Lower bound | At 2x costs | Coins profitable | Verdict |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| trend_breakout 0.1.0 | 305 | 39.3% | +0.519R | +0.194R | +0.491R | 7 of 8 | **APPROVED_FOR_PAPER** |
+| squeeze_breakout 0.1.0 | 245 | | +0.189R | −0.011R | | | REJECTED (lower bound below 0) |
+
+Checked after the run, before trusting it: every entry is the next bar's open, every exit inside that bar's real
+range; round-number exits are genuine prior 20-bar lows. **Weak points, stated plainly:** it wins 39% of the time
+and lives on a few large trends (without its 10 best trades: +0.16R); half its profit came in 2021; recent years
+are thin (2024 +0.23R, 2025 +0.11R, 2026 so far −0.18R on 7 trades); stop fills in crashes are assumed at the stop
+price. It is approved for **paper** only. The forward paper record decides whether it is real.
+
+### Pre-registration text (unchanged)
 
 **Question:** do the two frozen batch-2 candidates earn on coins they were never designed or tested on?
 The coins below were not used for any AI Spot strategy before this entry, so their history is genuinely unseen

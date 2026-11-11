@@ -39,7 +39,7 @@ export default function Login() {
   }
 
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in to your account.">
+    <AuthShell title="Welcome back" subtitle="Sign in to Oliskey Alpha to practise, learn and follow your trades.">
       {error ? <AuthError>{error}</AuthError> : null}
       <AuthField label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" textContentType="emailAddress" onSubmitEditing={submit} />
       <AuthField label="Password" value={password} onChangeText={setPassword} placeholder="Your password" secureTextEntry autoComplete="current-password" textContentType="password" onSubmitEditing={submit}

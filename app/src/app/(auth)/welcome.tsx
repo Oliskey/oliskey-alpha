@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { HeroPanel } from '@/components/AuthShell';
+import { HeroPanel, OliskeyLink } from '@/components/AuthShell';
 import { GoogleButton } from '@/components/GoogleButton';
 import { useAuth } from '@/context/AuthContext';
 import { useLayout } from '@/hooks/useLayout';
@@ -27,10 +27,7 @@ export default function Welcome() {
       <GoogleButton />
       {PREVIEW ? <Button label="Look around" variant="secondary" height={54} onPress={() => { void setSession('preview').then(() => router.replace('/')); }} /> : null}
       <Txt style={styles.note}>Demo prices are simulated except crypto. Trading involves risk.</Txt>
-      {/* a real link on the web, so people and search engines connect the app to the main Oliskey website */}
-      <Txt style={styles.note} accessibilityRole="link" {...({ href: 'https://www.oliskey.com/', hrefAttrs: { target: '_blank', rel: 'noopener' } } as object)}>
-        A product by <Txt style={{ color: colors.accent, fontFamily: font.semibold }}>Oliskey</Txt>
-      </Txt>
+      <OliskeyLink />
     </View>
   );
   if (wide) {

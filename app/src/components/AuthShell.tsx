@@ -2,7 +2,7 @@
 // panel only on the welcome screen. The panel is deep graphite in both themes with one violet accent; the form follows the
 // theme. Its one image is the app's own liquid-glass navigation, and it states only true facts: no charts, prices or winners.
 import { useEffect, useState, type ReactNode } from 'react';
-import { Animated, Easing, KeyboardAvoidingView, Platform, ScrollView, TextInput, View, type TextInputProps } from 'react-native';
+import { Animated, Easing, KeyboardAvoidingView, Linking, Platform, ScrollView, TextInput, View, type TextInputProps } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -81,6 +81,19 @@ function useEnter() {
   return { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] };
 }
 
+/** "A product by Oliskey": a real link to the Oliskey website on every sign-in screen (people and search engines see it). */
+export const OLISKEY_URL = 'https://www.oliskey.com/alpha';
+export function OliskeyLink() {
+  const linkProps = web
+    ? ({ href: OLISKEY_URL, hrefAttrs: { target: '_blank', rel: 'noopener' } } as object)
+    : { onPress: () => { void Linking.openURL(OLISKEY_URL); } };
+  return (
+    <Txt style={styles.oliskey} accessibilityRole="link" {...linkProps}>
+      A product by <Txt style={{ color: colors.accent, fontFamily: font.semibold }}>Oliskey</Txt> · See all Oliskey products
+    </Txt>
+  );
+}
+
 export function AuthShell({ title, subtitle, onBack, children }: { title: string; subtitle?: string; onBack?: () => void; children: ReactNode }) {
   const { width } = useLayout();
   const wide = width >= 920;
@@ -99,6 +112,7 @@ export function AuthShell({ title, subtitle, onBack, children }: { title: string
                 {subtitle ? <Txt style={styles.subtitle}>{subtitle}</Txt> : null}
               </View>
               {children}
+              <OliskeyLink />
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -184,6 +198,7 @@ export function SwitchLine({ text, action, onPress }: { text: string; action: st
 }
 
 const styles = createStyles(() => ({
+  oliskey: { color: colors.muted, fontSize: 12, lineHeight: 17, textAlign: 'center', marginTop: 18 },
   page: { flex: 1, backgroundColor: colors.bg },
   heroSide: { flex: 1, maxWidth: '50%' },
   hero: { flex: 1, overflow: 'hidden', justifyContent: 'space-between', padding: 44 },

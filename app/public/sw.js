@@ -36,9 +36,10 @@ self.addEventListener('push', (e) => {
     if (all.some((c) => c.visibilityState === 'visible' && c.focused)) return;
     return self.registration.showNotification(d.title || 'Oliskey Alpha', {
       body: d.body || '', icon: '/icon-512.png', badge: '/icon-192.png', data: { link: d.link },
-      // same tag = the newer alert replaces the older one, and still rings again
-      ...(d.tag ? { tag: String(d.tag), renotify: true } : {}),
-      silent: false, vibrate: [180, 80, 180],
+      // same tag = the newer alert replaces the older one. It rings again, except a quiet update (a signal's countdown),
+      // which changes the text in place without a sound.
+      ...(d.tag ? { tag: String(d.tag), renotify: !d.quiet } : {}),
+      silent: !!d.quiet, ...(d.quiet ? {} : { vibrate: [180, 80, 180] }),
     });
   }));
 });

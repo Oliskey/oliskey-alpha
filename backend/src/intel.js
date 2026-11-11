@@ -10,6 +10,7 @@ import { pool } from './db.js';
 import { createUser, usingSupabase } from './supabaseAuth.js';
 import { isUuid, messageFor } from './http.js';
 import { notify, notifyAiTradeOpened, pushEvent } from './notify.js';
+import { sendPush } from './webPush.js';
 import { openTrade } from './openTrade.js';
 import { fixedTimePlan, signalPlan } from './signalPlan.js';
 
@@ -285,23 +286,69 @@ const claimAlert = async (key) => (await pool.query('insert into signal_alerts (
 const everyone = async () => (await pool.query(
   `select p.id from profiles p join auth.users u on u.id = p.id where p.deleted_at is null and u.email is distinct from $1`, [ENGINE_EMAIL])).rows;
 
+// A signal's alert says which market, which way, and how long is left to enter. While the entry window is open the same
+// notification is updated in place, quietly (every 5 minutes, then every minute in the last 30), so the count keeps
+// moving; when the window closes it changes to "Missed". Times are shown in Lagos time.
+const clock = (d) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Africa/Lagos' }).format(d);
+const left = (ms) => {
+  const m = Math.max(0, Math.ceil(ms / 60_000));
+  return m >= 120 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
+};
+export function signalText(i, name, proven, now = Date.now()) {
+  const until = new Date(i.enter_until), ends = new Date(i.expires_at);
+  const side = i.direction > 0 ? 'Up' : 'Down';
+  const risk = `${proven ? '' : 'Experimental, not yet proven. '}It can lose.`;
+  if (until.getTime() <= now) {
+    return { title: `Missed: ${name} ${side}`, body: `The time to enter closed at ${clock(until)}. Wait for the next signal.` };
+  }
+  return {
+    title: `${name} ${side} · ${left(until.getTime() - now)} left to enter`,
+    body: `Enter before ${clock(until)} (WAT). The trade ends at ${clock(ends)}. ${risk}`,
+  };
+}
+
+const claimed = async (key) => (await pool.query('select 1 from signal_alerts where key = $1', [key])).rowCount === 1;
+
 export function startSignalAlerts() {
+  const lastUpdate = new Map();   // idea id -> when its countdown was last sent
   async function step() {
     const [ideas, evidence] = await Promise.all([intel('/ideas?limit=100'), intel('/evidence')]);
     const now = Date.now();
     for (const i of ideas) {
-      if (i.kind !== 'idea' || i.status !== 'open' || new Date(i.enter_until).getTime() <= now) continue;
+      if (i.kind !== 'idea' || i.status !== 'open') continue;
+      const untilMs = new Date(i.enter_until).getTime();
+      // only a window that is open, or one that closed in the last 15 minutes (to say it was missed)
+      if (untilMs <= now - 15 * 60_000) continue;
+      const { rows } = await pool.query('select name from assets where id = $1', [i.asset_id]);
+      const name = rows[0]?.name ?? i.asset_id;
+      const proven = evidence.groups?.[i.asset_class]?.status === 'proven';
+      const tag = `signal-${i.asset_id}`;
+      const tf = i.tf === '1d' ? 86400 : i.tf === '4h' ? 14400 : 3600;
+      const link = `/terminal?asset=${encodeURIComponent(i.asset_id)}&mode=forex&signal=${i.id}&tf=${tf}`;
+
+      if (untilMs <= now) {
+        // the window closed: replace the countdown with "Missed", once, for people who were told about it
+        if (!await claimed(`idea:${i.id}`) || !await claimAlert(`missed:${i.id}`)) continue;
+        const t = signalText(i, name, proven, now);
+        for (const u of await everyone()) await sendPush(u.id, { ...t, link: '/scanner?tab=record', tag, quiet: true, ttl: 900 });
+        lastUpdate.delete(i.id);
+        continue;
+      }
       // Crypto signals were skipped here, so almost no signal ever alerted anyone (most live signals are crypto). They go out
       // now, marked experimental unless their group is proven; one alert per coin replaces the last instead of piling up.
-      if (!await claimAlert(`idea:${i.id}`)) continue;
-      const { rows } = await pool.query('select name from assets where id = $1', [i.asset_id]);
-      const proven = evidence.groups?.[i.asset_class]?.status === 'proven';
-      const tf = i.tf === '1d' ? 86400 : i.tf === '4h' ? 14400 : 3600;
-      for (const u of await everyone()) {
-        await notify(u.id, 'activities', `New signal: ${rows[0]?.name ?? i.asset_id}, ${i.direction > 0 ? 'Up' : 'Down'}`,
-          `${proven ? '' : 'Experimental, not yet proven. '}It can lose. Open it to see the plan.`,
-          `/terminal?asset=${encodeURIComponent(i.asset_id)}&mode=forex&signal=${i.id}&tf=${tf}`, { outside: true, tag: `signal-${i.asset_id}` });
+      if (await claimAlert(`idea:${i.id}`)) {
+        const t = signalText(i, name, proven, now);
+        for (const u of await everyone()) await notify(u.id, 'activities', t.title, t.body, link, { outside: true, tag });
+        lastUpdate.set(i.id, now);
+        continue;
       }
+      // already announced: keep the count moving
+      const every = untilMs - now <= 30 * 60_000 ? 60_000 : 5 * 60_000;
+      const last = lastUpdate.get(i.id) ?? 0;
+      if (now - last < every - 5_000) continue;
+      lastUpdate.set(i.id, now);
+      const t = signalText(i, name, proven, now);
+      for (const u of await everyone()) await sendPush(u.id, { ...t, link, tag, quiet: true, ttl: 60 });
     }
     for (const [cls, g] of Object.entries(evidence.groups ?? {})) {
       if (!g.paused || !await claimAlert(`pause:${cls}`)) continue;

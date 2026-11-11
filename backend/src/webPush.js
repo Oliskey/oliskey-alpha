@@ -23,15 +23,15 @@ export function validEndpoint(endpoint) {
   }
 }
 
-export async function sendPush(userId, { title, body, link, tag = null }) {
+export async function sendPush(userId, { title, body, link, tag = null, quiet = false, ttl = 3600 }) {
   if (!enabled) return;
   const { rows } = await pool.query(
     `select s.endpoint, s.p256dh, s.auth from push_subscriptions s join profiles p on p.id = s.user_id
      where s.user_id = $1 and p.deleted_at is null`, [userId]);
-  const payload = JSON.stringify({ title, body, link, tag });
+  const payload = JSON.stringify({ title, body, link, tag, quiet });
   await Promise.all(rows.map(async (s) => {
     try {
-      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 3600, urgency: 'high' });
+      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: ttl, urgency: 'high' });
     } catch (err) {
       if (err.statusCode === 404 || err.statusCode === 410) await pool.query('delete from push_subscriptions where endpoint = $1', [s.endpoint]);
       else console.error('push', err.statusCode ?? err.message);

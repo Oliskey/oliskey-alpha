@@ -17,7 +17,7 @@ const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g
 // The maker is the same organisation, with the same @id, that www.oliskey.com describes: search engines then connect this app
 // to the main website, and the main website's product page (MAIN_PAGE) to this app.
 const MAIN = 'https://www.oliskey.com';
-const MAIN_PAGE = `${MAIN}/trading-app`;
+const MAIN_PAGE = `${MAIN}/alpha`;   // the Oliskey Alpha page on the main website
 const ORG = { '@id': `${MAIN}/#organization` };
 function structuredData() {
   return [

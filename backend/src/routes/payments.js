@@ -1,3 +1,4 @@
+import { settleTradingPayment } from '../trading/payments.js';
 // Real-money flows (Paystack NGN). Every entry point refuses while platform_settings.live_trading_enabled is false.
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
@@ -152,7 +153,10 @@ export function paystackWebhook(req, res) {
   if (!validSignature(req.rawBody, req.get('x-paystack-signature'))) return res.status(401).end();
   res.sendStatus(200);
   if (req.body?.event === 'charge.success' && req.body.data?.reference) {
-    settleDeposit(req.body.data.reference).catch((err) => console.error('webhook', err.message));
+    const ref = String(req.body.data.reference);
+    // AI Trading subscriptions and commission (OAT-S-/OAT-C-) are settled by their own module, after asking Paystack
+    if (ref.startsWith('OAT-')) settleTradingPayment(ref).catch((err) => console.error('webhook', err.message));
+    else settleDeposit(ref).catch((err) => console.error('webhook', err.message));
   }
   if (String(req.body?.event).startsWith('customeridentification.')) {
     Promise.resolve(kycEvent(req.body.event, req.body.data)).catch((err) => console.error('webhook', err.message));

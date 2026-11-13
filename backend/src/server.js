@@ -25,6 +25,7 @@ import { paystackConfigured } from './paystack.js';
 import { kycRouter, reconcileKyc } from './kyc.js';
 import { aiTradingRouter, aiTradingAdminRouter } from './routes/aiTrading.js';
 import { startStrategyRunner } from './trading/strategyRunner.js';
+import { startTradingJobs } from './trading/jobs.js';
 import { adminRouter } from './routes/admin.js';
 import { intelRouter, signalRouter, startIntel, startPaperTrading, startSignalAlerts } from './intel.js';
 import { pushRouter } from './webPush.js';
@@ -217,6 +218,7 @@ whenLeader(async () => {
   console.log(`Settling: ${reloaded} open trades reloaded`);
   await orders.start();
   startSignalAlerts();
+  startTradingJobs();   // AI Trading: order reconciliation, key re-checks, subscription expiry
   if (paystackConfigured()) {   // deposits the webhook missed: re-checked with Paystack every 5 minutes
     setInterval(() => reconcileDeposits().catch((err) => console.error('deposit reconcile', err.message)), 5 * 60_000).unref();
     // identity checks whose webhook was lost

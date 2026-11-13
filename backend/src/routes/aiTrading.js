@@ -11,7 +11,7 @@ import { CAPABILITIES } from '../trading/exchanges/adapter.js';
 import { hasAdapter } from '../trading/exchanges/index.js';
 import { subscriptionPrice, PRICE_PER_STRATEGY_USD } from '../trading/money.js';
 import {
-  TradingError, audit, connectExchange, verifyConnection, disconnect, listConnections, allocate, declareWithdrawal, financialStatement,
+  TradingError, audit, RISK_DISCLOSURE_VERSION, connectExchange, verifyConnection, disconnect, listConnections, allocate, declareWithdrawal, financialStatement,
 } from '../trading/service.js';
 import { startSubscriptionCheckout, startCommissionCheckout, settleTradingPayment } from '../trading/payments.js';
 
@@ -37,6 +37,20 @@ export function aiTradingRouter(deps = {}) {
       pool.query('select paused from trading.user_controls where user_id = $1', [req.user.id]),
     ]);
     res.json({ name: p?.full_name, email: p?.email, twoStep: Boolean(req.user.mfa), tradingPaused: Boolean(uc?.paused), platform: ctl });
+  }));
+
+  // Real-money readiness: identity verified and the current risk disclosure accepted (recorded in the append-only audit log).
+  r.get('/risk-disclosure', wrap(async (req, res) => {
+    const [{ rows: [p] }, { rows: [acc] }] = await Promise.all([
+      pool.query('select kyc_status from profiles where id = $1', [req.user.id]),
+      pool.query(`select created_at from trading.security_audit_logs where actor_id = $1 and action = 'risk_disclosure.accepted' and details->>'version' = $2 order by created_at desc limit 1`, [req.user.id, RISK_DISCLOSURE_VERSION]),
+    ]);
+    res.json({ version: RISK_DISCLOSURE_VERSION, accepted: Boolean(acc), acceptedAt: acc?.created_at ?? null, identityVerified: p?.kyc_status === 'verified' });
+  }));
+  r.post('/risk-disclosure/accept', wrap(async (req, res) => {
+    if (req.body?.version !== RISK_DISCLOSURE_VERSION) return bad(res, 'Please read the current risk disclosure and accept it again.');
+    await audit(pool, req.user.id, 'risk_disclosure.accepted', 'ai_trading', { version: RISK_DISCLOSURE_VERSION }, req.ip);
+    res.json({ accepted: true, version: RISK_DISCLOSURE_VERSION });
   }));
 
   // "Notify me when live trading opens" (021_live_waitlist.sql). Only ever the signed-in person's own row.

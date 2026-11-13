@@ -20,12 +20,27 @@ export async function audit(client, actorId, action, target, details = {}, ip = 
 // ───────────────────────── Connections ─────────────────────────
 const PUBLIC_CONN = 'id, provider_id, environment, label, key_hint, permissions, status, status_detail, last_verified_at, last_sync_at, created_at';
 
+// The risk disclosure customers accept before real money (docs/ai-trading/legal/03-risk-disclosure.md). A new text gets a new
+// version, and everyone must accept it again.
+export const RISK_DISCLOSURE_VERSION = '2026-11-13';
+
+/** Before a real-money key: identity verified (Paystack BVN check) and the current risk disclosure accepted (append-only log). */
+export async function realMoneyReady(client, userId) {
+  const [{ rows: [p] }, { rows: [acc] }] = await Promise.all([
+    client.query('select kyc_status from profiles where id = $1', [userId]),
+    client.query(`select 1 from trading.security_audit_logs where actor_id = $1 and action = 'risk_disclosure.accepted' and details->>'version' = $2 limit 1`, [userId, RISK_DISCLOSURE_VERSION]),
+  ]);
+  if (p?.kyc_status !== 'verified') throw new TradingError('IDENTITY_REQUIRED', 403, 'Verify your identity first (Profile > Verify identity). It is needed before real money.');
+  if (!acc) throw new TradingError('RISK_DISCLOSURE_REQUIRED', 403, 'Read and accept the risk disclosure first. It is needed before real money.');
+}
+
 /** Checks the key with the exchange BEFORE storing it; a key that can withdraw or transfer is refused and never stored. */
 export async function connectExchange({ userId, providerId, environment, apiKey, apiSecret, passphrase, label, ip }, deps = {}) {
   const { client = pool, fetchImpl } = deps;
   const { rows: [prov] } = await client.query('select * from trading.exchange_providers where id = $1', [providerId]);
   if (!prov || !hasAdapter(providerId)) throw new TradingError('UNSUPPORTED', 400, 'This exchange is not available yet.');
   if (environment === 'live' && !prov.live_enabled) throw new TradingError('LIVE_NOT_AVAILABLE', 403, `Live trading on ${prov.name} is not open yet. You can connect a testnet key.`);
+  if (environment === 'live') await realMoneyReady(client, userId);
   if (prov.requires_passphrase && !passphrase) throw new TradingError('PASSPHRASE_REQUIRED', 400, 'This exchange needs the API passphrase too.');
   const credentials = { apiKey, apiSecret, passphrase };
   let perms;
@@ -225,6 +240,7 @@ export async function placeStrategyOrder({ userId, strategyId, signalId, symbol,
        join trading.exchange_connections c on c.id = a.connection_id and c.revoked_at is null
       where a.user_id = $1 and a.strategy_id = $2 and a.status = 'active' limit 1`, [userId, strategyId]);
   if (!alloc || alloc.conn_status !== 'active') throw new TradingError('NO_ACTIVE_ALLOCATION', 409, 'No active allocation for this strategy.');
+  if (alloc.environment === 'live') await realMoneyReady(client, userId);   // a newer disclosure must be accepted again
   const { rows: [conn] } = await client.query('select * from trading.exchange_connections where id = $1', [alloc.connection_id]);
   const ex = adapterForConnection(conn, deps);
   const [{ rows: [ctl] }, { rows: [uc] }, { rows: [prov] }, { rows: [subs] }, { rows: [ver] }, { rows: dup }, { rows: posRows }, loss, limits, live, balances, syms] = await Promise.all([

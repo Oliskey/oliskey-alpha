@@ -80,6 +80,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="ai/strategies" />
       <Tabs.Screen name="ai/results" />
       <Tabs.Screen name="ai/statement" />
+      <Tabs.Screen name="ai/risk" />
     </Tabs>
   );
 

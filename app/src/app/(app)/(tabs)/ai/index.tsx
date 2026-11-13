@@ -83,6 +83,7 @@ export default function AiTradingHome() {
             <Txt style={{ fontSize: 16, fontFamily: font.semibold, flex: 1 }}>Real-money trading</Txt>
           </View>
           <Txt style={{ color: colors.muted, fontSize: 14, lineHeight: 20 }}>It opens only after legal approval and safety checks. Want an alert?</Txt>
+          <Button label="Read the risks first" variant="secondary" height={44} onPress={() => router.push('/ai/risk')} />
           {wait.data?.joined ? (
             <View style={{ gap: 10 }}>
               <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>

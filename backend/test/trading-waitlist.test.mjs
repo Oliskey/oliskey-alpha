@@ -42,6 +42,20 @@ test('no payment can start while live trading is closed or for an unapproved str
   assert.equal(fee.body.code, 'NOT_OPEN_YET');
 });
 
+test('risk disclosure: not accepted at first, an old version is refused, acceptance is recorded and remembered', async () => {
+  const t = await user('risk');
+  const get = await call('GET', '/trading/risk-disclosure', t);
+  assert.equal(get.status, 200);
+  assert.equal(get.body.accepted, false);
+  assert.equal(get.body.identityVerified, false, 'a new user is not verified');
+  const post = (body) => fetch(`${API}/trading/risk-disclosure/accept`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${t}` }, body: JSON.stringify(body) }).then(async (r) => ({ status: r.status, body: await r.json() }));
+  assert.equal((await post({ version: '2000-01-01' })).status, 400, 'an old text cannot be accepted');
+  assert.equal((await post({ version: get.body.version })).body.accepted, true);
+  const after = (await call('GET', '/trading/risk-disclosure', t)).body;
+  assert.equal(after.accepted, true);
+  assert.ok(after.acceptedAt);
+});
+
 test('signed in only', async () => {
   for (const m of ['GET', 'POST', 'DELETE']) assert.equal((await call(m, '/trading/waitlist')).status, 401, m);
 });

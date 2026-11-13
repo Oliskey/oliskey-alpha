@@ -134,6 +134,14 @@ export async function allocate({ userId, strategyId, connectionId, amount }, dep
   const { rows: others } = await client.query('select amount from trading.strategy_allocations where connection_id = $1 and strategy_id <> $2', [connectionId, strategyId]);
   const check = checkAllocations([...others, { amount: String(amount) }], capital);
   if (!check.ok) throw new TradingError('ALLOCATION_TOO_HIGH', 400, `Your strategies would use ${check.total} USDT, but the exchange reports ${check.capital} USDT.`);
+  // Pilot (owner decision 2026-11-13): real money is capped per customer across all strategies; raise with TRADING_MAX_LIVE_PER_CUSTOMER
+  if (c.environment === 'live') {
+    const cap = process.env.TRADING_MAX_LIVE_PER_CUSTOMER || '100';
+    const { rows: mine } = await client.query(`select a.amount from trading.strategy_allocations a join trading.exchange_connections c on c.id = a.connection_id
+      where a.user_id = $1 and c.environment = 'live' and c.revoked_at is null and not (a.strategy_id = $2 and a.connection_id = $3)`, [userId, strategyId, connectionId]);
+    const total = add(sum(mine.map((m) => m.amount)), String(amount));
+    if (total > D(cap)) throw new TradingError('PILOT_LIMIT', 400, `During the pilot you can use at most ${cap} USDT in total across strategies.`);
+  }
   const { rows: [row] } = await client.query(
     `insert into trading.strategy_allocations (user_id, strategy_id, connection_id, amount) values ($1, $2, $3, $4)
      on conflict (user_id, strategy_id, connection_id) do update set amount = excluded.amount, updated_at = now() returning *`,
@@ -257,6 +265,15 @@ export async function placeStrategyOrder({ userId, strategyId, signalId, symbol,
     ex.balances(),
     ex.symbols(),
   ]);
+  // Pilot (owner decision 2026-11-13): real money only, at most 100 USDT per order and per holding and a 10 USDT daily loss
+  // per customer, whatever the database limits say. Practice and testnet keep the normal limits. Raise with the settings below.
+  if (alloc.environment === 'live') {
+    const lower = (a, b) => (D(String(a)) <= D(String(b)) ? String(a) : String(b));
+    const quoteCap = process.env.TRADING_PILOT_MAX_QUOTE || '100', lossCap = process.env.TRADING_PILOT_DAILY_LOSS || '10';
+    limits.maxOrderQuote = lower(limits.maxOrderQuote, quoteCap);
+    limits.maxPositionQuote = lower(limits.maxPositionQuote, quoteCap);
+    limits.maxDailyLossQuote = lower(limits.maxDailyLossQuote, lossCap);
+  }
   const usdt = balances.find((b) => b.asset === 'USDT');
   const prices = { [symbol]: live.price };
   const exposureOf = (rows) => str(sum(rows.map((r) => r.cost_basis)));

@@ -1,6 +1,6 @@
 {
   "name": "oliskey-alpha-app",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

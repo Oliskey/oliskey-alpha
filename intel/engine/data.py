@@ -2,6 +2,7 @@
 The first run loads full history; later runs fetch only what is new."""
 from __future__ import annotations
 
+import os
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -73,7 +74,9 @@ def refresh(asset_ids: list[str] | None = None, providers: set[str] | None = Non
             last = db.last_bar_time(asset_id, tf)
             try:
                 if cfg["provider"] == "binance":
-                    want = int((datetime.now(timezone.utc) - timedelta(days=365 * cfg.get("history_years", 3))).timestamp() * 1000)
+                    # HISTORY_YEARS caps it on a server that does not retrain (Railway: 0.6, to fit the database plan); unset = config
+                    years = min(cfg.get("history_years", 3), float(os.environ.get("HISTORY_YEARS", "inf")))
+                    want = int((datetime.now(timezone.utc) - timedelta(days=365 * years)).timestamp() * 1000)
                     start = (int(last.timestamp() * 1000) + 1) if last else want
                     df = fetch_binance(cfg["symbol"], tf, start, client)
                     # History target raised (e.g. 3 -> 5 years): also fetch what lies before the oldest stored bar.

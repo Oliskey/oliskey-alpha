@@ -57,7 +57,7 @@ export default function Forgot() {
     const resendIn = Math.max(0, RESEND_AFTER_S - Math.floor((now - sentAt) / 1000));
     const clock = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
     return (
-      <AuthShell title="Enter your code" subtitle={`If an account uses ${email.trim()}, we sent it a 6-digit code.`}>
+      <AuthShell title="Enter your code" subtitle={`If an account uses ${email.trim()}, we sent it an email to reset the password.`}>
         {error ? <AuthError>{error}</AuthError> : null}
         <AuthField
           label="6-digit code" value={code} onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
@@ -68,14 +68,14 @@ export default function Forgot() {
         <AuthField label="New password again" value={again} onChangeText={setAgain} secureTextEntry autoComplete="new-password" textContentType="newPassword" onSubmitEditing={save} />
         <Button label="Save new password" height={54} onPress={save} loading={busy} disabled={left === 0} />
         <Button label={resendIn > 0 ? `Send a new code in ${resendIn}s` : 'Send a new code'} variant="secondary" height={46} onPress={ask} disabled={resendIn > 0 || busy} />
-        <Txt style={{ color: colors.muted, fontSize: 13, lineHeight: 19, textAlign: 'center', fontFamily: font.regular }}>Nothing yet? Check your spam folder.</Txt>
+        <Txt style={{ color: colors.muted, fontSize: 13, lineHeight: 19, textAlign: 'center', fontFamily: font.regular }}>Email has a link instead of a code? Open the link to choose your new password. Nothing yet? Check your spam folder.</Txt>
         <SwitchLine text="Remembered it?" action="Sign in" onPress={() => router.replace('/login')} />
       </AuthShell>
     );
   }
 
   return (
-    <AuthShell title="Reset your password" subtitle="Enter your email and we'll send you a 6-digit code to choose a new one.">
+    <AuthShell title="Reset your password" subtitle="Enter your email and we'll email you a way to choose a new one.">
       {error ? <AuthError>{error}</AuthError> : null}
       <AuthField label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" textContentType="emailAddress" onSubmitEditing={ask} />
       <Button label="Send code" height={54} onPress={ask} loading={busy} />

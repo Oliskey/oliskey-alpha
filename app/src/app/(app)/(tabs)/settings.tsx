@@ -251,7 +251,8 @@ export default function Profile() {
 
         {p?.is_admin ? (
           <Section title="Admin">
-            <Row icon={LayoutDashboard} title="Admin tools" onPress={() => router.push('/admin')} last />
+            <Row icon={LayoutDashboard} title="Admin tools" onPress={() => router.push('/admin')} />
+            <Row icon={ShieldCheck} title="AI Trading admin" subtitle="Approvals, emergency stop, pause" onPress={() => router.push('/admin-trading')} last />
           </Section>
         ) : null}
 

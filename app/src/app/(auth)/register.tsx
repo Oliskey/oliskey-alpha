@@ -17,6 +17,7 @@ export default function Register() {
   const [errors, setErrors] = useState<Partial<Record<keyof typeof form | 'server', string>>>({});
   const [busy, setBusy] = useState(false);
   const [showInvite, setShowInvite] = useState(typeof invite === 'string' && !!invite);
+  const [taken, setTaken] = useState(false);
   const set = (k: keyof typeof form) => (v: string) => {
     setForm((f) => ({ ...f, [k]: v }));
     setErrors((e) => (e[k] || e.server ? { ...e, [k]: undefined, server: undefined } : e));
@@ -31,13 +32,26 @@ export default function Register() {
     if (Object.keys(e).length) return;
     setBusy(true);
     try { await register(form.fullName.trim(), form.email.trim(), form.password, form.inviteCode.trim()); }
-    catch (err) { setErrors({ server: (err as Error).message }); }
+    catch (err) {
+      // a second sign-up never changes the password: point to signing in with the first one, or resetting it
+      setTaken((err as { status?: number }).status === 409);
+      setErrors({ server: (err as Error).message });
+    }
     finally { setBusy(false); }
   };
 
   return (
     <AuthShell title="Create your account" subtitle="You start with α10,000 in demo funds to practise with.">
       {errors.server ? <AuthError>{errors.server}</AuthError> : null}
+      {errors.server && taken ? (
+        <View style={{ gap: 10 }}>
+          <Txt style={{ color: colors.muted, fontSize: 14, lineHeight: 20 }}>Sign in with the password you chose the first time. Forgot it? You can reset it.</Txt>
+          <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+            <QuietButton label="Sign in instead" onPress={() => router.replace('/login')} />
+            <QuietButton label="Reset password" onPress={() => router.replace('/forgot')} />
+          </View>
+        </View>
+      ) : null}
       <AuthField label="Full name" value={form.fullName} onChangeText={set('fullName')} placeholder="Your name" autoComplete="name" textContentType="name" error={errors.fullName} />
       <AuthField label="Email" value={form.email} onChangeText={set('email')} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" textContentType="emailAddress" error={errors.email} />
       <View style={{ gap: 8 }}>

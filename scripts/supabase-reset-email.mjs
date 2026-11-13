@@ -3,6 +3,7 @@
 // Reads the current auth settings first and changes only these five; everything else (Google, site address, other emails) stays.
 //   node scripts/supabase-reset-email.mjs          shows what would change
 //   node scripts/supabase-reset-email.mjs --apply  changes it, then reads it back to confirm
+//   add --otp-only to change only the code length and expiry
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -13,7 +14,7 @@ const token = env.SUPABASE_ACCESS_TOKEN;
 const ref = (env.HOSTED_SUPABASE_URL || env.SUPABASE_URL || 'https://neodvdmjhsviosuxhpkd.supabase.co').match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1];
 if (!token) { console.log('No SUPABASE_ACCESS_TOKEN in .env.local yet.'); process.exit(1); }
 
-const WANT = {
+const ALL = {
   mailer_otp_length: 6,
   mailer_otp_exp: 300,
   mailer_subjects_recovery: 'Your Oliskey Alpha reset code',
@@ -23,6 +24,10 @@ const WANT = {
 <p>Type it in the app with your new password. It works for 5 minutes.</p>
 <p>If you did not ask for this, ignore this email. Your password stays the same.</p>`,
 };
+
+// --otp-only: just the code length and expiry. Free projects on Supabase's built-in email sender cannot change the email text;
+// that needs a custom SMTP sender (Authentication > Emails > SMTP settings) first.
+const WANT = process.argv.includes('--otp-only') ? { mailer_otp_length: ALL.mailer_otp_length, mailer_otp_exp: ALL.mailer_otp_exp } : ALL;
 
 const api = async (method, body) => {
   const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/config/auth`, {
@@ -42,5 +47,5 @@ if (!process.argv.includes('--apply')) process.exit(0);
 await api('PATCH', WANT);
 const after = await api('GET');
 const bad = Object.keys(WANT).filter((k) => String(after[k]) !== String(WANT[k]));
-console.log(bad.length ? `NOT CONFIRMED: ${bad.join(', ')}` : 'CONFIRMED: the reset email now carries the 6-digit code, 5 minutes, 6 digits.');
-console.log(`code in the email: ${String(after.mailer_templates_recovery_content).includes('{{ .Token }}')}`);
+console.log(bad.length ? `NOT CONFIRMED: ${bad.join(', ')}` : `CONFIRMED: ${Object.keys(WANT).join(', ')}`);
+console.log(`code in the email: ${String(after.mailer_templates_recovery_content).includes('{{ .Token }}') ? 'yes' : 'not yet (the email still sends a link)'}`);

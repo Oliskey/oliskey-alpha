@@ -7,13 +7,13 @@ import { pool } from '../db.js';
 import { paystack, paystackConfigured } from '../paystack.js';
 import { D, mul, round, str } from './decimal.js';
 import { subscriptionPrice } from './money.js';
+import { usdNgnRate } from './fxRate.js';
 
 export const SUB_PREFIX = 'OAT-S-', COM_PREFIX = 'OAT-C-';
 
-/** NGN per USD used for checkout. Set by the operator (TRADING_USD_NGN_RATE); never guessed. */
-export function usdToNgn(usd, env = process.env) {
-  const rate = env.TRADING_USD_NGN_RATE;
-  if (!rate || !/^\d+(\.\d{1,6})?$/.test(rate)) throw Object.assign(new Error('FX_RATE_NOT_SET'), { status: 503 });
+/** NGN for a USD amount at checkout. The rate is read online from two sources that must agree (fxRate.js); never guessed. */
+export async function usdToNgn(usd, opts) {
+  const { rate } = await usdNgnRate(opts);
   return { amount: str(round(mul(usd, rate), 2, 'half_up'), 2), rate };
 }
 
@@ -31,7 +31,7 @@ async function checkout({ email, reference, ngn, metadata }) {
 /** Start a subscription checkout for 1-4 strategies (one payment). Subscriptions stay "pending_payment" until verified. */
 export async function startSubscriptionCheckout({ userId, email, strategyIds, client = pool }) {
   const usd = subscriptionPrice(strategyIds);
-  const { amount, rate } = usdToNgn(usd);
+  const { amount, rate } = await usdToNgn(usd);
   const reference = SUB_PREFIX + randomUUID();
   const db = await client.connect();
   try {
@@ -59,7 +59,7 @@ export async function startCommissionCheckout({ userId, email, invoiceId, client
   const { rows: [inv] } = await client.query('select * from trading.commission_invoices where id = $1 and user_id = $2', [invoiceId, userId]);
   if (!inv) throw Object.assign(new Error('INVOICE_NOT_FOUND'), { status: 404 });
   if (inv.status !== 'issued') throw Object.assign(new Error('INVOICE_NOT_PAYABLE'), { status: 409 });
-  const { amount, rate } = usdToNgn(inv.commission);
+  const { amount, rate } = await usdToNgn(inv.commission);
   const reference = COM_PREFIX + randomUUID();
   await client.query(`insert into trading.commission_payments (invoice_id, provider, reference, amount, currency, fx_rate)
     values ($1, 'paystack', $2, $3, 'NGN', $4)`, [inv.id, reference, amount, rate]);

@@ -140,7 +140,8 @@ export default function Profile() {
             <Row icon={push === 'on' ? Bell : BellOff} title="Alerts" subtitle={push === 'install' || push === 'blocked' ? PUSH_TEXT[push] : undefined}
               right={<Toggle accessibilityLabel="Alerts for signals, AI trades and results" value={push === 'on'} onValueChange={togglePush} />} />
           ) : null}
-          <Row icon={AiIcon} title="AI trading" onPress={() => router.push({ pathname: '/scanner', params: { tab: 'ai' } })} />
+          <Row icon={AiIcon} title="AI Trading" subtitle="On your own exchange · practice for now" onPress={() => router.push('/ai')} />
+          <Row icon={AiIcon} title="AI signals" onPress={() => router.push({ pathname: '/scanner', params: { tab: 'ai' } })} />
           <Row icon={CircleHelp} title="Help" onPress={() => router.navigate('/help')} last />
         </Section>
       </Page>

@@ -74,6 +74,12 @@ export default function TabsLayout() {
       <Tabs.Screen name="course/[id]" />
       <Tabs.Screen name="lesson/[id]" />
       <Tabs.Screen name="quotes/[id]" />
+      <Tabs.Screen name="ai/index" />
+      <Tabs.Screen name="ai/exchanges" />
+      <Tabs.Screen name="ai/connect" />
+      <Tabs.Screen name="ai/strategies" />
+      <Tabs.Screen name="ai/results" />
+      <Tabs.Screen name="ai/statement" />
     </Tabs>
   );
 

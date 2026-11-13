@@ -24,6 +24,7 @@ import { paymentsRouter, paystackWebhook, reconcileDeposits } from './routes/pay
 import { paystackConfigured } from './paystack.js';
 import { kycRouter, reconcileKyc } from './kyc.js';
 import { aiTradingRouter, aiTradingAdminRouter } from './routes/aiTrading.js';
+import { startStrategyRunner } from './trading/strategyRunner.js';
 import { adminRouter } from './routes/admin.js';
 import { intelRouter, signalRouter, startIntel, startPaperTrading, startSignalAlerts } from './intel.js';
 import { pushRouter } from './webPush.js';
@@ -224,5 +225,7 @@ whenLeader(async () => {
   if (process.env.INTEL_DISABLED !== '1') {
     startIntel();
     startPaperTrading({ engine, settlement });
+    startStrategyRunner();   // AI Trading strategies follow the AI Spot agents; practice (testnet) orders only
+
   }
 });

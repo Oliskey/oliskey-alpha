@@ -23,7 +23,9 @@ high-water mark, invoiced when the customer declares a withdrawal and paid separ
 
 ## Server settings (secrets; never committed)
 - `TRADING_CREDENTIALS_KEYS` = `k1:<base64 of 32 random bytes>` and `TRADING_CREDENTIALS_ACTIVE` = `k1` (`openssl rand -base64 32`)
-- `TRADING_USD_NGN_RATE` — NGN per USD for checkout (set by the operator; never guessed)
+- No rate setting: NGN per USD for checkout is read online (owner decision 2026-11-12) from open.er-api.com and
+  currency-api, which must agree within 2% and be at most 3 days old; otherwise checkout refuses (`backend/src/trading/fxRate.js`,
+  tested in `trading-fxrate.test.mjs`). Never guessed.
 - `PAYSTACK_SECRET_KEY` (already used by Alpha)
 
 ## Live trading stays off until

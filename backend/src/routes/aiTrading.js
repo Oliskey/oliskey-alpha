@@ -38,6 +38,23 @@ export function aiTradingRouter(deps = {}) {
     res.json({ name: p?.full_name, email: p?.email, twoStep: Boolean(req.user.mfa), tradingPaused: Boolean(uc?.paused), platform: ctl });
   }));
 
+  // "Notify me when live trading opens" (021_live_waitlist.sql). Only ever the signed-in person's own row.
+  r.get('/waitlist', wrap(async (req, res) => {
+    const { rows: [w] } = await pool.query('select joined_at, left_at from trading.live_waitlist where user_id = $1', [req.user.id]);
+    res.json({ joined: Boolean(w && !w.left_at), joinedAt: w && !w.left_at ? w.joined_at : null });
+  }));
+  r.post('/waitlist', wrap(async (req, res) => {
+    await pool.query(`insert into trading.live_waitlist (user_id) values ($1)
+      on conflict (user_id) do update set joined_at = case when trading.live_waitlist.left_at is null then trading.live_waitlist.joined_at else now() end, left_at = null`, [req.user.id]);
+    await audit(pool, req.user.id, 'waitlist.join', 'live_trading', {}, req.ip);
+    res.json({ joined: true });
+  }));
+  r.delete('/waitlist', wrap(async (req, res) => {
+    await pool.query('update trading.live_waitlist set left_at = now() where user_id = $1 and left_at is null', [req.user.id]);
+    await audit(pool, req.user.id, 'waitlist.leave', 'live_trading', {}, req.ip);
+    res.json({ joined: false });
+  }));
+
   r.get('/dashboard', wrap(async (req, res) => {
     const uid = req.user.id;
     const [conns, { rows: subs }, { rows: allocs }, { rows: positions }, { rows: orders }, { rows: [ctl] }] = await Promise.all([
@@ -133,6 +150,13 @@ export function aiTradingRouter(deps = {}) {
     const ids = req.body?.strategies;
     if (!Array.isArray(ids) || !ids.every((x) => STRATEGIES.has(x))) return bad(res, 'Choose 1 to 4 strategies.');
     subscriptionPrice(ids);   // validates 1-4, no duplicates
+    // owner rule (2026-11-12): no payment for a strategy that is not approved; subscriptions open with real-money trading
+    const [{ rows: [ctl] }, { rows: approved }] = await Promise.all([
+      pool.query('select live_trading_enabled from trading.controls'),
+      pool.query(`select distinct strategy_id from trading.strategy_versions where status = 'approved_live' and strategy_id = any($1)`, [ids]),
+    ]);
+    if (!ctl?.live_trading_enabled) return res.status(409).json({ error: 'Subscriptions open with live trading.', code: 'NOT_OPEN_YET' });
+    if (approved.length !== ids.length) return res.status(409).json({ error: 'This strategy is not approved yet, so it cannot be bought.', code: 'STRATEGY_NOT_APPROVED' });
     const { rows: [p] } = await pool.query('select email from profiles where id = $1', [req.user.id]);
     res.status(201).json(await startSubscriptionCheckout({ userId: req.user.id, email: p.email, strategyIds: ids }));
   });
@@ -218,6 +242,8 @@ export function aiTradingRouter(deps = {}) {
   }));
   r.post('/commissions/:id/pay', idempotent, wrap(async (req, res) => {
     if (!isUuid(req.params.id)) return res.status(404).json({ error: 'Invoice not found.' });
+    const { rows: [ctl] } = await pool.query('select live_trading_enabled from trading.controls');
+    if (!ctl?.live_trading_enabled) return res.status(409).json({ error: 'Fee payments open with live trading.', code: 'NOT_OPEN_YET' });
     const { rows: [p] } = await pool.query('select email from profiles where id = $1', [req.user.id]);
     res.status(201).json(await startCommissionCheckout({ userId: req.user.id, email: p.email, invoiceId: req.params.id }));
   }));
@@ -236,7 +262,7 @@ export function aiTradingAdminRouter() {
 
   r.get('/overview', wrap(async (_req, res) => {
     const q = async (sql) => (await pool.query(sql)).rows[0];
-    const [customers, subs, conns, orders, revenue, risk, ctl, events] = await Promise.all([
+    const [customers, subs, conns, orders, revenue, risk, ctl, events, waiting] = await Promise.all([
       q('select count(distinct user_id)::int as n from trading.exchange_connections'),
       q(`select count(*)::int as n from trading.strategy_subscriptions where status = 'active' and current_period_end > now()`),
       q(`select count(*) filter (where status = 'active')::int as active, count(*) filter (where status in ('invalid', 'error'))::int as attention from trading.exchange_connections where revoked_at is null`),
@@ -245,8 +271,9 @@ export function aiTradingAdminRouter() {
       q(`select count(*) filter (where decision = 'rejected')::int as rejected, count(*)::int as total from trading.risk_events where created_at > now() - interval '24 hours'`),
       q('select * from trading.controls'),
       pool.query(`select kind, severity, message, created_at from trading.system_events where severity in ('error', 'critical') order by created_at desc limit 20`),
+      q('select count(*) filter (where left_at is null)::int as n from trading.live_waitlist'),
     ]);
-    res.json({ customersWithExchange: customers.n, activeSubscriptions: subs.n, connections: conns, orders24h: orders, revenueNgn: revenue, riskChecks24h: risk, controls: ctl, alerts: events.rows });
+    res.json({ customersWithExchange: customers.n, activeSubscriptions: subs.n, connections: conns, orders24h: orders, revenueNgn: revenue, riskChecks24h: risk, controls: ctl, alerts: events.rows, waitlist: waiting.n });
   }));
 
   r.get('/exchanges', wrap(async (_req, res) => {

@@ -31,7 +31,8 @@ export function aiTradingRouter(deps = {}) {
 
   r.get('/me', wrap(async (req, res) => {
     const [{ rows: [p] }, { rows: [ctl] }, { rows: [uc] }] = await Promise.all([
-      pool.query('select full_name, email from profiles where id = $1', [req.user.id]),
+      // the email lives in auth.users; profiles has none
+      pool.query('select p.full_name, u.email from profiles p join auth.users u on u.id = p.id where p.id = $1', [req.user.id]),
       pool.query('select platform_paused, emergency_stop, live_trading_enabled from trading.controls'),
       pool.query('select paused from trading.user_controls where user_id = $1', [req.user.id]),
     ]);
@@ -157,7 +158,7 @@ export function aiTradingRouter(deps = {}) {
     ]);
     if (!ctl?.live_trading_enabled) return res.status(409).json({ error: 'Subscriptions open with live trading.', code: 'NOT_OPEN_YET' });
     if (approved.length !== ids.length) return res.status(409).json({ error: 'This strategy is not approved yet, so it cannot be bought.', code: 'STRATEGY_NOT_APPROVED' });
-    const { rows: [p] } = await pool.query('select email from profiles where id = $1', [req.user.id]);
+    const { rows: [p] } = await pool.query('select email from auth.users where id = $1', [req.user.id]);
     res.status(201).json(await startSubscriptionCheckout({ userId: req.user.id, email: p.email, strategyIds: ids }));
   });
   r.post('/billing/checkout', idempotent, checkoutHandler);
@@ -244,7 +245,7 @@ export function aiTradingRouter(deps = {}) {
     if (!isUuid(req.params.id)) return res.status(404).json({ error: 'Invoice not found.' });
     const { rows: [ctl] } = await pool.query('select live_trading_enabled from trading.controls');
     if (!ctl?.live_trading_enabled) return res.status(409).json({ error: 'Fee payments open with live trading.', code: 'NOT_OPEN_YET' });
-    const { rows: [p] } = await pool.query('select email from profiles where id = $1', [req.user.id]);
+    const { rows: [p] } = await pool.query('select email from auth.users where id = $1', [req.user.id]);
     res.status(201).json(await startCommissionCheckout({ userId: req.user.id, email: p.email, invoiceId: req.params.id }));
   }));
   r.get('/financial-statements', wrap(async (req, res) => res.json(await financialStatement(req.user.id))));
